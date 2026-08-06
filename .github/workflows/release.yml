@@ -1,4 +1,4 @@
-name: Build and publish VoiceOS ISO
+name: Build and publish Clausis ISO
 
 on:
   push:
@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: voiceos-release-${{ github.ref }}
+  group: clausis-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -45,12 +45,12 @@ jobs:
       - name: Split ISO below GitHub's 2 GiB asset limit
         run: |
           split -b 1900M -a 2 \
-            dist/voiceos-0.1.0-amd64.iso \
-            dist/voiceos-0.1.0-amd64.iso.part-
-          expected=$(awk 'NR == 1 {print $1}' dist/voiceos-0.1.0-amd64.iso.sha256)
-          actual=$(cat dist/voiceos-0.1.0-amd64.iso.part-* | sha256sum | awk '{print $1}')
+            dist/clausis-0.1.1-amd64.iso \
+            dist/clausis-0.1.1-amd64.iso.part-
+          expected=$(awk 'NR == 1 {print $1}' dist/clausis-0.1.1-amd64.iso.sha256)
+          actual=$(cat dist/clausis-0.1.1-amd64.iso.part-* | sha256sum | awk '{print $1}')
           test "$expected" = "$actual"
-          ls -lh dist/voiceos-0.1.0-amd64.iso.part-*
+          ls -lh dist/clausis-0.1.1-amd64.iso.part-*
 
       - name: Create prerelease if needed
         run: |
@@ -58,13 +58,13 @@ jobs:
             gh release create "$RELEASE_TAG" \
               --target "$GITHUB_SHA" \
               --prerelease \
-              --title "VoiceOS $RELEASE_TAG – technische Vorschau" \
-              --notes-file docs/release/RELEASE_NOTES_0.1.0.md
+              --title "Clausis $RELEASE_TAG – technische Vorschau" \
+              --notes-file docs/release/RELEASE_NOTES_0.1.1.md
           fi
 
       - name: Upload ISO parts and checksums
         run: |
           gh release upload "$RELEASE_TAG" --clobber \
-            dist/voiceos-0.1.0-amd64.iso.part-aa \
-            dist/voiceos-0.1.0-amd64.iso.part-ab \
-            dist/voiceos-0.1.0-amd64.iso.sha256
+            dist/clausis-0.1.1-amd64.iso.part-aa \
+            dist/clausis-0.1.1-amd64.iso.part-ab \
+            dist/clausis-0.1.1-amd64.iso.sha256

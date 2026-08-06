@@ -22,7 +22,7 @@ from .policy import ACTION_POLICIES
 
 def _credential(name: str, *, minimum: int = 32) -> bytes:
     directory = os.environ.get("CREDENTIALS_DIRECTORY")
-    path = Path(directory, name) if directory else Path("/etc/voiceos", name)
+    path = Path(directory, name) if directory else Path("/etc/clausis", name)
     data = path.read_bytes()
     if len(data) < minimum:
         raise RuntimeError(f"credential {name} is too short")
@@ -34,16 +34,16 @@ async def _run_broker() -> None:
         from dbus_next.aio import MessageBus
         from dbus_next.service import ServiceInterface, method
     except ImportError as exc:
-        raise SystemExit("install voiceos-core[dbus] to run the D-Bus services") from exc
+        raise SystemExit("install clausis-core[dbus] to run the D-Bus services") from exc
 
     authority = CapabilityAuthority(_credential("capability.key"))
-    audit = AuditLog(Path("/var/log/voiceos/actions.jsonl"), _credential("audit.key"))
-    execute = os.environ.get("VOICEOS_EXECUTE") == "1"
+    audit = AuditLog(Path("/var/log/clausis/actions.jsonl"), _credential("audit.key"))
+    execute = os.environ.get("CLAUSIS_EXECUTE") == "1"
     broker = ActionBroker(authority, SafeExecutor(dry_run=not execute), audit_log=audit)
 
     class BrokerInterface(ServiceInterface):
         def __init__(self) -> None:
-            super().__init__("org.voiceos.ActionBroker1")
+            super().__init__("org.clausis.ActionBroker1")
 
         @method()
         def Submit(self, request_json: "s") -> "s":
@@ -59,8 +59,8 @@ async def _run_broker() -> None:
             return json.dumps(sorted(ACTION_POLICIES))
 
     bus = await MessageBus().connect()
-    bus.export("/org/voiceos/ActionBroker1", BrokerInterface())
-    await bus.request_name("org.voiceos.ActionBroker1")
+    bus.export("/org/clausis/ActionBroker1", BrokerInterface())
+    await bus.request_name("org.clausis.ActionBroker1")
     await asyncio.get_running_loop().create_future()
 
 
@@ -69,7 +69,7 @@ async def _run_confirm() -> None:
         from dbus_next.aio import MessageBus
         from dbus_next.service import ServiceInterface, method
     except ImportError as exc:
-        raise SystemExit("install voiceos-core[dbus] to run the D-Bus services") from exc
+        raise SystemExit("install clausis-core[dbus] to run the D-Bus services") from exc
 
     authority = CapabilityAuthority(_credential("capability.key"))
     pin_data = json.loads(_credential("voice-pin.json", minimum=8).decode("utf-8"))
@@ -78,7 +78,7 @@ async def _run_confirm() -> None:
 
     class ConfirmInterface(ServiceInterface):
         def __init__(self) -> None:
-            super().__init__("org.voiceos.TrustedConfirm1")
+            super().__init__("org.clausis.TrustedConfirm1")
 
         @method()
         def Begin(self, request_json: "s") -> "s":
@@ -101,8 +101,8 @@ async def _run_confirm() -> None:
             confirmer.deny(confirmation_id)
 
     bus = await MessageBus().connect()
-    bus.export("/org/voiceos/TrustedConfirm1", ConfirmInterface())
-    await bus.request_name("org.voiceos.TrustedConfirm1")
+    bus.export("/org/clausis/TrustedConfirm1", ConfirmInterface())
+    await bus.request_name("org.clausis.TrustedConfirm1")
     await asyncio.get_running_loop().create_future()
 
 

@@ -1,7 +1,7 @@
 import unittest
 
-from voiceos.audio import AudioCapabilities, AudioMode, choose_audio_mode
-from voiceos.installer import InstallerPlan
+from clausis.audio import AudioCapabilities, AudioMode, choose_audio_mode
+from clausis.installer import InstallerPlan
 
 
 class AudioTests(unittest.TestCase):

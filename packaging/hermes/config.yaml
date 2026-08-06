@@ -1,4 +1,4 @@
-# VoiceOS managed Hermes policy. Provider/model selection remains user-owned.
+# Clausis managed Hermes policy. Provider/model selection remains user-owned.
 approvals:
   mode: manual
 tools:
@@ -10,5 +10,5 @@ tools:
 skills:
   write_approval: true
   guard_agent_created: true
-# Only the VoiceOS adapter MCP/tool endpoint may be enabled by the image build.
+# Only the Clausis adapter MCP/tool endpoint may be enabled by the image build.
 

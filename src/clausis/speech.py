@@ -41,7 +41,7 @@ class MicrophoneRecorder:
             import numpy as np
             import sounddevice as sd
         except ImportError as exc:  # pragma: no cover - depends on live image
-            raise SpeechError("Audio-Pakete fehlen. Bitte VoiceOS-Audio reparieren.") from exc
+            raise SpeechError("Audio-Pakete fehlen. Bitte Clausis-Audio reparieren.") from exc
 
         blocksize = int(self.options.sample_rate * self.options.block_ms / 1000)
         start_deadline = time.monotonic() + self.options.start_timeout
@@ -146,7 +146,7 @@ class SystemSpeaker:
 
 def record_temporary(recorder: MicrophoneRecorder) -> Path:
     """Record into a private temporary file that the caller must delete."""
-    handle = tempfile.NamedTemporaryFile(prefix="voiceos-", suffix=".wav", delete=False)
+    handle = tempfile.NamedTemporaryFile(prefix="clausis-", suffix=".wav", delete=False)
     handle.close()
     path = Path(handle.name)
     try:

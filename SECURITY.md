@@ -1,6 +1,6 @@
 # Security policy
 
-VoiceOS Core 0.1.x is a pre-alpha prototype and is not supported for protecting
+Clausis Core 0.1.x is a pre-alpha prototype and is not supported for protecting
 valuable or sensitive systems. Do not enable real action execution outside an
 isolated Debian test machine.
 

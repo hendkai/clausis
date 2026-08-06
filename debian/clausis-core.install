@@ -1,0 +1,13 @@
+packaging/systemd/clausis-action-broker.service lib/systemd/system/
+packaging/systemd/clausis-trusted-confirm.service lib/systemd/system/
+packaging/systemd/clausis-healthcheck.service lib/systemd/system/
+packaging/systemd/clausis-runtime.service usr/lib/systemd/user/
+packaging/dbus/org.clausis.ActionBroker1.service usr/share/dbus-1/system-services/
+packaging/dbus/org.clausis.TrustedConfirm1.service usr/share/dbus-1/system-services/
+packaging/dbus/org.clausis.conf etc/dbus-1/system.d/
+packaging/polkit/org.clausis.policy usr/share/polkit-1/actions/
+packaging/polkit/50-clausis.rules usr/share/polkit-1/rules.d/
+packaging/calamares/clausis.conf etc/calamares/modules/
+packaging/hermes/config.yaml usr/share/clausis/hermes/
+scripts/calamares_clausis.py usr/libexec/calamares-clausis
+THIRD_PARTY_NOTICES.md usr/share/doc/clausis-core/

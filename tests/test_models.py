@@ -1,6 +1,6 @@
 import unittest
 
-from voiceos.models import ActionRequest, Origin, Risk
+from clausis.models import ActionRequest, Origin, Risk
 
 
 class ActionRequestTests(unittest.TestCase):

@@ -8,6 +8,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-all python3-setuptools python3-build && \
     rm -rf /var/lib/apt/lists/*
 
-COPY build-in-container /usr/local/bin/build-voiceos-iso
-RUN chmod 0755 /usr/local/bin/build-voiceos-iso
-ENTRYPOINT ["/usr/local/bin/build-voiceos-iso"]
+COPY build-in-container /usr/local/bin/build-clausis-iso
+RUN chmod 0755 /usr/local/bin/build-clausis-iso
+ENTRYPOINT ["/usr/local/bin/build-clausis-iso"]

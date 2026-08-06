@@ -4,8 +4,8 @@ from setuptools import find_packages, setup
 
 
 setup(
-    name="voiceos-core",
-    version="0.1.0",
+    name="clausis-core",
+    version="0.1.1",
     description="Security-first voice control core for Debian and Hermes Agent",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
@@ -20,12 +20,12 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "voiceosctl=voiceos.cli:main",
-            "voiceos-healthcheck=voiceos.healthcheck:main",
-            "voiceos-broker=voiceos.services:broker_main",
-            "voiceos-trusted-confirm=voiceos.services:confirm_main",
-            "voiceos-runtime=voiceos.runtime:main",
-            "voiceos-assistant=voiceos.assistant:main",
+            "clausisctl=clausis.cli:main",
+            "clausis-healthcheck=clausis.healthcheck:main",
+            "clausis-broker=clausis.services:broker_main",
+            "clausis-trusted-confirm=clausis.services:confirm_main",
+            "clausis-runtime=clausis.runtime:main",
+            "clausis-assistant=clausis.assistant:main",
         ]
     },
 )

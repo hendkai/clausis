@@ -1,15 +1,15 @@
 [Unit]
-Description=VoiceOS trusted confirmation authority
+Description=Clausis trusted confirmation authority
 After=dbus.service sound.target
-Before=voiceos-runtime.service
+Before=clausis-runtime.service
 
 [Service]
 Type=simple
-User=voiceos-confirm
+User=clausis-confirm
 Group=audio
-ExecStart=/usr/bin/voiceos-trusted-confirm
-LoadCredential=capability.key:/etc/voiceos/capability.key
-LoadCredential=voice-pin.json:/etc/voiceos/voice-pin.json
+ExecStart=/usr/bin/clausis-trusted-confirm
+LoadCredential=capability.key:/etc/clausis/capability.key
+LoadCredential=voice-pin.json:/etc/clausis/voice-pin.json
 NoNewPrivileges=yes
 PrivateDevices=no
 PrivateNetwork=yes

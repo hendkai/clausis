@@ -1,16 +1,16 @@
 #!/bin/sh
 set -eu
 
-rm -rf /build/voiceos
-mkdir -p /build/voiceos /output
-rsync -a --delete --exclude .git --exclude .venv --exclude build --exclude dist /source/ /build/voiceos/
-cd /build/voiceos
+rm -rf /build/clausis
+mkdir -p /build/clausis /output
+rsync -a --delete --exclude .git --exclude .venv --exclude build --exclude dist /source/ /build/clausis/
+cd /build/clausis
 dpkg-buildpackage -us -uc -b
 
 mkdir -p /build/iso
 cp -a packaging/live-build/auto packaging/live-build/config /build/iso/
 mkdir -p /build/iso/config/packages.chroot
-cp /build/voiceos-core_*.deb /build/iso/config/packages.chroot/
+cp /build/clausis-core_*.deb /build/iso/config/packages.chroot/
 cd /build/iso
 lb clean --purge || true
 ./auto/config
@@ -18,6 +18,6 @@ lb build
 
 iso_path="$(find . -maxdepth 1 -type f -name '*.hybrid.iso' -print -quit)"
 test -n "$iso_path"
-install -m 0644 "$iso_path" /output/voiceos-0.1.0-amd64.iso
+install -m 0644 "$iso_path" /output/clausis-0.1.1-amd64.iso
 cd /output
-sha256sum voiceos-0.1.0-amd64.iso > voiceos-0.1.0-amd64.iso.sha256
+sha256sum clausis-0.1.1-amd64.iso > clausis-0.1.1-amd64.iso.sha256

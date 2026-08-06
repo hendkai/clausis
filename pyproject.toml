@@ -3,13 +3,13 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "voiceos-core"
-version = "0.1.0"
+name = "clausis-core"
+version = "0.1.1"
 description = "Security-first voice control core for Debian and Hermes Agent"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "GPL-3.0-or-later"
-authors = [{ name = "VoiceOS contributors" }]
+authors = [{ name = "Clausis contributors" }]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Environment :: X11 Applications :: Gnome",
@@ -25,12 +25,12 @@ voice = ["faster-whisper>=1.0", "sounddevice>=0.4", "numpy>=1.24"]
 test = ["pytest>=7", "coverage>=7"]
 
 [project.scripts]
-voiceosctl = "voiceos.cli:main"
-voiceos-healthcheck = "voiceos.healthcheck:main"
-voiceos-broker = "voiceos.services:broker_main"
-voiceos-trusted-confirm = "voiceos.services:confirm_main"
-voiceos-runtime = "voiceos.runtime:main"
-voiceos-assistant = "voiceos.assistant:main"
+clausisctl = "clausis.cli:main"
+clausis-healthcheck = "clausis.healthcheck:main"
+clausis-broker = "clausis.services:broker_main"
+clausis-trusted-confirm = "clausis.services:confirm_main"
+clausis-runtime = "clausis.runtime:main"
+clausis-assistant = "clausis.assistant:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

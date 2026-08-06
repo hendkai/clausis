@@ -15,7 +15,7 @@ from .router import OfflineRouter
 
 
 def main(argv: Sequence[str] = ()) -> int:
-    parser = argparse.ArgumentParser(prog="voiceosctl")
+    parser = argparse.ArgumentParser(prog="clausisctl")
     subparsers = parser.add_subparsers(dest="command", required=True)
     route = subparsers.add_parser("route", help="route an offline voice command")
     route.add_argument("transcript")

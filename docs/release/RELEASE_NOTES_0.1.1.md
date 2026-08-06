@@ -1,28 +1,28 @@
-# VoiceOS 0.1.0 – technische Vorschau
+# Clausis 0.1.1 – technische Vorschau
 
-Erste bootfähige Debian-13-amd64-Testversion von VoiceOS mit GNOME, Calamares,
+Erste bootfähige Debian-13-amd64-Testversion von Clausis mit GNOME, Calamares,
 Orca, PipeWire, lokaler Faster-Whisper-Spracherkennung, eSpeak NG und dem
-abgesicherten VoiceOS-Aktionskern.
+abgesicherten Clausis-Aktionskern.
 
 ## ISO herunterladen
 
 GitHub erlaubt einzelne Release-Dateien nur bis 2 GiB. Deshalb besteht das
 2,14-GiB-ISO aus den beiden Dateien:
 
-- `voiceos-0.1.0-amd64.iso.part-aa`
-- `voiceos-0.1.0-amd64.iso.part-ab`
+- `clausis-0.1.1-amd64.iso.part-aa`
+- `clausis-0.1.1-amd64.iso.part-ab`
 
-Zusätzlich `voiceos-0.1.0-amd64.iso.sha256` herunterladen. Unter Linux beide
+Zusätzlich `clausis-0.1.1-amd64.iso.sha256` herunterladen. Unter Linux beide
 Teile in einem Ordner mit folgendem Befehl zusammensetzen:
 
 ```sh
-cat voiceos-0.1.0-amd64.iso.part-aa voiceos-0.1.0-amd64.iso.part-ab > voiceos-0.1.0-amd64.iso
-sha256sum -c voiceos-0.1.0-amd64.iso.sha256
+cat clausis-0.1.1-amd64.iso.part-aa clausis-0.1.1-amd64.iso.part-ab > clausis-0.1.1-amd64.iso
+sha256sum -c clausis-0.1.1-amd64.iso.sha256
 ```
 
 Erwartete SHA-256-Prüfsumme:
 
-`17ad4e1f09448de0386976fbddaa51e0f0dd16839d0cc9581aeb61afbb9f8cf2`
+`42217e6d5328476e24386c2735df6158f86a1be3587a48ee394a2f71cfaff4a6`
 
 Danach kann das ISO mit Raspberry Pi Imager oder balenaEtcher auf einen
 USB-Stick mit mindestens 8 GB geschrieben werden.

@@ -63,7 +63,7 @@ class VoiceRuntime:
 
 def main(argv: Sequence[str] = ()) -> int:
     """Recovery/developer JSON-lines frontend; real audio is a plugin."""
-    parser = argparse.ArgumentParser(description="VoiceOS transcript runtime")
+    parser = argparse.ArgumentParser(description="Clausis transcript runtime")
     parser.add_argument("--stdin", action="store_true", help="read one transcript per line")
     parser.add_argument("--pipewire", action="store_true", help="start the local microphone frontend")
     args = parser.parse_args(list(argv) or None)

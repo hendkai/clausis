@@ -1,15 +1,15 @@
-# VoiceOS 0.1.0 ISO test report
+# Clausis 0.1.1 ISO test report
 
 Date: 2026-08-06  
-Artifact: `dist/voiceos-0.1.0-amd64.iso`  
+Artifact: `dist/clausis-0.1.1-amd64.iso`
 Size: 2,296,233,984 bytes (2.14 GiB)  
-SHA-256: `17ad4e1f09448de0386976fbddaa51e0f0dd16839d0cc9581aeb61afbb9f8cf2`
+SHA-256: `42217e6d5328476e24386c2735df6158f86a1be3587a48ee394a2f71cfaff4a6`
 
 ## Passed automated evidence
 
 - Built from an official Debian Stable (13/Trixie) amd64 container with
   live-build 20250505+deb13u1.
-- The locally built `voiceos-core_0.1.0-1_all.deb` installed successfully into
+- The locally built `clausis-core_0.1.1-1_all.deb` installed successfully into
   the image; all 60 unit/security tests passed during that package build.
 - The complete ISO media range was read by xorriso without a damaged region.
 - El Torito contains a bootable BIOS image at `/isolinux/isolinux.bin` and a

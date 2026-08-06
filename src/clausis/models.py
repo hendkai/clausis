@@ -1,4 +1,4 @@
-"""Typed messages crossing VoiceOS trust boundaries.
+"""Typed messages crossing Clausis trust boundaries.
 
 The data structures deliberately accept JSON-compatible values only.  This
 keeps D-Bus, Hermes and audit-log representations equivalent and prevents an

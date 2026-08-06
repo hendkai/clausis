@@ -1,9 +1,9 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: voiceos-core
-Source: https://example.invalid/voiceos
+Upstream-Name: clausis-core
+Source: https://github.com/hendkai/clausis
 
 Files: *
-Copyright: 2026 VoiceOS contributors
+Copyright: 2026 Clausis contributors
 License: GPL-3+
 
 License: GPL-3+
@@ -14,4 +14,3 @@ License: GPL-3+
  .
  On Debian systems, the complete text is available in
  /usr/share/common-licenses/GPL-3.
-

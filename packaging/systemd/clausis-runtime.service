@@ -1,11 +1,11 @@
 [Unit]
-Description=VoiceOS offline voice runtime
+Description=Clausis offline voice runtime
 After=pipewire.service wireplumber.service graphical-session.target
 PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/voiceos-runtime --pipewire
+ExecStart=/usr/bin/clausis-runtime --pipewire
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict

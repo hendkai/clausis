@@ -1,6 +1,0 @@
-[D-BUS Service]
-Name=org.voiceos.ActionBroker1
-Exec=/usr/bin/voiceos-broker
-User=voiceos-broker
-SystemdService=voiceos-action-broker.service
-

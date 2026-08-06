@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import sys
 
-from voiceos.installer import InstallerPlan
+from clausis.installer import InstallerPlan
 
 
 def main() -> int:

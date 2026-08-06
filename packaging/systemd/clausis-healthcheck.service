@@ -1,10 +1,10 @@
 [Unit]
-Description=Verify VoiceOS remains speech-capable after boot
+Description=Verify Clausis remains speech-capable after boot
 After=graphical.target pipewire.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/voiceos-healthcheck --json
+ExecStart=/usr/bin/clausis-healthcheck --json
 NoNewPrivileges=yes
 PrivateNetwork=yes
 ProtectSystem=strict

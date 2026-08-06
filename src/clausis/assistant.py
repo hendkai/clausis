@@ -1,4 +1,4 @@
-"""Interactive, offline-first VoiceOS assistant for the live system."""
+"""Interactive, offline-first Clausis assistant for the live system."""
 
 from __future__ import annotations
 
@@ -16,18 +16,18 @@ from .speech import LocalWhisper, MicrophoneRecorder, SpeechError, SystemSpeaker
 
 
 AI_NOTICE_DE = (
-    "Hinweis: VoiceOS verwendet für Spracherkennung und optionale Antworten ein KI-System. "
+    "Hinweis: Clausis verwendet für Spracherkennung und optionale Antworten ein KI-System. "
     "Offline-Kernbefehle werden lokal verarbeitet. Drücken Sie jederzeit Steuerung C zum Beenden."
 )
 
 
 def _model_path(requested: str) -> str:
-    bundled = Path("/usr/share/voiceos/models/faster-whisper-base")
+    bundled = Path("/usr/share/clausis/models/faster-whisper-base")
     return str(bundled) if requested == "base" and bundled.is_dir() else requested
 
 
 def main(argv: Sequence[str] = ()) -> int:
-    parser = argparse.ArgumentParser(description="Lokale VoiceOS-Sprachsteuerung")
+    parser = argparse.ArgumentParser(description="Lokale Clausis-Sprachsteuerung")
     parser.add_argument("--language", choices=("de", "en"), default="de")
     parser.add_argument("--model", default="base")
     parser.add_argument("--execute", action="store_true", help="validierte, risikoarme Aktionen ausführen")
@@ -76,7 +76,7 @@ def main(argv: Sequence[str] = ()) -> int:
             except SpeechError:
                 pass
         except KeyboardInterrupt:
-            print("VoiceOS beendet.", flush=True)
+            print("Clausis beendet.", flush=True)
             return 130
         finally:
             if audio_path is not None:
