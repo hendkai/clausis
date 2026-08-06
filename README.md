@@ -5,6 +5,11 @@ Hermes Agent without granting the agent unrestricted operating-system access.
 The repository now builds a bootable Debian Live/Calamares USB image. It remains
 a **technical preview, not a production-ready end-user operating system**.
 
+The current test image is published under
+[`Releases`](https://github.com/hendkai/voiceos/releases). Every `v*` Git tag
+automatically starts a clean Debian ISO build and uploads split, checksummed
+release assets through GitHub Actions.
+
 ## What works now
 
 - 24 deterministic German/English offline command families.

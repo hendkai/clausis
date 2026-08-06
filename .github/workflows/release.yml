@@ -1,0 +1,70 @@
+name: Build and publish VoiceOS ISO
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v0.1.1"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: voiceos-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Free space for the Debian live filesystem
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+          docker system prune --all --force
+          df -h /
+
+      - name: Run core tests
+        run: PYTHONPATH=src python3 -m unittest discover -s tests -v
+
+      - name: Build and verify hybrid ISO
+        run: ./scripts/build_iso.sh
+
+      - name: Split ISO below GitHub's 2 GiB asset limit
+        run: |
+          split -b 1900M -a 2 \
+            dist/voiceos-0.1.0-amd64.iso \
+            dist/voiceos-0.1.0-amd64.iso.part-
+          expected=$(awk 'NR == 1 {print $1}' dist/voiceos-0.1.0-amd64.iso.sha256)
+          actual=$(cat dist/voiceos-0.1.0-amd64.iso.part-* | sha256sum | awk '{print $1}')
+          test "$expected" = "$actual"
+          ls -lh dist/voiceos-0.1.0-amd64.iso.part-*
+
+      - name: Create prerelease if needed
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --target "$GITHUB_SHA" \
+              --prerelease \
+              --title "VoiceOS $RELEASE_TAG – technische Vorschau" \
+              --notes-file docs/release/RELEASE_NOTES_0.1.0.md
+          fi
+
+      - name: Upload ISO parts and checksums
+        run: |
+          gh release upload "$RELEASE_TAG" --clobber \
+            dist/voiceos-0.1.0-amd64.iso.part-aa \
+            dist/voiceos-0.1.0-amd64.iso.part-ab \
+            dist/voiceos-0.1.0-amd64.iso.sha256
