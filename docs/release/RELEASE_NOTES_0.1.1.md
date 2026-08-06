@@ -20,9 +20,9 @@ cat clausis-0.1.1-amd64.iso.part-aa clausis-0.1.1-amd64.iso.part-ab > clausis-0.
 sha256sum -c clausis-0.1.1-amd64.iso.sha256
 ```
 
-Erwartete SHA-256-Prüfsumme:
-
-`42217e6d5328476e24386c2735df6158f86a1be3587a48ee394a2f71cfaff4a6`
+Die für den veröffentlichten Server-Build gültige SHA-256-Prüfsumme steht in
+`clausis-0.1.1-amd64.iso.sha256`. Diese Datei wird im selben automatischen
+Build wie die beiden ISO-Teile erzeugt.
 
 Danach kann das ISO mit Raspberry Pi Imager oder balenaEtcher auf einen
 USB-Stick mit mindestens 8 GB geschrieben werden.
