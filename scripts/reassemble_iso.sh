@@ -2,11 +2,11 @@
 set -eu
 
 parts_dir=${1:-.}
-output=${2:-clausis-0.1.1-amd64.iso}
+output=${2:-clausis-0.1.2-amd64.iso}
 
-part_a="$parts_dir/clausis-0.1.1-amd64.iso.part-aa"
-part_b="$parts_dir/clausis-0.1.1-amd64.iso.part-ab"
-checksum="$parts_dir/clausis-0.1.1-amd64.iso.sha256"
+part_a="$parts_dir/clausis-0.1.2-amd64.iso.part-aa"
+part_b="$parts_dir/clausis-0.1.2-amd64.iso.part-ab"
+checksum="$parts_dir/clausis-0.1.2-amd64.iso.sha256"
 
 test -f "$part_a"
 test -f "$part_b"

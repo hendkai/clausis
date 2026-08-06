@@ -1,0 +1,29 @@
+#!/bin/sh
+
+. /usr/lib/live/config.sh
+
+# Debian live-config 11.0.5 still provisions its default password with a
+# legacy DES hash. Debian 13 rejects that account during PAM account checks,
+# which breaks both TTY and GDM autologin. Replace only the ephemeral live
+# account hash with a SHA-512 hash for the documented test password "live".
+
+for parameter in ${LIVE_CONFIG_CMDLINE}
+do
+    case "${parameter}" in
+        live-config.username=*|username=*)
+            LIVE_USERNAME="${parameter#*username=}"
+            ;;
+    esac
+done
+
+if component_was_executed "clausis-live-user" || ! id "${LIVE_USERNAME}" >/dev/null 2>&1
+then
+    exit 0
+fi
+
+password_hash='$6$ClausisLive012$zfAM5y75KDpUDdvrhUKX/YnAKbgh1RzAVszb8H4ueEVb7XRXnGBSSq.s4a5.hyDqqt.ue6ExatQv7nDdat8U41'
+usermod --password "${password_hash}" "${LIVE_USERNAME}"
+usermod --append --groups clausis-control "${LIVE_USERNAME}"
+chage --expiredate -1 "${LIVE_USERNAME}"
+
+touch /var/lib/live/config/clausis-live-user

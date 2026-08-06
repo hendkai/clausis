@@ -12,7 +12,7 @@ Upstream: <https://github.com/NousResearch/hermes-agent>
 
 License: <https://github.com/NousResearch/hermes-agent/blob/main/LICENSE>
 
-## Local speech stack in the 0.1.1 ISO
+## Local speech stack in the 0.1.2 ISO
 
 The ISO build installs `faster-whisper` 1.2.1 and `python-sounddevice` 0.5.5.
 Both projects are MIT-licensed. Their installed Python distributions retain

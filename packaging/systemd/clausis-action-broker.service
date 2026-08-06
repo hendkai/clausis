@@ -6,7 +6,7 @@ Before=clausis-runtime.service
 [Service]
 Type=simple
 User=clausis-broker
-Group=clausis
+Group=clausis-control
 ExecStart=/usr/bin/clausis-broker
 LoadCredential=capability.key:/etc/clausis/capability.key
 LoadCredential=audit.key:/etc/clausis/audit.key
@@ -33,4 +33,3 @@ Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
-

@@ -1,6 +1,6 @@
 # Release gate
 
-Status for 0.1.1: **blocked for end-user release; suitable for source prototype
+Status for 0.1.2: **blocked for end-user release; suitable for source prototype
 review only**.
 
 - [x] Core unit tests pass.

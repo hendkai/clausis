@@ -1,6 +1,6 @@
-clausis-core (0.1.1-1) UNRELEASED; urgency=medium
+clausis-core (0.1.2-1) UNRELEASED; urgency=medium
 
-  * Initial security-first prototype.
+  * Add original Clausis boot branding.
+  * Install user-setup so the graphical live session can log in automatically.
 
  -- Clausis contributors <maintainers@example.invalid>  Thu, 06 Aug 2026 18:00:00 +0200
-

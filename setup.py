@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="clausis-core",
-    version="0.1.1",
+    version="0.1.2",
     description="Security-first voice control core for Debian and Hermes Agent",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",

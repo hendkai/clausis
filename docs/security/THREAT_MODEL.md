@@ -1,6 +1,6 @@
 # Threat model
 
-Status: living pre-release assessment for Clausis Core 0.1.1.
+Status: living pre-release assessment for Clausis Core 0.1.2.
 
 ## Intended use and boundary
 
@@ -60,4 +60,3 @@ or an accidental utterance from silently performing sensitive system actions.
 - All core flows remain available by keyboard and Orca when audio is disabled.
 - No secret or raw voice data in action or audit logs.
 - Any missing dependency, adapter or authorization fails closed.
-
