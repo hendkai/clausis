@@ -1,6 +1,6 @@
 # Clausis architecture
 
-Status: executable core prototype, version 0.1.1.
+Status: executable core prototype, version 0.1.2.
 
 ## Data flow
 
@@ -70,7 +70,7 @@ paths, unsafe identifiers and understated risk are rejected.
 | Broker refusal | Canonical reason is spoken and displayed; no automatic bypass. |
 | Failed update | Health check requests bootloader rollback; `/home` is not rolled back. |
 
-## Not implemented in 0.1.1
+## Not implemented in 0.1.2
 
 - Actual PipeWire capture, wake-word, STT and TTS plugins.
 - GNOME Shell, AT-SPI and xdg-desktop-portal adapters.
@@ -80,4 +80,3 @@ paths, unsafe identifiers and understated risk are rejected.
 - Hermes package installation and provider OAuth.
 
 These are explicit release blockers, not silently mocked capabilities.
-

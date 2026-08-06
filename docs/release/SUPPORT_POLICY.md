@@ -1,6 +1,6 @@
 # Support and lifecycle policy — draft
 
-No end-user release exists yet. Version 0.1.1 is a development prototype and
+No end-user release exists yet. Version 0.1.2 is a development prototype and
 receives no production security guarantee.
 
 Before a stable release, maintainers must publish an exact security-support end
@@ -14,4 +14,3 @@ Security fixes are separated from feature releases. Proposed internal targets:
 - critical actively exploited issue: triage immediately, mitigation target 24 h;
 - high severity: fix target 72 h when feasible;
 - medium/low: next scheduled security update.
-

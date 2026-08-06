@@ -1,14 +1,14 @@
 #!/bin/sh
 set -eu
 
-if ! getent group clausis >/dev/null; then
-    addgroup --system clausis
+if ! getent group clausis-control >/dev/null; then
+    addgroup --system clausis-control
 fi
 if ! getent group clausis-audit >/dev/null; then
     addgroup --system clausis-audit
 fi
 if ! getent passwd clausis-broker >/dev/null; then
-    adduser --system --ingroup clausis --home /nonexistent --no-create-home clausis-broker
+    adduser --system --ingroup clausis-control --home /nonexistent --no-create-home clausis-broker
 fi
 if ! id -nG clausis-broker | tr ' ' '\n' | grep -qx clausis-audit; then
     adduser clausis-broker clausis-audit
@@ -18,12 +18,12 @@ if ! getent passwd clausis-confirm >/dev/null; then
 fi
 
 install -d -m 0700 -o root -g root /etc/clausis
-install -d -m 0750 -o clausis-broker -g clausis /var/log/clausis
+install -d -m 0750 -o clausis-broker -g clausis-control /var/log/clausis
 
 if [ ! -s /etc/clausis/capability.key ]; then
     head -c 32 /dev/urandom > /etc/clausis/capability.key
     chmod 0640 /etc/clausis/capability.key
-    chown root:clausis /etc/clausis/capability.key
+    chown root:clausis-control /etc/clausis/capability.key
 fi
 if [ ! -s /etc/clausis/audit.key ]; then
     head -c 32 /dev/urandom > /etc/clausis/audit.key

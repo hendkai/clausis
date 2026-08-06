@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | Product | Clausis Core |
-| Version | 0.1.1 prototype |
+| Version | 0.1.2 prototype |
 | Date | 2026-08-06 |
 | Responsible role | Open; must be assigned before release |
 | Status | Draft, release blocked |
@@ -47,9 +47,36 @@ verification. The README, versioned release notes and published GitHub release
 description were selected as the user-facing documentation surfaces. This was
 a documentation-only change and did not alter the released ISO artifacts.
 
-The completed artifact was structurally verified and booted under x86-64 QEMU
-through the live root to GNOME Display Manager. This evidence is documented in
-`docs/release/ISO_0.1.1_TEST_REPORT.md`; it does not establish physical audio,
+On 2026-08-06 OpenAI image generation created an original Clausis emblem from
+a Codex-authored visual specification. Codex reviewed the result, removed the
+flat chroma-key background, produced deterministic 800×600 and 640×480 boot
+compositions and added structural asset tests. The generated mark combines a
+rounded C, a speech waveform and audio-pulse arcs; no existing project logo or
+third-party logo was supplied as a reference. Human brand and trademark review
+remains open before a production release.
+
+The same test cycle reproduced the 0.1.1 graphical live-login failure under
+x86-64 QEMU. Codex traced it to the absent Debian `user-setup` package: the
+upstream live-config component intentionally skips live-user creation when that
+package is unavailable, leaving GDM without the configured `clausis` account.
+The package and regression checks were added for the next image. This finding
+does not change the AI Act scope assessment.
+
+Inspection of live-config 11.0.5 also found that its default `live` password
+still uses a legacy DES hash. Codex added a compatibility component that
+replaces only the ephemeral live-account hash with SHA-512 and leaves installed
+user credentials untouched. A subsequent root-console boot established the
+decisive remaining blocker: the package had already created a system group
+named `clausis`, so `user-setup` could not create the live user and its matching
+primary group. The authorization group was renamed to `clausis-control` across
+package setup, D-Bus, polkit and systemd configuration. The final image then
+completed a graphical QEMU boot directly into the authenticated GNOME live
+session without a login prompt.
+
+The completed artifacts were structurally verified and booted under x86-64
+QEMU. Version 0.1.2 additionally reached the authenticated GNOME live session.
+This evidence is documented in `docs/release/ISO_0.1.1_TEST_REPORT.md` and
+`docs/release/ISO_0.1.2_TEST_REPORT.md`; it does not establish physical audio,
 USB installation, accessibility user-study or production-security fitness.
 
 Evidence:
@@ -64,7 +91,7 @@ Evidence:
 
 The planned product integrates Hermes Agent for direct natural-language
 interaction and may use local or user-selected cloud models. The deterministic
-offline router is rule-based and is not treated as AI. The 0.1.1 ISO uses a
+offline router is rule-based and is not treated as AI. The 0.1.2 ISO uses a
 local Faster-Whisper base model for STT and eSpeak NG/speech-dispatcher for
 synthetic speech. Wake-word and speaker-verification models remain unselected
 and unbundled.

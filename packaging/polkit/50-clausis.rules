@@ -1,8 +1,7 @@
 polkit.addRule(function(action, subject) {
     if (action.id == "org.clausis.system.manage" &&
         subject.active && subject.local &&
-        subject.isInGroup("clausis")) {
+        subject.isInGroup("clausis-control")) {
         return polkit.Result.AUTH_ADMIN_KEEP;
     }
 });
-
