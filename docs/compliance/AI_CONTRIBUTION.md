@@ -41,6 +41,12 @@ Polkit identifiers, installer integration, ISO metadata, documentation, tests
 and release automation. The rename was validated by the complete automated
 test suite and a clean package/ISO rebuild.
 
+On 2026-08-06 Codex clarified the release download instructions for Windows,
+Linux and Git Bash, including byte-for-byte ISO reassembly and SHA-256
+verification. The README, versioned release notes and published GitHub release
+description were selected as the user-facing documentation surfaces. This was
+a documentation-only change and did not alter the released ISO artifacts.
+
 The completed artifact was structurally verified and booted under x86-64 QEMU
 through the live root to GNOME Display Manager. This evidence is documented in
 `docs/release/ISO_0.1.1_TEST_REPORT.md`; it does not establish physical audio,

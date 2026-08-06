@@ -12,8 +12,28 @@ GitHub erlaubt einzelne Release-Dateien nur bis 2 GiB. Deshalb besteht das
 - `clausis-0.1.1-amd64.iso.part-aa`
 - `clausis-0.1.1-amd64.iso.part-ab`
 
-Zusätzlich `clausis-0.1.1-amd64.iso.sha256` herunterladen. Unter Linux beide
-Teile in einem Ordner mit folgendem Befehl zusammensetzen:
+Zusätzlich `clausis-0.1.1-amd64.iso.sha256` herunterladen. Die drei Dateien
+nicht entpacken, sondern unverändert in denselben Ordner legen.
+
+### Windows (PowerShell)
+
+Im Ordner mit den drei heruntergeladenen Dateien PowerShell öffnen und
+ausführen:
+
+```powershell
+cmd /c copy /b clausis-0.1.1-amd64.iso.part-aa+clausis-0.1.1-amd64.iso.part-ab clausis-0.1.1-amd64.iso
+$expected = (Get-Content .\clausis-0.1.1-amd64.iso.sha256).Split()[0].ToUpper()
+$actual = (Get-FileHash .\clausis-0.1.1-amd64.iso -Algorithm SHA256).Hash
+if ($actual -ne $expected) { throw "Pruefsumme falsch - Dateien erneut herunterladen" }
+"Pruefsumme OK: $actual"
+```
+
+Danach `clausis-0.1.1-amd64.iso` direkt in VirtualBox als optisches Medium
+auswählen. Die fertige ISO nicht entpacken.
+
+### Linux oder Git Bash
+
+Beide Teile in einem Ordner mit folgendem Befehl zusammensetzen:
 
 ```sh
 cat clausis-0.1.1-amd64.iso.part-aa clausis-0.1.1-amd64.iso.part-ab > clausis-0.1.1-amd64.iso

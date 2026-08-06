@@ -10,6 +10,42 @@ The current test image is published under
 automatically starts a clean Debian ISO build and uploads split, checksummed
 release assets through GitHub Actions.
 
+## Test image herunterladen
+
+Download all three files from the
+[`v0.1.1` release](https://github.com/hendkai/clausis/releases/tag/v0.1.1):
+
+- `clausis-0.1.1-amd64.iso.part-aa`
+- `clausis-0.1.1-amd64.iso.part-ab`
+- `clausis-0.1.1-amd64.iso.sha256`
+
+Do **not** unpack the files. On Windows, place all three files in the same
+folder, open PowerShell in that folder and run:
+
+```powershell
+cmd /c copy /b clausis-0.1.1-amd64.iso.part-aa+clausis-0.1.1-amd64.iso.part-ab clausis-0.1.1-amd64.iso
+$expected = (Get-Content .\clausis-0.1.1-amd64.iso.sha256).Split()[0].ToUpper()
+$actual = (Get-FileHash .\clausis-0.1.1-amd64.iso -Algorithm SHA256).Hash
+if ($actual -ne $expected) { throw "Checksum mismatch - download the parts again" }
+"Checksum OK: $actual"
+```
+
+Linux and Git Bash users can assemble and verify the ISO with:
+
+```sh
+cat clausis-0.1.1-amd64.iso.part-aa clausis-0.1.1-amd64.iso.part-ab > clausis-0.1.1-amd64.iso
+sha256sum -c clausis-0.1.1-amd64.iso.sha256
+```
+
+On macOS, replace the verification command with:
+
+```sh
+shasum -a 256 -c clausis-0.1.1-amd64.iso.sha256
+```
+
+After verification, select `clausis-0.1.1-amd64.iso` directly as the optical
+disk in VirtualBox. Do not unpack the resulting ISO.
+
 ## What works now
 
 - 24 deterministic German/English offline command families.
