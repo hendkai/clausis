@@ -5,7 +5,7 @@ claim of conformity and not legal advice**.
 
 ## Current prototype
 
-VoiceOS Core is software with network-capable components, but the stated model
+Clausis Core is software with network-capable components, but the stated model
 is free open-source publication without monetisation, paid support or commercial
 service. On that assumption, it is probably outside the CRA manufacturer scope.
 The European Commission states that free and open-source software falls within

@@ -1,12 +1,12 @@
-# VoiceOS Core
+# Clausis Core
 
-VoiceOS Core is an executable Debian voice-first desktop prototype integrating
+Clausis Core is an executable Debian voice-first desktop prototype integrating
 Hermes Agent without granting the agent unrestricted operating-system access.
 The repository now builds a bootable Debian Live/Calamares USB image. It remains
 a **technical preview, not a production-ready end-user operating system**.
 
 The current test image is published under
-[`Releases`](https://github.com/hendkai/voiceos/releases). Every `v*` Git tag
+[`Releases`](https://github.com/hendkai/clausis/releases). Every `v*` Git tag
 automatically starts a clean Debian ISO build and uploads split, checksummed
 release assets through GitHub Actions.
 
@@ -43,8 +43,8 @@ No network download is required for the core test suite:
 
 ```sh
 PYTHONPATH=src python3 -m unittest discover -s tests -v
-PYTHONPATH=src python3 -m voiceos.cli route "Lautstärke 35 Prozent"
-printf 'Netzwerkstatus\nStopp Hermes\n' | PYTHONPATH=src python3 -m voiceos.runtime --stdin
+PYTHONPATH=src python3 -m clausis.cli route "Lautstärke 35 Prozent"
+printf 'Netzwerkstatus\nStopp Hermes\n' | PYTHONPATH=src python3 -m clausis.runtime --stdin
 ```
 
 The source/developer runtime remains a dry-run unless `--execute` is selected.
@@ -65,7 +65,7 @@ threat model.
 
 ## Licensing and AI notice
 
-VoiceOS-owned code is GPL-3.0-or-later.  Hermes Agent remains a separate MIT
+Clausis-owned code is GPL-3.0-or-later.  Hermes Agent remains a separate MIT
 component; its notice must be preserved when it is redistributed.  No model,
 voice or cloud credential is bundled by this repository.
 

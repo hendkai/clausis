@@ -6,7 +6,7 @@ __pycache__/
 build/
 dist/
 debian/.debhelper/
-debian/voiceos-core/
+debian/clausis-core/
 debian/files
 *.deb
 *.buildinfo

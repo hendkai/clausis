@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=VoiceOS Audio-Start
+Name=Clausis Audio-Start
 Comment=Spoken accessibility welcome and installer start
-Exec=/usr/local/bin/voiceos-live-welcome
+Exec=/usr/local/bin/clausis-live-welcome
 Terminal=false
 OnlyShowIn=GNOME;
 X-GNOME-Autostart-enabled=true

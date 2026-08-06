@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+python3 -m venv --system-site-packages /opt/clausis
+/opt/clausis/bin/pip install --no-cache-dir \
+    'faster-whisper==1.2.1' \
+    'sounddevice==0.5.5'
+install -d -m 0755 /usr/share/clausis/models/faster-whisper-base
+/opt/clausis/bin/python -c 'from faster_whisper.utils import download_model; download_model("Systran/faster-whisper-base", output_dir="/usr/share/clausis/models/faster-whisper-base", revision="ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66")'
+chmod 0755 /usr/local/bin/clausis-live-welcome /usr/local/bin/clausis-live-assistant

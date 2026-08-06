@@ -2,14 +2,14 @@
 set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-iso="$project_dir/dist/voiceos-0.1.0-amd64.iso"
-image="voiceos-boot-smoke:0.1.0"
+iso="$project_dir/dist/clausis-0.1.1-amd64.iso"
+image="clausis-boot-smoke:0.1.1"
 
 test -s "$iso"
 docker build -f "$project_dir/packaging/live-build/Dockerfile.boottest" -t "$image" "$project_dir/packaging/live-build"
 docker run --rm --entrypoint sh -v "$project_dir/dist:/artifacts:ro" "$image" -ec '
     mkdir -p /tmp/boot
-    xorriso -osirrox on -indev /artifacts/voiceos-0.1.0-amd64.iso \
+    xorriso -osirrox on -indev /artifacts/clausis-0.1.1-amd64.iso \
         -extract /live/vmlinuz /tmp/boot/vmlinuz \
         -extract /live/initrd.img /tmp/boot/initrd.img >/tmp/extract.log 2>&1
     set +e
@@ -18,8 +18,8 @@ docker run --rm --entrypoint sh -v "$project_dir/dist:/artifacts:ro" "$image" -e
         -cpu max -smp 2 -m 3072 \
         -kernel /tmp/boot/vmlinuz \
         -initrd /tmp/boot/initrd.img \
-        -append "boot=live components username=voiceos hostname=voiceos console=ttyS0,115200" \
-        -drive file=/artifacts/voiceos-0.1.0-amd64.iso,media=cdrom,readonly=on \
+        -append "boot=live components username=clausis hostname=clausis console=ttyS0,115200" \
+        -drive file=/artifacts/clausis-0.1.1-amd64.iso,media=cdrom,readonly=on \
         -display none -serial stdio -monitor none -no-reboot > /tmp/boot.log 2>&1
     status=$?
     set -e

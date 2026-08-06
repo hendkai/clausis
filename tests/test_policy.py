@@ -1,7 +1,7 @@
 import unittest
 
-from voiceos.models import ActionRequest, Origin, Risk
-from voiceos.policy import evaluate
+from clausis.models import ActionRequest, Origin, Risk
+from clausis.policy import evaluate
 
 
 class PolicyTests(unittest.TestCase):

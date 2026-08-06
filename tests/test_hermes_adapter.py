@@ -1,8 +1,8 @@
 import json
 import unittest
 
-from voiceos.hermes_adapter import parse_tool_call
-from voiceos.models import Origin
+from clausis.hermes_adapter import parse_tool_call
+from clausis.models import Origin
 
 
 class HermesAdapterTests(unittest.TestCase):

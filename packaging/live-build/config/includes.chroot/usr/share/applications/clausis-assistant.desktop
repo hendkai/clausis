@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=VoiceOS Sprachsteuerung
+Name=Clausis Sprachsteuerung
 Comment=Lokale deutsch-englische Sprachsteuerung starten
-Exec=gnome-terminal -- /usr/local/bin/voiceos-live-assistant
+Exec=gnome-terminal -- /usr/local/bin/clausis-live-assistant
 Icon=audio-input-microphone
 Terminal=false
 Categories=Accessibility;Utility;

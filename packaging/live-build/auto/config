@@ -7,12 +7,12 @@ lb config noauto \
   --distribution stable \
   --archive-areas "main contrib non-free-firmware" \
   --binary-image iso-hybrid \
-  --bootappend-live "boot=live components username=voiceos hostname=voiceos quiet splash voiceos.audio_bootstrap=1" \
+  --bootappend-live "boot=live components username=clausis hostname=clausis quiet splash clausis.audio_bootstrap=1" \
   --bootloaders "grub-efi,syslinux" \
   --debian-installer none \
-  --image-name voiceos-0.1.0-amd64 \
-  --iso-application "VoiceOS 0.1.0" \
-  --iso-publisher "VoiceOS community prototype" \
-  --iso-volume "VOICEOS_010" \
+  --image-name clausis-0.1.1-amd64 \
+  --iso-application "Clausis 0.1.1" \
+  --iso-publisher "Clausis community prototype" \
+  --iso-volume "CLAUSIS_011" \
   --memtest none \
   "${@}"

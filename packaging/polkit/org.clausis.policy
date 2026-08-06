@@ -2,17 +2,16 @@
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
   "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
-  <vendor>VoiceOS</vendor>
-  <vendor_url>https://example.invalid/voiceos</vendor_url>
-  <action id="org.voiceos.system.manage">
-    <description>Perform a confirmed VoiceOS system action</description>
-    <message>VoiceOS requests a privileged system action</message>
+  <vendor>Clausis</vendor>
+  <vendor_url>https://github.com/hendkai/clausis</vendor_url>
+  <action id="org.clausis.system.manage">
+    <description>Perform a confirmed Clausis system action</description>
+    <message>Clausis requests a privileged system action</message>
     <defaults>
       <allow_any>no</allow_any>
       <allow_inactive>no</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
-    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/voiceos-system-action</annotate>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/clausis-system-action</annotate>
   </action>
 </policyconfig>
-

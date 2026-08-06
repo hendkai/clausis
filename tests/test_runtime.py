@@ -1,9 +1,9 @@
 import unittest
 
-from voiceos.broker import ActionBroker, SafeExecutor
-from voiceos.capabilities import CapabilityAuthority
-from voiceos.router import OfflineRouter
-from voiceos.runtime import RuntimeState, VoiceRuntime
+from clausis.broker import ActionBroker, SafeExecutor
+from clausis.capabilities import CapabilityAuthority
+from clausis.router import OfflineRouter
+from clausis.runtime import RuntimeState, VoiceRuntime
 
 
 class RuntimeTests(unittest.TestCase):

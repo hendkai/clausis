@@ -1,7 +1,7 @@
 import unittest
 
-from voiceos.capabilities import CapabilityAuthority, CapabilityError
-from voiceos.models import ActionRequest, Origin, Risk
+from clausis.capabilities import CapabilityAuthority, CapabilityError
+from clausis.models import ActionRequest, Origin, Risk
 
 
 class CapabilityTests(unittest.TestCase):

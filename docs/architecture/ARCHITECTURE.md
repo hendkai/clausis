@@ -1,6 +1,6 @@
-# VoiceOS architecture
+# Clausis architecture
 
-Status: executable core prototype, version 0.1.0.
+Status: executable core prototype, version 0.1.1.
 
 ## Data flow
 
@@ -54,8 +54,8 @@ required because in-process pattern filters are not security boundaries.
 }
 ```
 
-The versioned D-Bus names are `org.voiceos.ActionBroker1` and
-`org.voiceos.TrustedConfirm1`. Unknown fields, oversized messages, relative
+The versioned D-Bus names are `org.clausis.ActionBroker1` and
+`org.clausis.TrustedConfirm1`. Unknown fields, oversized messages, relative
 paths, unsafe identifiers and understated risk are rejected.
 
 ## Degradation
@@ -70,7 +70,7 @@ paths, unsafe identifiers and understated risk are rejected.
 | Broker refusal | Canonical reason is spoken and displayed; no automatic bypass. |
 | Failed update | Health check requests bootloader rollback; `/home` is not rolled back. |
 
-## Not implemented in 0.1.0
+## Not implemented in 0.1.1
 
 - Actual PipeWire capture, wake-word, STT and TTS plugins.
 - GNOME Shell, AT-SPI and xdg-desktop-portal adapters.

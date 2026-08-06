@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from voiceos.audit import AuditLog
-from voiceos.models import ActionRequest, ActionResult
+from clausis.audit import AuditLog
+from clausis.models import ActionRequest, ActionResult
 
 
 class AuditTests(unittest.TestCase):

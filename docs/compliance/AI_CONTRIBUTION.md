@@ -4,8 +4,8 @@
 
 | Field | Value |
 |---|---|
-| Product | VoiceOS Core |
-| Version | 0.1.0 prototype |
+| Product | Clausis Core |
+| Version | 0.1.1 prototype |
 | Date | 2026-08-06 |
 | Responsible role | Open; must be assigned before release |
 | Status | Draft, release blocked |
@@ -35,9 +35,15 @@ containerised amd64 ISO build. The ISO includes the MIT-licensed converted
 and structural boot checks are recorded separately from human hardware,
 accessibility, privacy and security approval.
 
+On 2026-08-06 Codex also performed the complete product rename to Clausis. This
+included source-package names, commands, system users and services, D-Bus and
+Polkit identifiers, installer integration, ISO metadata, documentation, tests
+and release automation. The rename was validated by the complete automated
+test suite and a clean package/ISO rebuild.
+
 The completed artifact was structurally verified and booted under x86-64 QEMU
 through the live root to GNOME Display Manager. This evidence is documented in
-`docs/release/ISO_0.1.0_TEST_REPORT.md`; it does not establish physical audio,
+`docs/release/ISO_0.1.1_TEST_REPORT.md`; it does not establish physical audio,
 USB installation, accessibility user-study or production-security fitness.
 
 Evidence:
@@ -52,7 +58,7 @@ Evidence:
 
 The planned product integrates Hermes Agent for direct natural-language
 interaction and may use local or user-selected cloud models. The deterministic
-offline router is rule-based and is not treated as AI. The 0.1.0 ISO uses a
+offline router is rule-based and is not treated as AI. The 0.1.1 ISO uses a
 local Faster-Whisper base model for STT and eSpeak NG/speech-dispatcher for
 synthetic speech. Wake-word and speaker-verification models remain unselected
 and unbundled.

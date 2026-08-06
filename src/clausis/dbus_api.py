@@ -1,7 +1,7 @@
 """Versioned D-Bus interface definitions shipped with the prototype."""
 
 ACTION_BROKER_XML = """<node>
-  <interface name="org.voiceos.ActionBroker1">
+  <interface name="org.clausis.ActionBroker1">
     <method name="Submit">
       <arg name="request_json" type="s" direction="in"/>
       <arg name="result_json" type="s" direction="out"/>
@@ -13,7 +13,7 @@ ACTION_BROKER_XML = """<node>
 </node>"""
 
 TRUSTED_CONFIRM_XML = """<node>
-  <interface name="org.voiceos.TrustedConfirm1">
+  <interface name="org.clausis.TrustedConfirm1">
     <method name="Begin">
       <arg name="request_json" type="s" direction="in"/>
       <arg name="confirmation_json" type="s" direction="out"/>

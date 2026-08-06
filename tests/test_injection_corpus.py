@@ -1,10 +1,10 @@
 import json
 import unittest
 
-from voiceos.broker import ActionBroker, SafeExecutor
-from voiceos.capabilities import CapabilityAuthority
-from voiceos.hermes_adapter import parse_tool_call
-from voiceos.models import ActionRequest, Origin, Risk
+from clausis.broker import ActionBroker, SafeExecutor
+from clausis.capabilities import CapabilityAuthority
+from clausis.hermes_adapter import parse_tool_call
+from clausis.models import ActionRequest, Origin, Risk
 
 
 INJECTION_STRINGS = [

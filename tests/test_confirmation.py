@@ -1,8 +1,8 @@
 import unittest
 
-from voiceos.capabilities import CapabilityAuthority
-from voiceos.confirmation import PinVerifier, TrustedConfirmer
-from voiceos.models import ActionRequest, Origin, Risk
+from clausis.capabilities import CapabilityAuthority
+from clausis.confirmation import PinVerifier, TrustedConfirmer
+from clausis.models import ActionRequest, Origin, Risk
 
 
 class ConfirmationTests(unittest.TestCase):

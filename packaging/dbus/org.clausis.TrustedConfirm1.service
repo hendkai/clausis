@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=org.clausis.TrustedConfirm1
+Exec=/usr/bin/clausis-trusted-confirm
+User=clausis-confirm
+SystemdService=clausis-trusted-confirm.service

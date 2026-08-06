@@ -1,7 +1,7 @@
 import unittest
 
-from voiceos.models import Risk
-from voiceos.router import OfflineRouter
+from clausis.models import Risk
+from clausis.router import OfflineRouter
 
 
 class RouterTests(unittest.TestCase):

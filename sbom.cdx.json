@@ -7,13 +7,13 @@
     "timestamp": "2026-08-06T16:00:00Z",
     "component": {
       "type": "application",
-      "bom-ref": "pkg:pypi/voiceos-core@0.1.0",
-      "name": "voiceos-core",
-      "version": "0.1.0",
+      "bom-ref": "pkg:pypi/clausis-core@0.1.1",
+      "name": "clausis-core",
+      "version": "0.1.1",
       "licenses": [{"license": {"id": "GPL-3.0-or-later"}}],
       "properties": [
-        {"name": "voiceos:release-status", "value": "prototype"},
-        {"name": "voiceos:end-user-release", "value": "blocked"}
+        {"name": "clausis:release-status", "value": "prototype"},
+        {"name": "clausis:end-user-release", "value": "blocked"}
       ]
     }
   },
@@ -33,8 +33,8 @@
       "scope": "optional",
       "licenses": [{"license": {"id": "MIT"}}],
       "properties": [
-        {"name": "voiceos:bundled", "value": "false"},
-        {"name": "voiceos:version-pinned", "value": "false"}
+        {"name": "clausis:bundled", "value": "false"},
+        {"name": "clausis:version-pinned", "value": "false"}
       ]
     },
     {
@@ -44,7 +44,7 @@
       "version": "1.2.1",
       "scope": "optional",
       "licenses": [{"license": {"id": "MIT"}}],
-      "properties": [{"name": "voiceos:bundled-in-iso", "value": "true"}]
+      "properties": [{"name": "clausis:bundled-in-iso", "value": "true"}]
     },
     {
       "type": "library",
@@ -53,7 +53,7 @@
       "version": "0.5.5",
       "scope": "optional",
       "licenses": [{"license": {"id": "MIT"}}],
-      "properties": [{"name": "voiceos:bundled-in-iso", "value": "true"}]
+      "properties": [{"name": "clausis:bundled-in-iso", "value": "true"}]
     },
     {
       "type": "machine-learning-model",
@@ -63,14 +63,14 @@
       "scope": "optional",
       "licenses": [{"license": {"id": "MIT"}}],
       "properties": [
-        {"name": "voiceos:bundled-in-iso", "value": "true"},
-        {"name": "voiceos:original-model", "value": "openai/whisper-base"}
+        {"name": "clausis:bundled-in-iso", "value": "true"},
+        {"name": "clausis:original-model", "value": "openai/whisper-base"}
       ]
     }
   ],
   "dependencies": [
     {
-      "ref": "pkg:pypi/voiceos-core@0.1.0",
+      "ref": "pkg:pypi/clausis-core@0.1.1",
       "dependsOn": [
         "pkg:pypi/dbus-next@0.2.3",
         "pkg:pypi/faster-whisper@1.2.1",

@@ -1,10 +1,10 @@
 # Threat model
 
-Status: living pre-release assessment for VoiceOS Core 0.1.0.
+Status: living pre-release assessment for Clausis Core 0.1.1.
 
 ## Intended use and boundary
 
-VoiceOS targets a private household. Voice login is a convenience barrier, not
+Clausis targets a private household. Voice login is a convenience barrier, not
 a defense against theft, a targeted attacker or modern voice cloning. The
 security objective is to prevent untrusted content, Hermes, background speech
 or an accidental utterance from silently performing sensitive system actions.

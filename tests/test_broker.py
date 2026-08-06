@@ -4,10 +4,10 @@ from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
-from voiceos.audit import AuditLog
-from voiceos.broker import ActionBroker, SafeExecutor
-from voiceos.capabilities import CapabilityAuthority
-from voiceos.models import ActionRequest, Origin, Risk, utc_now
+from clausis.audit import AuditLog
+from clausis.broker import ActionBroker, SafeExecutor
+from clausis.capabilities import CapabilityAuthority
+from clausis.models import ActionRequest, Origin, Risk, utc_now
 
 
 class BrokerTests(unittest.TestCase):

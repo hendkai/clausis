@@ -1,6 +1,6 @@
 # Support and lifecycle policy — draft
 
-No end-user release exists yet. Version 0.1.0 is a development prototype and
+No end-user release exists yet. Version 0.1.1 is a development prototype and
 receives no production security guarantee.
 
 Before a stable release, maintainers must publish an exact security-support end

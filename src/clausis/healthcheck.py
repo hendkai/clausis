@@ -24,7 +24,7 @@ def collect() -> Dict[str, object]:
 
 
 def main(argv: Sequence[str] = ()) -> int:
-    parser = argparse.ArgumentParser(description="Check VoiceOS boot health")
+    parser = argparse.ArgumentParser(description="Check Clausis boot health")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(list(argv) or None)
     result = collect()
