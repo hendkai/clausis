@@ -1,0 +1,21 @@
+[Unit]
+Description=VoiceOS offline voice runtime
+After=pipewire.service wireplumber.service graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/voiceos-runtime --pipewire
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+

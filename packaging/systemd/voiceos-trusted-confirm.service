@@ -1,0 +1,35 @@
+[Unit]
+Description=VoiceOS trusted confirmation authority
+After=dbus.service sound.target
+Before=voiceos-runtime.service
+
+[Service]
+Type=simple
+User=voiceos-confirm
+Group=audio
+ExecStart=/usr/bin/voiceos-trusted-confirm
+LoadCredential=capability.key:/etc/voiceos/capability.key
+LoadCredential=voice-pin.json:/etc/voiceos/voice-pin.json
+NoNewPrivileges=yes
+PrivateDevices=no
+PrivateNetwork=yes
+PrivateTmp=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHome=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=strict
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+

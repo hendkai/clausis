@@ -1,0 +1,8 @@
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.voiceos.system.manage" &&
+        subject.active && subject.local &&
+        subject.isInGroup("voiceos")) {
+        return polkit.Result.AUTH_ADMIN_KEEP;
+    }
+});
+

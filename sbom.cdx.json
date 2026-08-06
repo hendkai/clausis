@@ -1,0 +1,82 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:91d03522-a34c-4ca9-9ddd-f285485439e7",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-08-06T16:00:00Z",
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:pypi/voiceos-core@0.1.0",
+      "name": "voiceos-core",
+      "version": "0.1.0",
+      "licenses": [{"license": {"id": "GPL-3.0-or-later"}}],
+      "properties": [
+        {"name": "voiceos:release-status", "value": "prototype"},
+        {"name": "voiceos:end-user-release", "value": "blocked"}
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/dbus-next@0.2.3",
+      "name": "dbus-next",
+      "version": ">=0.2.3",
+      "scope": "optional",
+      "licenses": [{"license": {"id": "MIT"}}]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:github/NousResearch/hermes-agent",
+      "name": "hermes-agent",
+      "scope": "optional",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "properties": [
+        {"name": "voiceos:bundled", "value": "false"},
+        {"name": "voiceos:version-pinned", "value": "false"}
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/faster-whisper@1.2.1",
+      "name": "faster-whisper",
+      "version": "1.2.1",
+      "scope": "optional",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "properties": [{"name": "voiceos:bundled-in-iso", "value": "true"}]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/sounddevice@0.5.5",
+      "name": "sounddevice",
+      "version": "0.5.5",
+      "scope": "optional",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "properties": [{"name": "voiceos:bundled-in-iso", "value": "true"}]
+    },
+    {
+      "type": "machine-learning-model",
+      "bom-ref": "pkg:huggingface/Systran/faster-whisper-base",
+      "name": "faster-whisper-base",
+      "version": "ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66",
+      "scope": "optional",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "properties": [
+        {"name": "voiceos:bundled-in-iso", "value": "true"},
+        {"name": "voiceos:original-model", "value": "openai/whisper-base"}
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:pypi/voiceos-core@0.1.0",
+      "dependsOn": [
+        "pkg:pypi/dbus-next@0.2.3",
+        "pkg:pypi/faster-whisper@1.2.1",
+        "pkg:pypi/sounddevice@0.5.5",
+        "pkg:huggingface/Systran/faster-whisper-base"
+      ]
+    }
+  ]
+}

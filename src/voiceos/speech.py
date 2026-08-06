@@ -1,0 +1,157 @@
+"""Concrete local speech input and output adapters.
+
+Optional native dependencies are imported lazily so the security core and the
+installer recovery console continue to work without audio hardware.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+import shutil
+import subprocess
+import tempfile
+import time
+import wave
+from pathlib import Path
+from typing import Optional
+
+
+class SpeechError(RuntimeError):
+    """A recoverable microphone, transcription or speech-output failure."""
+
+
+@dataclass(frozen=True)
+class RecordingOptions:
+    sample_rate: int = 16_000
+    block_ms: int = 100
+    start_timeout: float = 12.0
+    silence_seconds: float = 1.2
+    max_seconds: float = 25.0
+    minimum_rms: float = 0.012
+
+
+class MicrophoneRecorder:
+    """Record one utterance with adaptive energy detection."""
+
+    def __init__(self, options: RecordingOptions = RecordingOptions()) -> None:
+        self.options = options
+
+    def record(self, destination: Path) -> Path:
+        try:
+            import numpy as np
+            import sounddevice as sd
+        except ImportError as exc:  # pragma: no cover - depends on live image
+            raise SpeechError("Audio-Pakete fehlen. Bitte VoiceOS-Audio reparieren.") from exc
+
+        blocksize = int(self.options.sample_rate * self.options.block_ms / 1000)
+        start_deadline = time.monotonic() + self.options.start_timeout
+        max_blocks = int(self.options.max_seconds * 1000 / self.options.block_ms)
+        silence_blocks = max(1, int(self.options.silence_seconds * 1000 / self.options.block_ms))
+        frames = []
+        noise_samples = []
+        speaking = False
+        quiet = 0
+
+        try:
+            with sd.InputStream(
+                samplerate=self.options.sample_rate,
+                channels=1,
+                dtype="float32",
+                blocksize=blocksize,
+            ) as stream:
+                for _ in range(max_blocks):
+                    data, overflowed = stream.read(blocksize)
+                    if overflowed:
+                        continue
+                    mono = data[:, 0].copy()
+                    rms = float(np.sqrt(np.mean(np.square(mono), dtype=np.float64)))
+                    if not speaking:
+                        noise_samples.append(rms)
+                        baseline = float(np.median(noise_samples[-20:]))
+                        threshold = max(self.options.minimum_rms, baseline * 3.0)
+                        if rms >= threshold:
+                            speaking = True
+                            frames.extend([mono])
+                        elif time.monotonic() >= start_deadline:
+                            raise SpeechError("Keine Sprache erkannt.")
+                        continue
+                    frames.append(mono)
+                    if rms < threshold:
+                        quiet += 1
+                        if quiet >= silence_blocks:
+                            break
+                    else:
+                        quiet = 0
+        except SpeechError:
+            raise
+        except Exception as exc:  # sounddevice uses backend-specific errors
+            raise SpeechError(f"Mikrofon nicht verfügbar: {exc}") from exc
+
+        if not frames:
+            raise SpeechError("Keine Sprache aufgenommen.")
+        samples = np.clip(np.concatenate(frames), -1.0, 1.0)
+        pcm = (samples * 32767.0).astype("<i2").tobytes()
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(destination), "wb") as output:
+            output.setnchannels(1)
+            output.setsampwidth(2)
+            output.setframerate(self.options.sample_rate)
+            output.writeframes(pcm)
+        return destination
+
+
+class LocalWhisper:
+    """Lazy Faster-Whisper transcription using a bundled or cached model."""
+
+    def __init__(self, model: str, *, language: Optional[str] = None) -> None:
+        self.model_name = model
+        self.language = language
+        self._model = None
+
+    def transcribe(self, audio_path: Path) -> str:
+        try:
+            from faster_whisper import WhisperModel
+        except ImportError as exc:  # pragma: no cover - depends on live image
+            raise SpeechError("Lokale Spracherkennung ist nicht installiert.") from exc
+        if self._model is None:
+            self._model = WhisperModel(self.model_name, device="cpu", compute_type="int8")
+        segments, _ = self._model.transcribe(
+            str(audio_path), language=self.language, beam_size=3, vad_filter=True
+        )
+        return " ".join(segment.text.strip() for segment in segments).strip()
+
+
+class SystemSpeaker:
+    """Speak with the local accessibility speech service; never use a shell."""
+
+    def speak(self, text: str, *, language: str = "de") -> None:
+        if not text.strip():
+            return
+        commands = []
+        if shutil.which("spd-say"):
+            commands.append(["spd-say", "-w", "-l", language, text])
+        if shutil.which("espeak-ng"):
+            commands.append(["espeak-ng", "-v", language, text])
+        if shutil.which("say"):
+            commands.append(["say", text])
+        for command in commands:
+            try:
+                completed = subprocess.run(command, shell=False, check=False, timeout=120)
+            except (OSError, subprocess.SubprocessError):
+                continue
+            if completed.returncode == 0:
+                return
+        raise SpeechError("Keine lokale Sprachausgabe verfügbar.")
+
+
+def record_temporary(recorder: MicrophoneRecorder) -> Path:
+    """Record into a private temporary file that the caller must delete."""
+    handle = tempfile.NamedTemporaryFile(prefix="voiceos-", suffix=".wav", delete=False)
+    handle.close()
+    path = Path(handle.name)
+    try:
+        path.chmod(0o600)
+        return recorder.record(path)
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise

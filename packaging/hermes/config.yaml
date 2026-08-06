@@ -1,0 +1,14 @@
+# VoiceOS managed Hermes policy. Provider/model selection remains user-owned.
+approvals:
+  mode: manual
+tools:
+  terminal: false
+  execute_code: false
+  write_file: false
+  patch: false
+  skill_manage: false
+skills:
+  write_approval: true
+  guard_agent_created: true
+# Only the VoiceOS adapter MCP/tool endpoint may be enabled by the image build.
+

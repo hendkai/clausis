@@ -1,0 +1,6 @@
+[D-BUS Service]
+Name=org.voiceos.TrustedConfirm1
+Exec=/usr/bin/voiceos-trusted-confirm
+User=voiceos-confirm
+SystemdService=voiceos-trusted-confirm.service
+

@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+
+state_dir="${XDG_RUNTIME_DIR:-/tmp}/voiceos-${UID}"
+mkdir -p "$state_dir"
+if [ -e "$state_dir/welcome-shown" ]; then
+    exit 0
+fi
+touch "$state_dir/welcome-shown"
+
+notice='Willkommen bei VoiceOS. Hinweis: Die Spracherkennung und optionale Antworten verwenden ein KI-System. Offline-Kernbefehle bleiben auf diesem Gerät. Der Debian-Installer wird jetzt geöffnet. Orca und Tastatur bleiben vollständig verfügbar.'
+command -v spd-say >/dev/null 2>&1 && spd-say -w -l de "$notice" || true
+command -v notify-send >/dev/null 2>&1 && notify-send -u normal -t 20000 "VoiceOS – KI-Hinweis" "$notice" || true
+
+if command -v calamares-install-debian >/dev/null 2>&1; then
+    calamares-install-debian >/tmp/voiceos-calamares.log 2>&1 &
+fi

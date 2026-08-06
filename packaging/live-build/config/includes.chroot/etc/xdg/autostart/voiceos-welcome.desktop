@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=VoiceOS Audio-Start
+Comment=Spoken accessibility welcome and installer start
+Exec=/usr/local/bin/voiceos-live-welcome
+Terminal=false
+OnlyShowIn=GNOME;
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=3

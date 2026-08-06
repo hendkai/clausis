@@ -1,0 +1,17 @@
+Source: voiceos-core
+Section: utils
+Priority: optional
+Maintainer: VoiceOS contributors <maintainers@example.invalid>
+Build-Depends: debhelper-compat (= 13), dh-python, pybuild-plugin-pyproject, python3-all, python3-setuptools
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://example.invalid/voiceos
+
+Package: voiceos-core
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}, python3-dbus-next, dbus, polkitd, pipewire, wireplumber
+Recommends: orca, espeak-ng, speech-dispatcher, network-manager, btrfs-progs, snapper
+Description: security-first voice control core for Debian
+ VoiceOS provides an offline command router, typed action broker, trusted
+ confirmation authority and Hermes Agent adapter for a voice-first GNOME
+ desktop. This package is an early prototype and defaults to dry-run execution.

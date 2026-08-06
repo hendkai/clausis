@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=VoiceOS Sprachsteuerung
+Comment=Lokale deutsch-englische Sprachsteuerung starten
+Exec=gnome-terminal -- /usr/local/bin/voiceos-live-assistant
+Icon=audio-input-microphone
+Terminal=false
+Categories=Accessibility;Utility;
+Keywords=Sprache;Voice;Accessibility;Hermes;

@@ -1,0 +1,15 @@
+[Unit]
+Description=Verify VoiceOS remains speech-capable after boot
+After=graphical.target pipewire.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/voiceos-healthcheck --json
+NoNewPrivileges=yes
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
+

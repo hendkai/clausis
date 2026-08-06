@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+glib-compile-schemas /usr/share/glib-2.0/schemas || true
+sed -i 's/^# *\(de_DE.UTF-8 UTF-8\)/\1/; s/^# *\(en_US.UTF-8 UTF-8\)/\1/' /etc/locale.gen
+locale-gen
+systemctl enable NetworkManager.service
+systemctl enable bluetooth.service 2>/dev/null || true
+systemctl --global enable pipewire.service pipewire-pulse.service wireplumber.service 2>/dev/null || true
