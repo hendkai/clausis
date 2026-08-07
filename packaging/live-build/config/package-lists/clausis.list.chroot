@@ -34,6 +34,7 @@ libportaudio2
 ffmpeg
 gnome-terminal
 zenity
+fonts-atkinson-hyperlegible
 btrfs-progs
 snapper
 unattended-upgrades

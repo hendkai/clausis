@@ -18,6 +18,6 @@ lb build
 
 iso_path="$(find . -maxdepth 1 -type f -name '*.hybrid.iso' -print -quit)"
 test -n "$iso_path"
-install -m 0644 "$iso_path" /output/clausis-0.3.0-amd64.iso
+install -m 0644 "$iso_path" /output/clausis-0.3.1-amd64.iso
 cd /output
-sha256sum clausis-0.3.0-amd64.iso > clausis-0.3.0-amd64.iso.sha256
+sha256sum clausis-0.3.1-amd64.iso > clausis-0.3.1-amd64.iso.sha256

@@ -28,3 +28,43 @@ class BrandingTests(unittest.TestCase):
     def test_syslinux_splash_has_expected_boot_dimensions(self) -> None:
         path = ROOT / "packaging/live-build/config/bootloaders/syslinux_common/splash.png"
         self.assertEqual(png_metadata(path), (640, 480, 2))
+
+    def test_gnome_theme_uses_clausis_branding_and_accessible_defaults(self) -> None:
+        image_root = ROOT / "packaging/live-build/config/includes.chroot"
+        wallpaper_source = (
+            image_root / "usr/share/backgrounds/clausis/clausis-wallpaper.svg"
+        )
+        wallpaper = image_root / "usr/share/backgrounds/clausis/clausis-wallpaper.png"
+        logo = image_root / "usr/share/pixmaps/clausis-logo.png"
+        dconf = (image_root / "etc/dconf/db/local.d/00-clausis").read_text(
+            encoding="utf-8"
+        )
+        gdm = (image_root / "etc/dconf/db/gdm.d/00-clausis").read_text(
+            encoding="utf-8"
+        )
+        packages = (
+            ROOT / "packaging/live-build/config/package-lists/clausis.list.chroot"
+        ).read_text(encoding="utf-8")
+
+        self.assertTrue(wallpaper_source.is_file())
+        self.assertEqual(png_metadata(wallpaper), (2560, 1440, 2))
+        self.assertEqual(png_metadata(logo), (1254, 1254, 6))
+        self.assertIn("color-scheme='prefer-dark'", dconf)
+        self.assertIn("accent-color='purple'", dconf)
+        self.assertIn("Atkinson Hyperlegible 11", dconf)
+        self.assertIn("enable-animations=false", dconf)
+        self.assertIn("toolkit-accessibility=true", dconf)
+        self.assertIn("always-show-universal-access-status=true", dconf)
+        self.assertIn("clausis-wallpaper.png", dconf)
+        self.assertIn("fonts-atkinson-hyperlegible", packages)
+        self.assertIn("logo='/usr/share/pixmaps/clausis-logo.png'", gdm)
+
+        for launcher_name in (
+            "clausis-assistant.desktop",
+            "clausis-hermes-chat.desktop",
+            "clausis-setup.desktop",
+        ):
+            launcher = (
+                image_root / "usr/share/applications" / launcher_name
+            ).read_text(encoding="utf-8")
+            self.assertIn("Icon=clausis-logo", launcher)

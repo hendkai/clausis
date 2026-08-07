@@ -7,9 +7,9 @@
     "timestamp": "2026-08-07T10:00:00Z",
     "component": {
       "type": "application",
-      "bom-ref": "pkg:pypi/clausis-core@0.3.0",
+      "bom-ref": "pkg:pypi/clausis-core@0.3.1",
       "name": "clausis-core",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "licenses": [{"license": {"id": "GPL-3.0-or-later"}}],
       "properties": [
         {"name": "clausis:release-status", "value": "prototype"},
@@ -92,11 +92,23 @@
         {"name": "clausis:bundled-in-iso", "value": "true"},
         {"name": "clausis:original-model", "value": "openai/whisper-base"}
       ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/debian/fonts-atkinson-hyperlegible@0.0~git20210430.1cb3116-3",
+      "name": "fonts-atkinson-hyperlegible",
+      "version": "0.0~git20210430.1cb3116-3",
+      "scope": "required",
+      "licenses": [{"license": {"id": "OFL-1.1"}}],
+      "properties": [
+        {"name": "clausis:bundled-in-iso", "value": "true"},
+        {"name": "clausis:purpose", "value": "GNOME legibility font"}
+      ]
     }
   ],
   "dependencies": [
     {
-      "ref": "pkg:pypi/clausis-core@0.3.0",
+      "ref": "pkg:pypi/clausis-core@0.3.1",
       "dependsOn": [
         "pkg:pypi/dbus-next@0.2.3",
         "pkg:github/NousResearch/hermes-agent@0957277f2f468bac22bbfcfa7c43029858c9597e",
@@ -104,7 +116,8 @@
         "pkg:pypi/sounddevice@0.5.5",
         "pkg:pypi/websocket-client@1.9.0",
         "urn:clausis:service:openai:gpt-realtime-2.1",
-        "pkg:huggingface/Systran/faster-whisper-base"
+        "pkg:huggingface/Systran/faster-whisper-base",
+        "pkg:deb/debian/fonts-atkinson-hyperlegible@0.0~git20210430.1cb3116-3"
       ]
     }
   ]

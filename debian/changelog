@@ -1,5 +1,8 @@
-clausis-core (0.3.0-1) UNRELEASED; urgency=medium
+clausis-core (0.3.1-1) UNRELEASED; urgency=medium
 
+  * Add a matching accessible Clausis GNOME identity and GDM branding.
+  * Document the remaining audio, GNOME, installer, confirmation and recovery
+    work required before claiming complete voice-only operation.
   * Preinstall pinned Hermes Agent 0.20.0 in the live and target system.
   * Add accessible GTK, Orca, keyboard and local-voice provider setup.
   * Carry staged Hermes settings into the Calamares target account privately.

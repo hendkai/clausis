@@ -1,6 +1,6 @@
 # Release gate
 
-Status for 0.3.0: **blocked for production/end-user release; suitable only as
+Status for 0.3.1: **blocked for production/end-user release; suitable only as
 an explicitly labelled public technical test preview**.
 
 - [x] Core unit tests pass.
@@ -16,6 +16,8 @@ an explicitly labelled public technical test preview**.
 - [x] Debian Stable amd64 package and complete automated suite pass in a clean container.
 - [x] Hybrid ISO builds; media, BIOS/UEFI entries and emulated live-to-GDM boot pass.
 - [x] Final ISO graphical capture shows live autologin and the accessible Clausis/Hermes setup without Debian's tour.
+- [x] Clausis GNOME wallpaper, icon, GDM branding, supported appearance keys,
+  reduced motion and legibility font have structural and rendered-image tests.
 - [ ] Real security contact and HTTPS `security.txt` configured.
 - [ ] Trusted PIN/audio path replaces prototype D-Bus string.
 - [x] GTK accessibility metadata, local voice setup path and Calamares target-copy code are present and structurally validated in the final ISO.
