@@ -10,5 +10,6 @@ packaging/polkit/50-clausis.rules usr/share/polkit-1/rules.d/
 packaging/calamares/shellprocess@clausis.conf etc/calamares/modules/
 packaging/hermes/config.yaml usr/share/clausis/hermes/
 packaging/bin/clausis-session-runtime usr/bin/
+packaging/bin/clausis-trusted-confirm-runtime usr/bin/
 scripts/calamares_clausis.py usr/libexec/calamares-clausis
 THIRD_PARTY_NOTICES.md usr/share/doc/clausis-core/

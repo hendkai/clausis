@@ -13,19 +13,19 @@ release assets through GitHub Actions.
 ## Test image herunterladen
 
 Download all three files from the
-[`v0.4.0` release](https://github.com/hendkai/clausis/releases/tag/v0.4.0):
+[`v0.4.1` release](https://github.com/hendkai/clausis/releases/tag/v0.4.1):
 
-- `clausis-0.4.0-amd64.iso.part-aa`
-- `clausis-0.4.0-amd64.iso.part-ab`
-- `clausis-0.4.0-amd64.iso.sha256`
+- `clausis-0.4.1-amd64.iso.part-aa`
+- `clausis-0.4.1-amd64.iso.part-ab`
+- `clausis-0.4.1-amd64.iso.sha256`
 
 Do **not** unpack the files. On Windows, place all three files in the same
 folder, open PowerShell in that folder and run:
 
 ```powershell
-cmd /c copy /b clausis-0.4.0-amd64.iso.part-aa+clausis-0.4.0-amd64.iso.part-ab clausis-0.4.0-amd64.iso
-$expected = (Get-Content .\clausis-0.4.0-amd64.iso.sha256).Split()[0].ToUpper()
-$actual = (Get-FileHash .\clausis-0.4.0-amd64.iso -Algorithm SHA256).Hash
+cmd /c copy /b clausis-0.4.1-amd64.iso.part-aa+clausis-0.4.1-amd64.iso.part-ab clausis-0.4.1-amd64.iso
+$expected = (Get-Content .\clausis-0.4.1-amd64.iso.sha256).Split()[0].ToUpper()
+$actual = (Get-FileHash .\clausis-0.4.1-amd64.iso -Algorithm SHA256).Hash
 if ($actual -ne $expected) { throw "Checksum mismatch - download the parts again" }
 "Checksum OK: $actual"
 ```
@@ -33,17 +33,17 @@ if ($actual -ne $expected) { throw "Checksum mismatch - download the parts again
 Linux and Git Bash users can assemble and verify the ISO with:
 
 ```sh
-cat clausis-0.4.0-amd64.iso.part-aa clausis-0.4.0-amd64.iso.part-ab > clausis-0.4.0-amd64.iso
-sha256sum -c clausis-0.4.0-amd64.iso.sha256
+cat clausis-0.4.1-amd64.iso.part-aa clausis-0.4.1-amd64.iso.part-ab > clausis-0.4.1-amd64.iso
+sha256sum -c clausis-0.4.1-amd64.iso.sha256
 ```
 
 On macOS, replace the verification command with:
 
 ```sh
-shasum -a 256 -c clausis-0.4.0-amd64.iso.sha256
+shasum -a 256 -c clausis-0.4.1-amd64.iso.sha256
 ```
 
-After verification, select `clausis-0.4.0-amd64.iso` directly as the optical
+After verification, select `clausis-0.4.1-amd64.iso` directly as the optical
 disk in VirtualBox. Do not unpack the resulting ISO.
 
 ## What works now
@@ -126,7 +126,7 @@ and medium-or-higher-risk actions without trusted confirmation fail closed.
 ## Trust boundaries
 
 Hermes does not receive terminal, code-execution, file-write, skill-write or
-capability-signing access. In version 0.4.0 Hermes is a reply-only fallback and
+capability-signing access. In version 0.4.1 Hermes is a reply-only fallback and
 is launched with only its local `todo` toolset; it cannot send system actions to
 the broker. The optional OpenAI Realtime frontend can propose only the fixed
 action names published by Clausis; every proposal is reconstructed and checked
@@ -147,10 +147,15 @@ are not yet controlled directly by GPT Live; those remain available through
 the graphical, keyboard and Orca paths. Fully voice-native partitioning remains
 a release blocker.
 
-The current D-Bus PIN string is a **prototype-only transport**.  It must be
-replaced by direct trusted audio verification or a protected portal/memfd
-before any end-user release.  This is tracked as a release blocker in the
-threat model.
+Trusted confirmation no longer exposes `Begin`, `Approve`, a challenge phrase,
+a PIN or a capability through the public D-Bus interface. The isolated
+`clausis-confirm` system service speaks its own canonical summary, captures the
+random phrase and PIN directly with the pinned local speech runtime, submits
+the resulting action-bound capability to ActionBroker itself, and returns only
+the final action result. The installer stages only a PBKDF2 verifier; plaintext
+PIN and raw confirmation recordings are not persisted. Physical isolation from
+the desktop PipeWire graph, replay detection and hardware validation remain
+production release blockers.
 
 ## Licensing and AI notice
 

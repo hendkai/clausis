@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 from pathlib import Path
 import re
@@ -16,7 +17,10 @@ from .hermes_setup import (
     configure_hermes,
     stage_installer_configuration,
 )
+from .confirmation import PinVerifier
+from .enrollment import stage_voice_pin
 from .speech import LocalWhisper, MicrophoneRecorder, SpeechError, SystemSpeaker, record_temporary
+from .trusted_audio import normalize_spoken_pin
 
 
 WELCOME = (
@@ -24,7 +28,8 @@ WELCOME = (
     "sucht Clausis nach der neuesten offiziellen stabilen Version. Ohne Internet bleibt die "
     "geprüfte mitgelieferte Version erhalten. "
     "Dieser Dialog kann mit Orca, Tastatur oder Sprache bedient werden. "
-    "Cloud API-Schlüssel werden geschützt per Tastatur eingegeben und niemals vorgelesen."
+    "Cloud API-Schlüssel werden geschützt per Tastatur eingegeben und niemals vorgelesen. "
+    "Eine lokale Sicherheits-PIN schützt folgenreiche Sprachaktionen."
 )
 
 
@@ -34,13 +39,19 @@ def save_setup_configuration(
     *,
     secret: str = "",
     realtime_secret: str = "",
+    confirmation_pin: str = "",
     stage_for_installer: bool,
 ) -> None:
     """Save once in an installed system or stage an additional Calamares copy."""
+    plan.validate(secret=secret, realtime_secret=realtime_secret)
+    if confirmation_pin:
+        PinVerifier.validate_pin(confirmation_pin)
     if stage_for_installer:
         stage_installer_configuration(
             home, plan, secret=secret, realtime_secret=realtime_secret
         )
+        if confirmation_pin:
+            stage_voice_pin(home, confirmation_pin)
     else:
         configure_hermes(
             home, plan, secret=secret, realtime_secret=realtime_secret
@@ -85,14 +96,19 @@ class SetupWindow:
         self.live_home = live_home
         self.stage_for_installer = stage_for_installer
         self.speaker = SystemSpeaker()
+        self._voice_pin = ""
         self.window = Gtk.Window(title="Clausis – Hermes und Installation")
         self.window.get_accessible().set_name("Clausis Hermes und Installation")
         self.window.set_default_size(780, 760)
         self.window.set_border_width(24)
         self.window.connect("destroy", Gtk.main_quit)
 
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroller.get_accessible().set_name("Scrollbarer Clausis Einrichtungsdialog")
+        self.window.add(scroller)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
-        self.window.add(box)
+        scroller.add_with_viewport(box)
         heading = Gtk.Label()
         heading.set_markup("<span size='xx-large' weight='bold'>Clausis einrichten</span>")
         heading.set_xalign(0)
@@ -157,6 +173,23 @@ class SetupWindow:
         )
         self._row(grid, 8, "OpenAI API-_Schlüssel", self.realtime_secret)
 
+        self.confirmation_pin = Gtk.Entry()
+        self.confirmation_pin.set_visibility(False)
+        self.confirmation_pin.set_input_purpose(Gtk.InputPurpose.PIN)
+        self.confirmation_pin.set_placeholder_text("6 bis 12 Ziffern; wird nicht gespeichert")
+        self._row(grid, 9, "Sicherheits-_PIN", self.confirmation_pin)
+        self.confirmation_pin_repeat = Gtk.Entry()
+        self.confirmation_pin_repeat.set_visibility(False)
+        self.confirmation_pin_repeat.set_input_purpose(Gtk.InputPurpose.PIN)
+        self.confirmation_pin_repeat.set_placeholder_text("PIN wiederholen")
+        self._row(grid, 10, "PIN _wiederholen", self.confirmation_pin_repeat)
+        if not self.stage_for_installer:
+            self.confirmation_pin.set_sensitive(False)
+            self.confirmation_pin_repeat.set_sensitive(False)
+            self.confirmation_pin.set_placeholder_text(
+                "Bereits während der Installation eingerichtet"
+            )
+
         self.status = Gtk.Label(label="Noch nicht eingerichtet.")
         self.status.get_accessible().set_name("Status der Einrichtung")
         self.status.set_xalign(0)
@@ -220,11 +253,21 @@ class SetupWindow:
     def _save_clicked(self, _button) -> None:
         try:
             plan = self._plan()
+            confirmation_pin = ""
+            if self.stage_for_installer:
+                confirmation_pin = self._voice_pin or self.confirmation_pin.get_text()
+                if not self._voice_pin and not hmac.compare_digest(
+                    confirmation_pin, self.confirmation_pin_repeat.get_text()
+                ):
+                    raise ValueError("Die beiden Sicherheits-PINs stimmen nicht überein.")
+                if not confirmation_pin:
+                    raise ValueError("Bitte eine Sicherheits-PIN einrichten.")
             save_setup_configuration(
                 self.live_home,
                 plan,
                 secret=self.secret.get_text(),
                 realtime_secret=self.realtime_secret.get_text(),
+                confirmation_pin=confirmation_pin,
                 stage_for_installer=self.stage_for_installer,
             )
         except (OSError, ValueError) as exc:
@@ -233,6 +276,9 @@ class SetupWindow:
             return
         self.secret.set_text("")
         self.realtime_secret.set_text("")
+        self.confirmation_pin.set_text("")
+        self.confirmation_pin_repeat.set_text("")
+        self._voice_pin = ""
         self.status.set_text(plan.public_summary() + " Der Debian-Installer wird geöffnet.")
         self._speak_async(self.status.get_text())
         self.GLib.timeout_add(1200, self._close_after_save)
@@ -283,12 +329,37 @@ class SetupWindow:
                 "/usr/share/clausis/models/faster-whisper-base", language="de"
             ).transcribe(realtime_path)
             realtime_consent = affirmative_from_speech(realtime_text)
+            confirmation_pin = ""
+            if self.stage_for_installer:
+                self.speaker.speak(
+                    "Richten Sie jetzt eine lokale Sicherheits-PIN mit sechs bis zwölf Ziffern ein. "
+                    "Die Aufnahme wird direkt nach der Erkennung gelöscht. Sagen Sie die Ziffern einzeln.",
+                    language="de",
+                )
+                pin_path = record_temporary(MicrophoneRecorder())
+                audio_paths.append(pin_path)
+                pin_text = LocalWhisper(
+                    "/usr/share/clausis/models/faster-whisper-base", language="de"
+                ).transcribe(pin_path)
+                confirmation_pin = normalize_spoken_pin(pin_text)
+                self.speaker.speak(
+                    "Wiederholen Sie jetzt dieselbe Sicherheits-PIN.", language="de"
+                )
+                repeat_path = record_temporary(MicrophoneRecorder())
+                audio_paths.append(repeat_path)
+                repeat_text = LocalWhisper(
+                    "/usr/share/clausis/models/faster-whisper-base", language="de"
+                ).transcribe(repeat_path)
+                repeated_pin = normalize_spoken_pin(repeat_text)
+                if not hmac.compare_digest(confirmation_pin, repeated_pin):
+                    raise ValueError("Die gesprochenen Sicherheits-PINs stimmen nicht überein.")
             self.GLib.idle_add(
                 self._apply_spoken_provider,
                 provider_id,
                 transcript,
                 consent,
                 realtime_consent,
+                confirmation_pin,
             )
         except (SpeechError, ValueError) as exc:
             self.GLib.idle_add(self.status.set_text, f"Spracheingabe nicht übernommen: {exc}")
@@ -304,6 +375,7 @@ class SetupWindow:
         transcript: str,
         consent: bool | None,
         realtime_consent: bool,
+        confirmation_pin: str,
     ):
         self.provider.set_active_id(provider_id)
         option = PROVIDERS[provider_id]
@@ -331,6 +403,14 @@ class SetupWindow:
                 + " GPT Live wurde erlaubt. Bitte den OpenAI API-Schlüssel geschützt eingeben."
             )
             self.realtime_secret.grab_focus()
+        if confirmation_pin:
+            self._voice_pin = confirmation_pin
+            self.confirmation_pin.set_text("")
+            self.confirmation_pin_repeat.set_text("")
+            self.status.set_text(
+                self.status.get_text()
+                + " Die lokale Sicherheits-PIN wurde zweimal erkannt und vorgemerkt."
+            )
         return False
 
     def _speak_async(self, text: str) -> None:

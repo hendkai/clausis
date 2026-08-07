@@ -10,6 +10,7 @@ import secrets
 import stat
 from typing import Sequence
 
+from .enrollment import STAGED_PIN, install_staged_voice_pin
 from .hermes_update import HermesUpdateError, install_latest_stable, record_fallback
 
 
@@ -134,6 +135,13 @@ def main(argv: Sequence[str] = ()) -> int:
     args = parser.parse_args(list(argv) or None)
     copied = copy_configuration(args.root, args.user)
     print("Hermes configuration installed." if copied else "No staged Hermes configuration.")
+    pin_source = DEFAULT_SOURCE.parents[3] / STAGED_PIN
+    pin_installed = install_staged_voice_pin(args.root, pin_source)
+    print(
+        "Trusted voice PIN installed."
+        if pin_installed
+        else "No trusted voice PIN was staged."
+    )
     try:
         result = install_latest_stable(args.root)
     except HermesUpdateError:

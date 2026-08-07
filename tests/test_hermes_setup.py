@@ -87,6 +87,22 @@ class HermesSetupTests(unittest.TestCase):
             )
             self.assertFalse((home / ".config/clausis-installer").exists())
 
+    def test_installer_setup_stages_only_a_derived_confirmation_pin(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            save_setup_configuration(
+                home,
+                HermesSetupPlan(),
+                confirmation_pin="123456",
+                stage_for_installer=True,
+            )
+            verifier_path = (
+                home / ".config/clausis-installer/system/voice-pin.json"
+            )
+            text = verifier_path.read_text(encoding="utf-8")
+            self.assertNotIn("123456", text)
+            self.assertEqual(stat.S_IMODE(verifier_path.stat().st_mode), 0o600)
+
     def test_german_voice_provider_aliases(self) -> None:
         self.assertEqual(provider_from_speech("Ich möchte GLM nutzen"), "zai")
         self.assertEqual(provider_from_speech("später nur offline"), "offline")

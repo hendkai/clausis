@@ -2,9 +2,9 @@
 set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-iso="$project_dir/dist/clausis-0.4.0-amd64.iso"
+iso="$project_dir/dist/clausis-0.4.1-amd64.iso"
 checksum="$iso.sha256"
-builder="clausis-iso-builder:0.4.0"
+builder="clausis-iso-builder:0.4.1"
 
 test -s "$iso"
 test -s "$checksum"
@@ -14,16 +14,16 @@ test "$expected" = "$actual"
 
 docker run --rm --platform linux/amd64 --entrypoint sh \
     -v "$project_dir/dist:/artifacts:ro" "$builder" -ec '
-        xorriso -indev /artifacts/clausis-0.4.0-amd64.iso -check_media -- >/tmp/media-check 2>&1
-        xorriso -indev /artifacts/clausis-0.4.0-amd64.iso -report_el_torito plain >/tmp/boot-report 2>&1
-        xorriso -indev /artifacts/clausis-0.4.0-amd64.iso -find / -type f -exec echo -- >/tmp/file-list 2>&1
+        xorriso -indev /artifacts/clausis-0.4.1-amd64.iso -check_media -- >/tmp/media-check 2>&1
+        xorriso -indev /artifacts/clausis-0.4.1-amd64.iso -report_el_torito plain >/tmp/boot-report 2>&1
+        xorriso -indev /artifacts/clausis-0.4.1-amd64.iso -find / -type f -exec echo -- >/tmp/file-list 2>&1
         grep -Eq "El Torito|BIOS" /tmp/boot-report
         grep -Eq "UEFI|EFI" /tmp/boot-report
         grep -q "/live/filesystem.squashfs" /tmp/file-list
         grep -q "/live/vmlinuz" /tmp/file-list
         grep -q "/live/initrd" /tmp/file-list
 
-        xorriso -osirrox on -indev /artifacts/clausis-0.4.0-amd64.iso \
+        xorriso -osirrox on -indev /artifacts/clausis-0.4.1-amd64.iso \
             -extract /live/filesystem.squashfs /tmp/filesystem.squashfs \
             >/tmp/extract.log 2>&1
         unsquashfs -ll /tmp/filesystem.squashfs >/tmp/squashfs-tree

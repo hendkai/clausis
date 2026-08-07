@@ -1,6 +1,6 @@
 # Clausis architecture
 
-Status: executable core prototype, version 0.4.0.
+Status: executable core prototype, version 0.4.1.
 
 ## Data flow
 
@@ -42,15 +42,20 @@ failure and returns to local STT automatically.
    explicit local `todo` toolset. Its plain-text reply can be spoken but cannot
    become a system action. The separately tested typed `Hermes Adapter`
    discards caller-supplied origins and capability tokens, but is not connected
-   to the 0.4.0 runtime yet.
+   to the 0.4.1 runtime yet.
 3. **GPT Live frontend** holds the user's OpenAI key and streams audio only
    after separate opt-in. Its model can propose fixed typed actions, but cannot
    execute or confirm them. A per-user local stop marker and desktop launcher
    terminate streaming without cloud cooperation.
 4. **Action Broker** accepts only allowlisted verbs and validated arguments. It
    does not accept shell strings and cannot reduce an action's minimum risk.
-5. **Trusted Confirm** creates the canonical summary and random phrase. Tokens
-   bind action, target, arguments, origin and expiry and are single-use.
+5. **Trusted Confirm** runs as the separate `clausis-confirm` system user. Its
+   public API has only `ConfirmAndSubmit(request)`: the service creates and
+   speaks the canonical summary and random phrase, captures phrase and PIN
+   through its direct local audio frontend, and submits the capability to the
+   broker itself. Neither secrets nor the capability are returned to the
+   desktop caller. Tokens bind action, target, arguments, origin and expiry and
+   are single-use.
 6. **Platform adapters** translate one approved action into a fixed argv vector
    or desktop API call. Missing adapters fail closed.
 7. **GNOME semantic adapter** runs inside the unprivileged user session and
@@ -58,10 +63,12 @@ failure and returns to local STT automatically.
    synthesis. Read-only orientation is low risk; arbitrary numbered activation
    is medium risk and requires a capability.
 
-The target design gives broker and confirmer a root-created HMAC credential;
-Hermes and the desktop session do not receive it. The prototype service units
-and D-Bus policy exist, but production credential provisioning and the trusted
-confirmation UI are not enabled in 0.4.0.
+Broker and confirmer receive a root-created HMAC credential through systemd
+credentials; Hermes and the desktop session do not receive it. The voice PIN
+is enrolled before installation, persisted only as a versioned PBKDF2 verifier
+and copied into the target through bounded, no-following Calamares code. The
+service remains disabled when no verifier exists. Physical microphone/seat
+isolation and replay resistance are not yet proven on supported hardware.
 
 ## Public action interface
 
@@ -81,6 +88,12 @@ confirmation UI are not enabled in 0.4.0.
 The versioned D-Bus names are `org.clausis.ActionBroker1` and
 `org.clausis.TrustedConfirm1`. Unknown fields, oversized messages, relative
 paths, unsafe identifiers and understated risk are rejected.
+`TrustedConfirm1` intentionally exposes no separate begin/approve/deny methods
+and accepts no phrase, PIN, file descriptor or capability from a caller.
+The local and GPT-Live runtimes call this endpoint only after their in-process
+broker has classified a request as confirmation-required. A missing service,
+invalid response or audio failure is converted into a denial without exposing
+provider or secret details.
 
 ## Degradation
 
@@ -95,9 +108,9 @@ paths, unsafe identifiers and understated risk are rejected.
 | No audio | Keyboard, visual setup and Orca remain available. |
 | Broker refusal | Canonical reason is spoken and displayed; no automatic bypass. |
 | Hermes release lookup or install fails | The launcher remains on the pinned image version; status is recorded and announced at first installed login. |
-| System package update fails | Health-check and snapshot scaffolding exist, but automatic rollback is not wired in 0.4.0. |
+| System package update fails | Health-check and snapshot scaffolding exist, but automatic rollback is not wired in 0.4.1. |
 
-## Implemented for the 0.4.0 image
+## Implemented for the 0.4.1 image
 
 - Hermes Agent 0.20.0 is installed from pinned upstream commit
   `0957277f2f468bac22bbfcfa7c43029858c9597e` with its frozen dependency set
@@ -133,17 +146,18 @@ paths, unsafe identifiers and understated risk are rejected.
   offline. Numbered control activation is re-read immediately before execution
   and remains confirmation-gated.
 
-## Not implemented in 0.4.0
+## Not implemented in 0.4.1
 
 - Dedicated low-power wake-word inference, certified echo cancellation and
   true Barge-in.
 - Complete GNOME Shell and xdg-desktop-portal coverage beyond the first AT-SPI
   adapter.
-- Hermes-to-broker system-action wiring; 0.4.0 Hermes output is reply-only.
-- Trusted compositor/seat UI and secure PIN transport.
+- Hermes-to-broker system-action wiring; 0.4.1 Hermes output is reply-only.
+- Physical proof of trusted microphone/seat isolation and replay detection;
+  the former string-based D-Bus PIN transport has been removed.
 - Speaker verification, replay detection or biometric enrollment.
 - Fully voice-native Calamares partitioning, LUKS/TPM enrollment and snapshots.
-- Short-lived OpenAI client credentials from a trusted backend; 0.4.0 stores
+- Short-lived OpenAI client credentials from a trusted backend; 0.4.1 stores
   the voluntarily supplied standard API key in the user's private `0600` file.
 - Cryptographic verification of the upstream Hermes release tag against a
   Clausis-owned allowlist of maintainer keys; the current updater relies on TLS

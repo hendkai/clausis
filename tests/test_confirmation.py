@@ -1,7 +1,12 @@
 import unittest
 
 from clausis.capabilities import CapabilityAuthority
-from clausis.confirmation import PinVerifier, TrustedConfirmer
+from clausis.confirmation import (
+    ConfirmationResponse,
+    PinVerifier,
+    TrustedConfirmer,
+    canonicalize_untrusted_request,
+)
 from clausis.models import ActionRequest, Origin, Risk
 
 
@@ -51,7 +56,49 @@ class ConfirmationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             PinVerifier.enroll("1234")
 
+    def test_trusted_input_is_the_only_production_approval_path(self):
+        class LocalInput:
+            seen_summary = ""
+            seen_challenge = ""
+
+            def collect(inner_self, summary, challenge):
+                inner_self.seen_summary = summary
+                inner_self.seen_challenge = challenge
+                return ConfirmationResponse(challenge + ".", "123456")
+
+        local_input = LocalInput()
+        approved = self.confirmer.approve_from_trusted_input(
+            self.request, local_input
+        )
+        self.assertIn(local_input.seen_challenge, local_input.seen_summary)
+        self.assertIsNotNone(approved.capability_token)
+        self.authority.verify(approved.capability_token, self.request)
+
+    def test_caller_cannot_smuggle_a_capability_into_confirmation(self):
+        forged = ActionRequest(
+            "system.reboot",
+            origin=Origin.LOCAL_VOICE,
+            risk=Risk.CRITICAL,
+            reversible=False,
+            capability_token="forged",
+        )
+        with self.assertRaisesRegex(ValueError, "caller-supplied"):
+            canonicalize_untrusted_request(forged)
+
+    def test_public_bus_origin_is_never_trusted_local_input(self):
+        canonical = canonicalize_untrusted_request(self.request)
+        self.assertEqual(canonical.origin, Origin.HERMES)
+
+    def test_low_risk_action_cannot_misuse_confirmation_endpoint(self):
+        class UnusedInput:
+            def collect(self, summary, challenge):
+                raise AssertionError("must not ask the user")
+
+        with self.assertRaisesRegex(ValueError, "does not require"):
+            self.confirmer.approve_from_trusted_input(
+                ActionRequest("audio.volume.up"), UnusedInput()
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
-

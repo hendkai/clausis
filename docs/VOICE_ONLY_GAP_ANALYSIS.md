@@ -65,11 +65,19 @@ Nachzustandsprüfung für jede schreibende Aktion.
 
 ### 4. Vertrauenswürdige Bestätigung
 
-Neustart, Löschen, Paketinstallation, Konten, Berechtigungen und Datenträger
-dürfen weder Hermes noch GPT Live selbst bestätigen. Erforderlich sind ein vom
-GNOME-Desktop getrenntes Audio-/Seat-Portal, eine zufällige Bestätigungsphrase,
-kurzlebige gebundene Tokens und ein lokaler Abbruch. Die heutige prototypische
-D-Bus-PIN-Übertragung ist dafür nicht ausreichend.
+Die automatisierbare D-Bus-PIN-Übertragung wurde entfernt. Der isolierte
+Systemdienst erzeugt und spricht die kanonische Zusammenfassung und eine
+zufällige Phrase selbst, nimmt Phrase und PIN direkt lokal auf, löscht beide
+temporären Aufnahmen und reicht das kurzlebige aktionsgebundene Token selbst an
+den Broker weiter. D-Bus gibt weder Phrase, PIN noch Capability an Hermes oder
+den Desktop zurück. Der Einrichtungsdialog kann die PIN zweimal lokal erkennen;
+Calamares übernimmt nur den PBKDF2-Prüfwert in das Zielsystem.
+
+Noch fehlen der physische Nachweis, dass PipeWire/ALSA auf unterstützter
+Hardware wirklich vom Desktop-Audiographen getrennt ist, belastbare
+Wiedergabe-/Stimmklon-Erkennung, privilegierte Produktionsadapter sowie ein
+lokal garantiertes gesprochenes Abbruchsignal während der Bestätigung. Bis
+diese Punkte geprüft sind, bleibt der Pfad eine technische Vorschau.
 
 ### 5. Installation, Anmeldung und Wiederherstellung
 

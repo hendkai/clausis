@@ -15,6 +15,7 @@ dbus-run-session -- sh -eu -c '\''
   export DISPLAY=:99 NO_AT_BRIDGE=0 GTK_MODULES=gail:atk-bridge
   /usr/libexec/at-spi-bus-launcher --launch-immediately >/tmp/atspi.log 2>&1 &
   sleep 2
+  PYTHONPATH=/src/src python3 /src/tests/fixtures/setup_probe.py
   python3 /src/tests/fixtures/atspi_probe_app.py >/tmp/gtk.log 2>&1 &
   sleep 3
   PYTHONPATH=/src/src python3 /src/tests/fixtures/atspi_probe_client.py

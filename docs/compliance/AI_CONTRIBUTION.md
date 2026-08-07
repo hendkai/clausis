@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | Product | Clausis Core |
-| Version | 0.4.0 development prototype |
+| Version | 0.4.1 development prototype |
 | Date | 2026-08-07 |
 | Responsible role | Open; must be assigned before release |
 | Status | Draft; public prototype testing allowed, production release blocked |
@@ -188,6 +188,51 @@ added to the threat model, DPIA draft, release gate, SBOM and license notice.
 
 ## AI functions in the product
 
+On 2026-08-07 Codex implemented the second voice-only security stage for the
+0.4.1 technical preview. The public `TrustedConfirm1` D-Bus contract no longer
+contains separate begin/approve methods or accepts a challenge phrase, PIN,
+file descriptor or capability. The isolated system service creates and speaks
+its canonical action summary and random challenge, records phrase and PIN
+locally with the already-pinned Faster-Whisper stack, issues an action-bound
+single-use capability and submits it directly to ActionBroker. Only the final
+action result returns to the desktop caller. Requests crossing the public bus
+cannot claim local voice/UI provenance or supply their own capability.
+
+The accessible installer setup can capture the security PIN twice by local
+speech or through masked keyboard fields. Only a versioned PBKDF2-HMAC-SHA-256
+verifier is staged; Calamares validates its exact fields, algorithm, work
+factor, size and regular-file status before a private atomic target copy. Raw
+confirmation recordings are temporary and deleted after local transcription.
+The service does not start without an enrolled verifier and selects the same
+pinned native speech environment used by the live runtime.
+
+This stage adds no AI provider, model, biometric template or cloud data flow.
+It changes how the existing local STT is used for a security confirmation.
+Codex authored and transformed code, tests, packaging and documentation. All
+The local offline runtime and optional GPT Live now invoke this service only
+after the in-process broker returns `confirmation_required`; service, audio or
+response-validation failures become a generic denial. All 144 automated tests
+passed locally and in a fresh Debian 13 amd64 container
+under Python 3.13. That container built `clausis-core_0.4.1-1_all.deb`; package
+inspection confirmed the executable trusted-runtime launcher and the new
+confirmation, enrollment, service and audio modules. All four installed
+systemd units passed Debian 13 `systemd-analyze verify`. A real private
+system-bus smoke test started both dbus-next services, confirmed that
+`TrustedConfirm1` exposes only `ConfirmAndSubmit`, rejected malformed input
+without returning secrets and proved that a public client cannot claim local
+provenance. ISO checks remain separate. There is no human security,
+accessibility or legal approval. In
+particular, the tests do not prove physical isolation
+from the desktop PipeWire graph, replay/synthetic-voice resistance, microphone
+behavior or complete privileged execution on supported hardware, so the
+production release gate remains blocked.
+
+The consolidated AI Act entry, Commission AI Act overview and final Article 50
+guidance were rechecked on 2026-08-07. The product's existing direct-AI-
+interaction disclosure remains applicable; this local security-path change
+does not create a new Article 50 content category. This is a technical scope
+assessment, not legal advice.
+
 On 2026-08-07 Codex implemented the first functional Voice-only roadmap stage
 for Clausis 0.4.0. It added a deterministic local activation gate, expiry,
 sleep and emergency-stop handling before any Hermes or cloud fallback; an
@@ -282,9 +327,9 @@ legal advice.
 ## Official sources checked
 
 The legal sources below were initially checked on 2026-08-06. The consolidated
-AI Act and final Article 50 guidance were rechecked on 2026-08-07 for the
-0.3.1 assessment. GNOME and XDG sources were checked on 2026-08-07 for the
-voice-only architecture analysis.
+AI Act, Commission overview and final Article 50 guidance were rechecked on
+2026-08-07 for the 0.4.1 assessment. GNOME and XDG sources were checked on
+2026-08-07 for the voice-only architecture analysis.
 
 - Consolidated Regulation (EU) 2024/1689:
   <https://eur-lex.europa.eu/legal-content/DE/TXT/?uri=CELEX:32024R1689>
