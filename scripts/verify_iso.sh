@@ -2,9 +2,9 @@
 set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-iso="$project_dir/dist/clausis-0.2.0-amd64.iso"
+iso="$project_dir/dist/clausis-0.2.1-amd64.iso"
 checksum="$iso.sha256"
-builder="clausis-iso-builder:0.2.0"
+builder="clausis-iso-builder:0.2.1"
 
 test -s "$iso"
 test -s "$checksum"
@@ -14,22 +14,23 @@ test "$expected" = "$actual"
 
 docker run --rm --platform linux/amd64 --entrypoint sh \
     -v "$project_dir/dist:/artifacts:ro" "$builder" -ec '
-        xorriso -indev /artifacts/clausis-0.2.0-amd64.iso -check_media -- >/tmp/media-check 2>&1
-        xorriso -indev /artifacts/clausis-0.2.0-amd64.iso -report_el_torito plain >/tmp/boot-report 2>&1
-        xorriso -indev /artifacts/clausis-0.2.0-amd64.iso -find / -type f -exec echo -- >/tmp/file-list 2>&1
+        xorriso -indev /artifacts/clausis-0.2.1-amd64.iso -check_media -- >/tmp/media-check 2>&1
+        xorriso -indev /artifacts/clausis-0.2.1-amd64.iso -report_el_torito plain >/tmp/boot-report 2>&1
+        xorriso -indev /artifacts/clausis-0.2.1-amd64.iso -find / -type f -exec echo -- >/tmp/file-list 2>&1
         grep -Eq "El Torito|BIOS" /tmp/boot-report
         grep -Eq "UEFI|EFI" /tmp/boot-report
         grep -q "/live/filesystem.squashfs" /tmp/file-list
         grep -q "/live/vmlinuz" /tmp/file-list
         grep -q "/live/initrd" /tmp/file-list
 
-        xorriso -osirrox on -indev /artifacts/clausis-0.2.0-amd64.iso \
+        xorriso -osirrox on -indev /artifacts/clausis-0.2.1-amd64.iso \
             -extract /live/filesystem.squashfs /tmp/filesystem.squashfs \
             >/tmp/extract.log 2>&1
         unsquashfs -ll /tmp/filesystem.squashfs >/tmp/squashfs-tree
         for required in \
             squashfs-root/usr/local/bin/hermes \
             squashfs-root/opt/hermes-agent/LICENSE \
+            squashfs-root/opt/clausis-hermes-updater/bin/uv \
             squashfs-root/usr/share/doc/hermes-agent/LICENSE \
             squashfs-root/usr/bin/clausis-setup \
             squashfs-root/usr/bin/clausis-finalize-hermes-install \
@@ -75,6 +76,9 @@ docker run --rm --platform linux/amd64 --entrypoint sh \
         unsquashfs -cat /tmp/filesystem.squashfs \
             usr/lib/python3/dist-packages/clausis/finalize_install.py \
             | grep -Fq "os.O_NOFOLLOW"
+        unsquashfs -cat /tmp/filesystem.squashfs \
+            usr/lib/python3/dist-packages/clausis/hermes_update.py \
+            | grep -Fq "releases/latest"
     '
 
 printf '%s\n' \

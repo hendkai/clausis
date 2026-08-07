@@ -20,7 +20,9 @@ from .speech import LocalWhisper, MicrophoneRecorder, SpeechError, SystemSpeaker
 
 
 WELCOME = (
-    "Willkommen bei Clausis. Hermes Agent ist bereits installiert. "
+    "Willkommen bei Clausis. Hermes Agent ist bereits installiert. Während der Installation "
+    "sucht Clausis nach der neuesten offiziellen stabilen Version. Ohne Internet bleibt die "
+    "geprüfte mitgelieferte Version erhalten. "
     "Dieser Dialog kann mit Orca, Tastatur oder Sprache bedient werden. "
     "Cloud API-Schlüssel werden geschützt per Tastatur eingegeben und niemals vorgelesen."
 )

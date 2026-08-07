@@ -13,19 +13,19 @@ release assets through GitHub Actions.
 ## Test image herunterladen
 
 Download all three files from the
-[`v0.2.0` release](https://github.com/hendkai/clausis/releases/tag/v0.2.0):
+[`v0.2.1` release](https://github.com/hendkai/clausis/releases/tag/v0.2.1):
 
-- `clausis-0.2.0-amd64.iso.part-aa`
-- `clausis-0.2.0-amd64.iso.part-ab`
-- `clausis-0.2.0-amd64.iso.sha256`
+- `clausis-0.2.1-amd64.iso.part-aa`
+- `clausis-0.2.1-amd64.iso.part-ab`
+- `clausis-0.2.1-amd64.iso.sha256`
 
 Do **not** unpack the files. On Windows, place all three files in the same
 folder, open PowerShell in that folder and run:
 
 ```powershell
-cmd /c copy /b clausis-0.2.0-amd64.iso.part-aa+clausis-0.2.0-amd64.iso.part-ab clausis-0.2.0-amd64.iso
-$expected = (Get-Content .\clausis-0.2.0-amd64.iso.sha256).Split()[0].ToUpper()
-$actual = (Get-FileHash .\clausis-0.2.0-amd64.iso -Algorithm SHA256).Hash
+cmd /c copy /b clausis-0.2.1-amd64.iso.part-aa+clausis-0.2.1-amd64.iso.part-ab clausis-0.2.1-amd64.iso
+$expected = (Get-Content .\clausis-0.2.1-amd64.iso.sha256).Split()[0].ToUpper()
+$actual = (Get-FileHash .\clausis-0.2.1-amd64.iso -Algorithm SHA256).Hash
 if ($actual -ne $expected) { throw "Checksum mismatch - download the parts again" }
 "Checksum OK: $actual"
 ```
@@ -33,17 +33,17 @@ if ($actual -ne $expected) { throw "Checksum mismatch - download the parts again
 Linux and Git Bash users can assemble and verify the ISO with:
 
 ```sh
-cat clausis-0.2.0-amd64.iso.part-aa clausis-0.2.0-amd64.iso.part-ab > clausis-0.2.0-amd64.iso
-sha256sum -c clausis-0.2.0-amd64.iso.sha256
+cat clausis-0.2.1-amd64.iso.part-aa clausis-0.2.1-amd64.iso.part-ab > clausis-0.2.1-amd64.iso
+sha256sum -c clausis-0.2.1-amd64.iso.sha256
 ```
 
 On macOS, replace the verification command with:
 
 ```sh
-shasum -a 256 -c clausis-0.2.0-amd64.iso.sha256
+shasum -a 256 -c clausis-0.2.1-amd64.iso.sha256
 ```
 
-After verification, select `clausis-0.2.0-amd64.iso` directly as the optical
+After verification, select `clausis-0.2.1-amd64.iso` directly as the optical
 disk in VirtualBox. Do not unpack the resulting ISO.
 
 ## What works now
@@ -60,8 +60,10 @@ disk in VirtualBox. Do not unpack the resulting ISO.
 - D-Bus interface definitions, hardened systemd units, Polkit and Debian
   packaging scaffolding.
 - Local microphone capture, Faster-Whisper transcription and system TTS.
-- Hermes Agent 0.20.0 preinstalled from a pinned upstream commit with its MIT
-  license and frozen dependency lock.
+- Hermes Agent 0.20.0 preinstalled from a pinned upstream commit as the offline
+  fallback. During installation Clausis checks the official upstream for the
+  latest stable release, installs its frozen dependency lock and switches over
+  only after a successful installation.
 - Accessible Hermes provider setup before Calamares with local spoken provider
   choice, explicit cloud consent, masked keyboard-only API-key entry and Orca.
 - Automatic offline voice-control start after installation; “Stopp Hermes”
@@ -97,7 +99,7 @@ and medium-or-higher-risk actions without trusted confirmation fail closed.
 ## Trust boundaries
 
 Hermes does not receive terminal, code-execution, file-write, skill-write or
-capability-signing access. In version 0.2.0 Hermes is a reply-only fallback and
+capability-signing access. In version 0.2.1 Hermes is a reply-only fallback and
 is launched with only its local `todo` toolset; it cannot send system actions to
 the broker. Deterministic offline voice commands use the separate typed Clausis
 broker. A separate trusted-confirmation service owns confirmation phrases and
@@ -114,6 +116,12 @@ Clausis-owned code is GPL-3.0-or-later. Hermes Agent remains a separate MIT
 component; its notice is preserved in the image. The MIT-licensed converted
 `Systran/faster-whisper-base` model is bundled for offline speech recognition.
 No cloud credential or proprietary model weight is bundled.
+
+The online installer accepts only the latest non-draft, non-prerelease tag from
+the official `NousResearch/hermes-agent` GitHub repository. It records the tag
+and commit in `/var/lib/clausis/hermes-install.json`. If lookup, download or the
+frozen install fails, the pinned image version remains active and the first
+installed login reports the fallback by speech and notification.
 
 AI-assisted tools contributed to architecture, implementation and review.
 Human maintainers remain responsible for validation and release approval; see

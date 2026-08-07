@@ -2,10 +2,15 @@
 
 ## Hermes Agent
 
-The 0.2.0 image installs Hermes Agent 0.20.0 from pinned upstream commit
+The 0.2.1 image installs Hermes Agent 0.20.0 from pinned upstream commit
 `0957277f2f468bac22bbfcfa7c43029858c9597e`. Its source checkout, locked Python
 environment, copyright notice and complete MIT license are included in the
 image. The license is also copied to `/usr/share/doc/hermes-agent/LICENSE`.
+During an online operating-system installation, Clausis may replace the active
+launcher with the latest official stable Hermes release. That release remains
+MIT-licensed, is installed from its exact Git tag and frozen `uv.lock`, and
+retains its `LICENSE` in the installed source directory. The selected tag and
+commit are recorded in `/var/lib/clausis/hermes-install.json`.
 
 > MIT License — Copyright (c) 2025 Nous Research
 
@@ -13,7 +18,7 @@ Upstream: <https://github.com/NousResearch/hermes-agent>
 
 License: <https://github.com/NousResearch/hermes-agent/blob/main/LICENSE>
 
-## Local speech stack in the 0.2.0 ISO
+## Local speech stack in the 0.2.1 ISO
 
 The ISO build installs `faster-whisper` 1.2.1 and `python-sounddevice` 0.5.5.
 Both projects are MIT-licensed. Their installed Python distributions retain

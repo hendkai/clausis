@@ -13,11 +13,11 @@ git -C "${install_dir}" fetch --depth 1 origin "${hermes_commit}"
 git -C "${install_dir}" checkout --detach FETCH_HEAD
 test "$(git -C "${install_dir}" rev-parse HEAD)" = "${hermes_commit}"
 
-python3 -m venv /opt/hermes-uv-bootstrap
-/opt/hermes-uv-bootstrap/bin/pip install --no-cache-dir "uv==${uv_version}"
+python3 -m venv /opt/clausis-hermes-updater
+/opt/clausis-hermes-updater/bin/pip install --no-cache-dir "uv==${uv_version}"
 UV_NO_CONFIG=1 \
 UV_PROJECT_ENVIRONMENT="${install_dir}/venv" \
-    /opt/hermes-uv-bootstrap/bin/uv sync \
+    /opt/clausis-hermes-updater/bin/uv sync \
     --frozen --no-dev --extra cli --extra voice --extra anthropic \
     --python /usr/bin/python3 \
     --project "${install_dir}"
@@ -26,5 +26,5 @@ ln -s "${install_dir}/venv/bin/hermes" /usr/local/bin/hermes
 install -m 0644 "${install_dir}/LICENSE" /usr/share/doc/hermes-agent/LICENSE
 printf '%s\n' "${hermes_version} ${hermes_commit}" > /usr/share/doc/hermes-agent/UPSTREAM_VERSION
 
-# Build-only bootstrap environment is not part of the delivered system.
-rm -rf /opt/hermes-uv-bootstrap
+# The pinned uv environment remains available to the Calamares updater.  It
+# installs only an exact official release tag using that release's uv.lock.
