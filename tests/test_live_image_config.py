@@ -266,6 +266,10 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertIn("apt-get source calamares=3.3.14-1", dockerfile)
         self.assertIn('gs->insert( "clausisSelectedDevice"', patch_source)
         self.assertNotIn("luksPassphrase", module)
+        bridge = (ROOT / "scripts/calamares_clausis.py").read_text(encoding="utf-8")
+        self.assertIn("DirectInstallConfirmation", bridge)
+        self.assertIn("calamares_prewrite_summary", bridge)
+        self.assertNotIn("--phrase", module)
 
     def test_calamares_defaults_are_encrypted_btrfs_but_never_preselect_erase(self) -> None:
         partition = (ROOT / "packaging/calamares/partition.conf").read_text(

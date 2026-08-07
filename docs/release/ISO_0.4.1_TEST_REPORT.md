@@ -36,5 +36,7 @@ Status: development evidence; not a production release approval
 - VirtualBox-specific firmware, graphics, audio and installation behavior.
 - Real microphone, speaker, echo cancellation, Barge-in and trusted-audio
   isolation on supported hardware.
-- The protected random phrase and recovery-key export are not yet connected to
-  the exact pre-write transaction, so production release remains blocked.
+- The ISO documented here predates the protected-phrase integration. A newer
+  image must be built after that code change. Recovery-key export is still not
+  connected to the exact pre-write transaction, so production release remains
+  blocked.

@@ -16,9 +16,11 @@ from typing import Sequence
 
 from clausis.installer import (
     InstallerPlan,
+    calamares_prewrite_summary,
     discover_install_disks,
     guard_calamares_erase_transaction,
 )
+from clausis.trusted_audio import DirectInstallConfirmation
 
 
 def _public_disk(disk) -> dict:
@@ -74,6 +76,10 @@ def main(argv: Sequence[str] = ()) -> int:
                 encrypted=args.encrypted,
                 filesystem=args.filesystem,
             )
+            if not DirectInstallConfirmation().authorize(
+                calamares_prewrite_summary(disk)
+            ):
+                raise ValueError("protected installation confirmation failed")
             print(
                 json.dumps(
                     {
@@ -100,6 +106,7 @@ def main(argv: Sequence[str] = ()) -> int:
         TypeError,
         ValueError,
         json.JSONDecodeError,
+        RuntimeError,
         subprocess.SubprocessError,
     ) as exc:
         print(json.dumps({"status": "denied", "message": str(exc)}, ensure_ascii=False))

@@ -173,10 +173,12 @@ provider or secret details.
   unencrypted or non-Btrfs target before any Calamares partition job starts.
 
 The target/profile enforcement boundary is now tied to Calamares' execution
-queue. The missing boundary is protected user authorisation: the random phrase
-and recovery-key export are not yet consumed by that pre-write guard. Until
-those and a persistent-disk VM test pass, the phrase is test-only and
-Calamares's own summary remains authoritative.
+queue. That same pre-write process now creates the expiring random phrase,
+speaks the freshly rebound disk identity and destructive profile, captures one
+local response and deletes its temporary recording. Neither phrase nor
+transcript is placed in Calamares global storage, arguments or stdout. Recovery
+key export, physical trusted-audio isolation, an equivalent protected keyboard
+path and a persistent-disk VM test remain release blockers.
 
 ## Not implemented after 0.4.1
 
@@ -188,8 +190,9 @@ Calamares's own summary remains authoritative.
 - Physical proof of trusted microphone/seat isolation and replay detection;
   the former string-based D-Bus PIN transport has been removed.
 - Speaker verification, replay detection or biometric enrollment.
-- Protected-phrase authorisation of the guarded Calamares transaction,
-  recovery-key export, TPM enrollment, Btrfs subvolume snapshots and rollback.
+- Recovery-key export, TPM enrollment, Btrfs subvolume snapshots and rollback.
+- Physical trusted-audio isolation and an equivalent protected keyboard/Orca
+  confirmation path for the guarded Calamares transaction.
 - Short-lived OpenAI client credentials from a trusted backend; 0.4.1 stores
   the voluntarily supplied standard API key in the user's private `0600` file.
 - Cryptographic verification of the upstream Hermes release tag against a

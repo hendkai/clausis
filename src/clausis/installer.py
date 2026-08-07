@@ -236,6 +236,18 @@ def guard_calamares_erase_transaction(
     return disk
 
 
+def calamares_prewrite_summary(disk: InstallDisk) -> str:
+    """Canonical warning spoken by the isolated pre-write guard."""
+    if not disk.eligible:
+        raise ValueError("cannot summarize an ineligible installation target")
+    return (
+        f"Achtung. Clausis wird jetzt auf {disk.spoken_identity()} installiert. "
+        "Der gesamte Datenträger und alle darauf gespeicherten Daten werden "
+        "dauerhaft gelöscht. Die Installation verwendet LUKS 2 Verschlüsselung "
+        "und das Btrfs Dateisystem."
+    )
+
+
 @dataclass(frozen=True)
 class InstallerPlan:
     locale: str
@@ -352,5 +364,6 @@ class InstallConfirmationChallenge:
         expires_at, self._expires_at = self._expires_at, 0.0
         if expected is None or self._clock() > expires_at:
             return False
-        normalized = " ".join(response.casefold().strip().split())
-        return secrets.compare_digest(normalized, expected.casefold())
+        normalized = " ".join(re.findall(r"[\wäöüß]+", response.casefold()))
+        canonical = " ".join(re.findall(r"[\wäöüß]+", expected.casefold()))
+        return secrets.compare_digest(normalized, canonical)
