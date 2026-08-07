@@ -10,6 +10,7 @@ from typing import Sequence
 
 from .broker import ActionBroker, SafeExecutor
 from .capabilities import CapabilityAuthority
+from .hermes_client import HermesOneShot, hermes_is_configured
 from .router import OfflineRouter
 from .runtime import RuntimeState, VoiceRuntime
 from .speech import LocalWhisper, MicrophoneRecorder, SpeechError, SystemSpeaker, record_temporary
@@ -17,7 +18,8 @@ from .speech import LocalWhisper, MicrophoneRecorder, SpeechError, SystemSpeaker
 
 AI_NOTICE_DE = (
     "Hinweis: Clausis verwendet für Spracherkennung und optionale Antworten ein KI-System. "
-    "Offline-Kernbefehle werden lokal verarbeitet. Drücken Sie jederzeit Steuerung C zum Beenden."
+    "Offline-Kernbefehle werden lokal verarbeitet. Sagen Sie jederzeit Stopp Hermes "
+    "oder drücken Sie in einem geöffneten Terminal Steuerung C zum Beenden."
 )
 
 
@@ -42,9 +44,11 @@ def main(argv: Sequence[str] = ()) -> int:
     except SpeechError as exc:
         print(f"Sprachausgabe eingeschränkt: {exc}", file=sys.stderr)
 
+    hermes_fallback = HermesOneShot(home=Path.home()) if hermes_is_configured(Path.home()) else None
     runtime = VoiceRuntime(
         OfflineRouter(),
         ActionBroker(CapabilityAuthority.generate(), SafeExecutor(dry_run=not args.execute)),
+        hermes_fallback=hermes_fallback,
     )
     recorder = MicrophoneRecorder()
     transcriber = LocalWhisper(_model_path(args.model), language=args.language)
@@ -94,7 +98,9 @@ def _localized_result(status: str, message: str) -> str:
     if status == "confirmation_required":
         return "Diese Aktion benötigt eine vertrauenswürdige Bestätigung und wurde nicht ausgeführt."
     if status == "offline_unmatched":
-        return "Diesen Befehl kenne ich offline noch nicht."
+        return message if message else "Diesen Befehl kenne ich offline noch nicht."
+    if status == "hermes_response":
+        return message
     return message
 
 

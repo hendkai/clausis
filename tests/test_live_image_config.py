@@ -8,6 +8,33 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LiveImageConfigurationTests(unittest.TestCase):
+    def test_debian_initial_setup_is_suppressed_for_new_users(self) -> None:
+        marker = (
+            ROOT
+            / "packaging/live-build/config/includes.chroot/etc/skel/.config"
+            / "gnome-initial-setup-done"
+        )
+
+        self.assertTrue(marker.is_file())
+
+        dconf_defaults = (
+            ROOT
+            / "packaging/live-build/config/includes.chroot/etc/dconf/db/local.d"
+            / "00-clausis"
+        ).read_text(encoding="utf-8")
+        dconf_profile = (
+            ROOT
+            / "packaging/live-build/config/includes.chroot/etc/dconf/profile/user"
+        ).read_text(encoding="utf-8")
+        desktop_hook = (
+            ROOT
+            / "packaging/live-build/config/hooks/normal/030-clausis-desktop.hook.chroot"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("welcome-dialog-last-shown-version='999'", dconf_defaults)
+        self.assertIn("system-db:local", dconf_profile)
+        self.assertIn("dconf update", desktop_hook)
+
     def test_graphical_live_autologin_dependencies_are_present(self) -> None:
         package_list = (
             ROOT
@@ -42,3 +69,83 @@ class LiveImageConfigurationTests(unittest.TestCase):
 
         self.assertIn("group clausis-control", postinst)
         self.assertNotIn("group clausis >/dev/null", postinst)
+
+    def test_hermes_agent_is_pinned_and_preinstalled(self) -> None:
+        hook = (
+            ROOT
+            / "packaging/live-build/config/hooks/normal/025-hermes-agent.hook.chroot"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("0957277f2f468bac22bbfcfa7c43029858c9597e", hook)
+        self.assertIn("uv sync", hook)
+        self.assertIn("uv_version='0.9.28'", hook)
+        self.assertIn("--frozen", hook)
+        self.assertIn("--extra anthropic", hook)
+        self.assertIn("/usr/local/bin/hermes", hook)
+        self.assertIn("/usr/share/doc/hermes-agent/LICENSE", hook)
+
+    def test_accessibility_setup_runs_before_calamares(self) -> None:
+        welcome = (
+            ROOT
+            / "packaging/live-build/config/includes.chroot/usr/local/bin"
+            / "clausis-live-welcome"
+        ).read_text(encoding="utf-8")
+
+        self.assertLess(welcome.index("orca --replace"), welcome.index("clausis-setup"))
+        self.assertLess(welcome.index("clausis-setup"), welcome.index("calamares-install-debian"))
+        self.assertIn("QT_ACCESSIBILITY=1", welcome)
+
+    def test_installed_autostart_never_reopens_installer(self) -> None:
+        welcome = (
+            ROOT
+            / "packaging/live-build/config/includes.chroot/usr/local/bin"
+            / "clausis-live-welcome"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("live_system=0", welcome)
+        self.assertIn('if [ "$live_system" -eq 1 ]', welcome)
+        live_branch = welcome.index('if [ "$live_system" -eq 1 ]')
+        installed_branch = welcome.index("# The same autostart file")
+        self.assertLess(
+            welcome.index("calamares-install-debian", live_branch),
+            welcome.index("exit 0", live_branch),
+        )
+        self.assertLess(welcome.index("exit 0", live_branch), installed_branch)
+        self.assertIn("clausis-live-assistant", welcome)
+        self.assertIn("clausis-setup --installed", welcome)
+        self.assertIn("Stopp Hermes", welcome)
+        self.assertNotIn("assistant.log", welcome)
+        self.assertIn("chmod 0700", welcome)
+        self.assertIn("user_id=$(id -u)", welcome)
+        self.assertNotIn("${UID}", welcome)
+
+        launcher = (
+            ROOT
+            / "packaging/live-build/config/includes.chroot/usr/share/applications"
+            / "clausis-setup.desktop"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Exec=clausis-setup --installed", launcher)
+
+    def test_desktop_hermes_chat_forces_the_minimal_toolset(self) -> None:
+        launcher = (
+            ROOT
+            / "packaging/live-build/config/includes.chroot/usr/share/applications"
+            / "clausis-hermes-chat.desktop"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("hermes --toolsets todo", launcher)
+
+    def test_calamares_copies_staged_hermes_config_after_user_creation(self) -> None:
+        hook = (
+            ROOT
+            / "packaging/live-build/config/hooks/normal/035-clausis-calamares.hook.chroot"
+        ).read_text(encoding="utf-8")
+        module = (
+            ROOT / "packaging/calamares/shellprocess@clausis.conf"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("/^  - users$/a", hook)
+        self.assertIn("shellprocess@clausis", hook)
+        self.assertIn("clausis-finalize-hermes-install", module)
+        self.assertIn("${ROOT}", module)
+        self.assertIn("${USER}", module)

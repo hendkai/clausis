@@ -2,6 +2,7 @@
 set -eu
 
 glib-compile-schemas /usr/share/glib-2.0/schemas || true
+dconf update
 sed -i 's/^# *\(de_DE.UTF-8 UTF-8\)/\1/; s/^# *\(en_US.UTF-8 UTF-8\)/\1/' /etc/locale.gen
 locale-gen
 systemctl enable NetworkManager.service

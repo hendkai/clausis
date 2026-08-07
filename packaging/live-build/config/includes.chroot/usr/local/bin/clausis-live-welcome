@@ -1,17 +1,64 @@
 #!/bin/sh
 set -eu
 
-state_dir="${XDG_RUNTIME_DIR:-/tmp}/clausis-${UID}"
+user_id=$(id -u)
+state_dir="${XDG_RUNTIME_DIR:-/tmp}/clausis-${user_id}"
 mkdir -p "$state_dir"
 if [ -e "$state_dir/welcome-shown" ]; then
     exit 0
 fi
 touch "$state_dir/welcome-shown"
 
-notice='Willkommen bei Clausis. Hinweis: Die Spracherkennung und optionale Antworten verwenden ein KI-System. Offline-Kernbefehle bleiben auf diesem Gerät. Der Debian-Installer wird jetzt geöffnet. Orca und Tastatur bleiben vollständig verfügbar.'
-command -v spd-say >/dev/null 2>&1 && spd-say -w -l de "$notice" || true
-command -v notify-send >/dev/null 2>&1 && notify-send -u normal -t 20000 "Clausis – KI-Hinweis" "$notice" || true
+live_system=0
+for marker in /run/live/medium /lib/live/mount/medium /run/live/medium/live/filesystem.squashfs; do
+    if [ -e "$marker" ]; then
+        live_system=1
+        break
+    fi
+done
 
-if command -v calamares-install-debian >/dev/null 2>&1; then
-    calamares-install-debian >/tmp/clausis-calamares.log 2>&1 &
+# Orca is enabled before any setup or installer window is opened. Users can
+# toggle it with the standard GNOME shortcut Super+Alt+S.
+if command -v orca >/dev/null 2>&1; then
+    orca --replace >/tmp/clausis-orca.log 2>&1 &
+fi
+
+if [ "$live_system" -eq 1 ]; then
+    notice='Willkommen bei Clausis. Hermes Agent ist vorinstalliert. Die Einrichtung und der Installer können mit Sprache, Orca oder Tastatur verwendet werden. API-Schlüssel werden niemals vorgelesen.'
+    command -v spd-say >/dev/null 2>&1 && spd-say -w -l de "$notice" || true
+    command -v notify-send >/dev/null 2>&1 && notify-send -u normal -t 20000 "Clausis – KI-Hinweis" "$notice" || true
+
+    if command -v clausis-setup >/dev/null 2>&1; then
+        clausis-setup --home "${HOME}" >/tmp/clausis-setup.log 2>&1 || true
+    fi
+
+    if command -v calamares-install-debian >/dev/null 2>&1; then
+        QT_ACCESSIBILITY=1 calamares-install-debian >/tmp/clausis-calamares.log 2>&1 &
+    fi
+    exit 0
+fi
+
+# The same autostart file is copied to the installed system. Never open the
+# installer there. On the first installed login, offer setup only when the
+# live session did not stage a Hermes configuration.
+installed_state="${HOME}/.config/clausis"
+mkdir -p "$installed_state"
+chmod 0700 "$installed_state"
+if [ ! -e "$installed_state/installed-welcome-shown" ]; then
+    notice='Clausis ist installiert. Die Sprachsteuerung startet jetzt und aktiviert das Mikrofon. Sagen Sie Stopp Hermes, um sie jederzeit zu beenden.'
+    command -v spd-say >/dev/null 2>&1 && spd-say -w -l de "$notice" || true
+    command -v notify-send >/dev/null 2>&1 && notify-send -u normal -t 20000 "Clausis – Sprachsteuerung" "$notice" || true
+    touch "$installed_state/installed-welcome-shown"
+    chmod 0600 "$installed_state/installed-welcome-shown"
+fi
+
+if [ ! -e "${HOME}/.hermes/config.yaml" ] && command -v clausis-setup >/dev/null 2>&1; then
+    clausis-setup --installed --home "${HOME}" >/tmp/clausis-setup.log 2>&1 || true
+fi
+
+if command -v clausis-live-assistant >/dev/null 2>&1 \
+    && ! pgrep -u "$user_id" -f '/opt/clausis/bin/python -m clausis.assistant' >/dev/null 2>&1; then
+    # The assistant prints recognized text for an explicitly opened terminal.
+    # Automatic startup must not persist those transcripts in a log file.
+    clausis-live-assistant >/dev/null 2>&1 &
 fi

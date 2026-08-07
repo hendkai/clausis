@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Clausis und Hermes einrichten
+Name[de]=Clausis und Hermes einrichten
+Comment=Accessible provider and installation setup
+Comment[de]=Barrierefreie Anbieter- und Installationseinrichtung
+Exec=clausis-setup --installed
+Icon=preferences-desktop-accessibility
+Terminal=false
+Categories=Accessibility;Settings;System;
+Keywords=Hermes;Sprache;Voice;Orca;Installation;
