@@ -257,6 +257,10 @@ class LiveImageConfigurationTests(unittest.TestCase):
             ROOT
             / "packaging/live-build/patches/calamares/0001-export-selected-device-metadata.patch"
         ).read_text(encoding="utf-8")
+        recovery_patch = (
+            ROOT
+            / "packaging/live-build/patches/calamares/0002-install-clausis-recovery-key.patch"
+        ).read_text(encoding="utf-8")
 
         self.assertIn('/^  - partition$/i\\  - shellprocess@clausis-guard', hook)
         self.assertIn("--guard-transaction", module)
@@ -264,11 +268,19 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertIn("${gs[partitionChoices.install]}", module)
         self.assertIn("${gs[clausisEncryptionEnabled]}", module)
         self.assertIn("apt-get source calamares=3.3.14-1", dockerfile)
+        self.assertIn("0002-install-clausis-recovery-key.patch", dockerfile)
+        self.assertIn("timeout: 300", module)
         self.assertIn('gs->insert( "clausisSelectedDevice"', patch_source)
+        self.assertIn("/run/clausis-installer/recovery.key", recovery_patch)
+        self.assertIn("/run/clausis-installer/recovery-installed", recovery_patch)
+        self.assertIn("luksAddKey", recovery_patch)
+        self.assertIn("removeStagedRecoveryKey", recovery_patch)
         self.assertNotIn("luksPassphrase", module)
         bridge = (ROOT / "scripts/calamares_clausis.py").read_text(encoding="utf-8")
         self.assertIn("DirectInstallConfirmation", bridge)
         self.assertIn("calamares_prewrite_summary", bridge)
+        self.assertIn("stage_recovery_key", bridge)
+        self.assertIn("discard_staged_recovery_key", bridge)
         self.assertNotIn("--phrase", module)
 
     def test_calamares_defaults_are_encrypted_btrfs_but_never_preselect_erase(self) -> None:

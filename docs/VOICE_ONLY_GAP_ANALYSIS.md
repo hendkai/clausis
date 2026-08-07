@@ -103,10 +103,15 @@ Ersetzen-Modi bleiben als von Calamares selbst bestätigte Tastatur-/Orca-Wege.
 Der Wächter erzeugt die Zufallsphrase nun erst nach der erneuten Zielbindung,
 spricht Datenträgeridentität und Löschprofil selbst, nimmt genau eine lokale
 Antwort auf und löscht die Aufnahme. Phrase und Transkript erscheinen weder in
-Calamares-Variablen noch auf stdout. Ein tatsächlich exportierter Recovery-Key,
-die nachgewiesene Trennung des Audiogeräts von der Desktop-Sitzung und der
-gleichwertige geschützte Tastaturweg fehlen weiterhin. Die Lösung verwendet
-kein Screen-Scraping; die Produktionsfreigabe bleibt blockiert.
+Calamares-Variablen noch auf stdout. Derselbe Prozess erzeugt einen zufälligen
+Recovery-Key mit etwa 159 Bit Entropie, spricht ihn zweimal und legt ihn nur
+kurzzeitig root-lesbar im flüchtigen `/run` ab. Das angepasste
+`luksbootkeyfile`-Modul fügt ihn nach der Partitionierung direkt als LUKS-Key
+hinzu und entfernt alle temporären Kopien. Die nachgewiesene Trennung des
+Audiogeräts von der Desktop-Sitzung, ein zugänglicher Verifikationstest des
+notierten Schlüssels und der gleichwertige geschützte Tastaturweg fehlen
+weiterhin. Die Lösung verwendet kein Screen-Scraping; die Produktionsfreigabe
+bleibt blockiert.
 
 Zusätzlich fehlen durchgängiges Audio in Initramfs, LUKS-Entsperrung, GDM,
 Recovery, Btrfs-Subvolume-Layout und Rollback. Stimme allein ist keine sichere

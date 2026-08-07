@@ -3,9 +3,11 @@
 ## Modified Calamares installer
 
 The development image builds Debian's Calamares 3.3.14-1 source with the public
-Clausis patch `0001-export-selected-device-metadata.patch`, producing package
-version `3.3.14-1+clausis11`. The patch adds only non-secret selected-device
-metadata used by the pre-write safety guard. Calamares is GPL-3.0-or-later.
+Clausis patches `0001-export-selected-device-metadata.patch` and
+`0002-install-clausis-recovery-key.patch`, producing package version
+`3.3.14-1+clausis11`. The patches add non-secret selected-device metadata for
+the pre-write guard and internally enroll the ephemeral Clausis recovery key in
+the installed LUKS volume. Calamares is GPL-3.0-or-later.
 The exact source package, Debian packaging, Clausis patch and complete build
 recipe are identified by `packaging/live-build/Dockerfile`; installed Debian
 copyright and license files remain in the image.
@@ -13,6 +15,7 @@ copyright and license files remain in the image.
 - Upstream: <https://github.com/calamares/calamares>
 - Debian source package: <https://packages.debian.org/source/trixie/calamares>
 - Clausis patch: `packaging/live-build/patches/calamares/0001-export-selected-device-metadata.patch`
+- Clausis recovery patch: `packaging/live-build/patches/calamares/0002-install-clausis-recovery-key.patch`
 
 ## Hermes Agent
 

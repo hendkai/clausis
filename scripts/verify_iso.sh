@@ -40,6 +40,7 @@ docker run --rm --platform linux/amd64 --entrypoint sh \
             squashfs-root/etc/calamares/modules/shellprocess@clausis.conf \
             squashfs-root/etc/calamares/modules/shellprocess@clausis-guard.conf \
             squashfs-root/etc/calamares/modules/partition.conf \
+            squashfs-root/usr/lib/x86_64-linux-gnu/calamares/modules/luksbootkeyfile/libcalamares_job_luksbootkeyfile.so \
             squashfs-root/usr/share/applications/clausis-hermes-chat.desktop \
             squashfs-root/usr/share/clausis/models/faster-whisper-base/model.bin
         do
@@ -82,6 +83,21 @@ docker run --rm --platform linux/amd64 --entrypoint sh \
         strings /tmp/calamares-module/usr/lib/x86_64-linux-gnu/calamares/modules/partition/libcalamares_viewmodule_partition.so \
             | grep -Fxq "clausisSelectedDevice"
 
+        unsquashfs -f -d /tmp/calamares-recovery-module /tmp/filesystem.squashfs \
+            usr/lib/x86_64-linux-gnu/calamares/modules/luksbootkeyfile/libcalamares_job_luksbootkeyfile.so \
+            >/tmp/extract-calamares-recovery.log
+        recovery_module=/tmp/calamares-recovery-module/usr/lib/x86_64-linux-gnu/calamares/modules/luksbootkeyfile/libcalamares_job_luksbootkeyfile.so
+        strings "$recovery_module" | grep -Fxq "/run/clausis-installer/recovery.key"
+        strings "$recovery_module" | grep -Fxq "/run/clausis-installer/recovery-installed"
+        strings "$recovery_module" | grep -Fq "Clausis recovery key was installed"
+
+        unsquashfs -cat /tmp/filesystem.squashfs \
+            etc/calamares/modules/shellprocess@clausis-guard.conf \
+            | grep -Fxq "timeout: 300"
+        unsquashfs -cat /tmp/filesystem.squashfs \
+            usr/lib/python3/dist-packages/clausis/installer.py \
+            | grep -Fq "stage_recovery_key"
+
         unsquashfs -cat /tmp/filesystem.squashfs \
             opt/hermes-agent/pyproject.toml | grep -Fq '\''version = "0.20.0"'\''
         unsquashfs -cat /tmp/filesystem.squashfs \
@@ -102,4 +118,4 @@ docker run --rm --platform linux/amd64 --entrypoint sh \
     '
 
 printf '%s\n' \
-    "ISO checksum, BIOS/UEFI boot, Hermes, licenses, speech model, accessibility setup and installer handoff verified."
+    "ISO checksum, BIOS/UEFI boot, Hermes, licenses, speech model, accessibility setup, installer binding and recovery-key module verified."

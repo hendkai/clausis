@@ -1,3 +1,5 @@
+from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -13,9 +15,12 @@ from clausis.installer import (
     InstallDisk,
     InstallerPlan,
     calamares_prewrite_summary,
+    discard_staged_recovery_key,
     eligible_install_disks,
+    generate_recovery_key,
     guard_calamares_erase_transaction,
     parse_lsblk_inventory,
+    stage_recovery_key,
 )
 
 
@@ -283,6 +288,57 @@ class InstallConfirmationChallengeTests(unittest.TestCase):
         now[0] = 16.0
         self.assertFalse(challenge.confirm(phrase))
 
+
+class RecoveryKeyTests(unittest.TestCase):
+    def test_generated_key_has_twelve_fixed_groups(self):
+        values = iter(range(12))
+        key = generate_recovery_key(lambda _limit: next(values))
+        self.assertEqual(
+            key,
+            "0000-0001-0002-0003-0004-0005-0006-0007-0008-0009-0010-0011",
+        )
+
+    def test_root_only_staging_replaces_stale_key_and_deletes_cleanly(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "run"
+            path = directory / "recovery.key"
+            first = "0000-0001-0002-0003-0004-0005-0006-0007-0008-0009-0010-0011"
+            second = "9999-9998-9997-9996-9995-9994-9993-9992-9991-9990-9989-9988"
+            stage_recovery_key(first, directory=directory, path=path)
+            self.assertEqual(path.read_text(encoding="ascii").strip(), first)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
+            stage_recovery_key(second, directory=directory, path=path)
+            self.assertEqual(path.read_text(encoding="ascii").strip(), second)
+            discard_staged_recovery_key(path)
+            self.assertFalse(path.exists())
+
+    def test_invalid_or_symlinked_staging_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            real_directory = root / "real"
+            real_directory.mkdir()
+            link = root / "link"
+            link.symlink_to(real_directory, target_is_directory=True)
+            with self.assertRaises(ValueError):
+                stage_recovery_key(
+                    "not-a-key", directory=real_directory, path=real_directory / "key"
+                )
+            valid = "0000-0001-0002-0003-0004-0005-0006-0007-0008-0009-0010-0011"
+            with self.assertRaises(ValueError):
+                stage_recovery_key(valid, directory=link, path=link / "recovery.key")
+
+    def test_insecure_existing_staging_directory_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "run"
+            directory.mkdir(mode=0o755)
+            directory.chmod(0o755)
+            with self.assertRaises(ValueError):
+                stage_recovery_key(
+                    "0000-0001-0002-0003-0004-0005-0006-0007-0008-0009-0010-0011",
+                    directory=directory,
+                    path=directory / "recovery.key",
+                )
 
 if __name__ == "__main__":
     unittest.main()

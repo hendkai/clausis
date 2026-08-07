@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+import os
 from pathlib import Path
 import re
 import secrets
+import stat
 import subprocess
 import time
 from typing import Callable, Iterable, Mapping, Optional, Sequence
@@ -22,6 +24,7 @@ TIMEZONE_RE = re.compile(r"^[A-Za-z_+-]+(?:/[A-Za-z0-9_+.-]+)+$")
 USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 DEVICE_RE = re.compile(r"^/dev/(?:disk/by-id/)?[A-Za-z0-9._:+-]+$")
 DEVICE_NODE_RE = re.compile(r"^/dev/[A-Za-z0-9._+-]+$")
+RECOVERY_KEY_RE = re.compile(r"^[0-9]{4}(?:-[0-9]{4}){11}$")
 PROVIDERS = {"none", "nous", "openai-compatible", "local"}
 FILESYSTEMS = {"btrfs", "ext4"}
 BOOT_MODES = {"uefi", "bios"}
@@ -31,6 +34,8 @@ LIVE_MOUNT_PREFIXES = (
     "/lib/live/mount/medium",
     "/usr/lib/live/mount/medium",
 )
+RECOVERY_STAGING_DIRECTORY = Path("/run/clausis-installer")
+RECOVERY_STAGING_FILE = RECOVERY_STAGING_DIRECTORY / "recovery.key"
 
 
 def _clean(value: object) -> str:
@@ -246,6 +251,73 @@ def calamares_prewrite_summary(disk: InstallDisk) -> str:
         "dauerhaft gelöscht. Die Installation verwendet LUKS 2 Verschlüsselung "
         "und das Btrfs Dateisystem."
     )
+
+
+def generate_recovery_key(
+    randbelow: Callable[[int], int] = secrets.randbelow,
+) -> str:
+    """Return a speech-friendly recovery key with about 159 bits of entropy."""
+    groups = [f"{randbelow(10_000):04d}" for _ in range(12)]
+    key = "-".join(groups)
+    if not RECOVERY_KEY_RE.fullmatch(key):
+        raise RuntimeError("recovery-key generator returned an invalid value")
+    return key
+
+
+def discard_staged_recovery_key(path: Path = RECOVERY_STAGING_FILE) -> None:
+    """Best-effort overwrite and unlink of the tmpfs staging file."""
+    try:
+        file_size = path.lstat().st_size
+        flags = os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(path, flags)
+        try:
+            os.write(descriptor, b"0" * file_size)
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        path.unlink(missing_ok=True)
+    except FileNotFoundError:
+        return
+
+
+def stage_recovery_key(
+    key: str,
+    *,
+    directory: Path = RECOVERY_STAGING_DIRECTORY,
+    path: Path = RECOVERY_STAGING_FILE,
+) -> None:
+    """Stage one recovery key in root-only tmpfs for Calamares' LUKS job."""
+    if not RECOVERY_KEY_RE.fullmatch(key):
+        raise ValueError("invalid recovery-key format")
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    directory_metadata = directory.lstat()
+    if (
+        not stat.S_ISDIR(directory_metadata.st_mode)
+        or directory_metadata.st_uid != os.geteuid()
+        or stat.S_IMODE(directory_metadata.st_mode) != 0o700
+    ):
+        raise ValueError("recovery staging directory has unsafe metadata")
+    # A previous aborted run may leave a root-only tmpfs key. Only this trusted
+    # pre-write process replaces it, immediately before a new confirmation.
+    discard_staged_recovery_key(path)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        encoded = (key + "\n").encode("ascii")
+        written = os.write(descriptor, encoded)
+        if written != len(encoded):
+            raise OSError("short recovery-key write")
+        os.fsync(descriptor)
+    except Exception:
+        os.close(descriptor)
+        discard_staged_recovery_key(path)
+        raise
+    else:
+        os.close(descriptor)
+        metadata = path.lstat()
+        if metadata.st_uid != os.geteuid() or stat.S_IMODE(metadata.st_mode) != 0o600:
+            discard_staged_recovery_key(path)
+            raise ValueError("recovery staging file has unsafe metadata")
 
 
 @dataclass(frozen=True)

@@ -63,6 +63,34 @@ unchanged. Codex authored the code, tests and documentation; 163 automated
 tests and the clean Debian 13 amd64 binary-package build passed. No human
 security, accessibility or legal approval is recorded.
 
+Codex subsequently implemented recovery-key enrollment at the same trusted
+pre-write boundary. The guard generates twelve independent four-digit groups
+(about 159 bits of entropy), speaks the key twice, stores it mode `0600` only in
+the tmpfs-backed `/run` directory and deletes it on confirmation failure. A
+second GPL-compatible Calamares patch validates ownership, mode, file type and
+format, copies the key temporarily into the already mounted target, invokes
+`cryptsetup luksAddKey` while the existing disk passphrase remains on the
+module's private standard input, and overwrites and unlinks both temporary
+files. Recovery material is not sent in command arguments, GlobalStorage,
+stdout or audit output. The complete 167-test Python suite passed. The patched
+Calamares 3.3.14 Debian amd64 package compiled successfully in the ISO builder,
+and the resulting shared object was inspected for its staging, completion and
+error-handling paths. An actual persistent installation and unlock with the
+spoken key, trusted audio isolation and the protected keyboard/Orca equivalent
+remain release blockers. No new AI model, biometric processing or cloud data
+flow was introduced.
+
+The complete development ISO was then rebuilt and structurally verified. Its
+SHA-256 was
+`76190948789368b782ef13c25badc4de16ab87e1f7b6b4056934c581ea2d2b2c`.
+QEMU x86-64 emulation reached Linux 6.12.101, the live root and GDM; a separate
+graphical run reached the Clausis-branded GNOME session and setup application.
+This is boot evidence only and does not prove a complete persistent Calamares
+installation, recovery-key unlock, VirtualBox behavior or physical audio
+isolation. The test evidence is recorded in
+`docs/release/RECOVERY_KEY_TEST_REPORT.md`; it does not replace the published
+0.4.1 release asset.
+
 On 2026-08-06 Codex added the first local audio frontend, the accessible live
 session welcome, a Calamares-based installation image configuration and a
 containerised amd64 ISO build. The ISO includes the MIT-licensed converted

@@ -104,12 +104,18 @@ class TrustedAudioTests(unittest.TestCase):
             speaker=speaker,
             challenge=challenge,
         )
-        self.assertTrue(frontend.authorize("Datenträgerwarnung"))
+        self.assertTrue(
+            frontend.authorize(
+                "Datenträgerwarnung",
+                "0001-0002-0003-0004-0005-0006-0007-0008-0009-0010-0011-0012",
+            )
+        )
         self.assertEqual(challenge.confirmed, ["anker mond 123"])
         self.assertTrue(all(not path.exists() for path in recorder.paths))
         spoken = " ".join(text for text, _ in speaker.messages)
         self.assertIn("Datenträgerwarnung", spoken)
         self.assertIn("anker mond 123", spoken)
+        self.assertIn("0001, 0002", spoken)
 
     def test_installer_mismatch_fails_closed_without_second_attempt(self):
         class Challenge:
@@ -144,7 +150,12 @@ class TrustedAudioTests(unittest.TestCase):
             speaker=Speaker(),
             challenge=challenge,
         )
-        self.assertFalse(frontend.authorize("Datenträgerwarnung"))
+        self.assertFalse(
+            frontend.authorize(
+                "Datenträgerwarnung",
+                "0001-0002-0003-0004-0005-0006-0007-0008-0009-0010-0011-0012",
+            )
+        )
         self.assertEqual(challenge.calls, 1)
 
 
