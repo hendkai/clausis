@@ -2,9 +2,10 @@
 
 ## Hermes Agent
 
-Hermes Agent is not vendored in this repository. If it is included in a future
-Debian image, the following upstream notice and the complete MIT license must
-be shipped with the corresponding binary and source package.
+The 0.2.0 image installs Hermes Agent 0.20.0 from pinned upstream commit
+`0957277f2f468bac22bbfcfa7c43029858c9597e`. Its source checkout, locked Python
+environment, copyright notice and complete MIT license are included in the
+image. The license is also copied to `/usr/share/doc/hermes-agent/LICENSE`.
 
 > MIT License — Copyright (c) 2025 Nous Research
 
@@ -12,7 +13,7 @@ Upstream: <https://github.com/NousResearch/hermes-agent>
 
 License: <https://github.com/NousResearch/hermes-agent/blob/main/LICENSE>
 
-## Local speech stack in the 0.1.2 ISO
+## Local speech stack in the 0.2.0 ISO
 
 The ISO build installs `faster-whisper` 1.2.1 and `python-sounddevice` 0.5.5.
 Both projects are MIT-licensed. Their installed Python distributions retain

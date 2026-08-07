@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+settings=/etc/calamares/settings.conf
+test -f "${settings}"
+
+# Register the Clausis post-install job after Calamares has created the target
+# user. Restrict the edit to the execution phase; the view sequence also has a
+# users entry and must remain unchanged.
+sed -i '/^- exec:/,/^- show:/ {
+    /^  - users$/a\  - shellprocess@clausis
+}' "${settings}"
+sed -i 's/^prompt-install: false$/prompt-install: true/' "${settings}"
+
+chmod 0755 /usr/bin/clausis-finalize-hermes-install

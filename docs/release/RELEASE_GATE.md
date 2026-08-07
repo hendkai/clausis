@@ -1,17 +1,21 @@
 # Release gate
 
-Status for 0.1.2: **blocked for end-user release; suitable for source prototype
-review only**.
+Status for 0.2.0: **blocked for production/end-user release; suitable only as
+an explicitly labelled public technical test preview**.
 
 - [x] Core unit tests pass.
 - [x] Action schema and capability replay tests exist.
 - [x] Threat model, AI contribution record and preliminary CRA scope exist.
 - [x] Repository-level CycloneDX SBOM and license notices exist.
-- [x] Debian Stable amd64 package builds and its 60 tests pass in a clean container.
+- [x] Hermes source and dependency resolution are pinned to reviewed upstream identifiers.
+- [x] Provider secrets are excluded from spoken summaries, logs and public installer state.
+- [x] Debian Stable amd64 package and complete automated suite pass in a clean container.
 - [x] Hybrid ISO builds; media, BIOS/UEFI entries and emulated live-to-GDM boot pass.
+- [x] Final ISO graphical capture shows live autologin and the accessible Clausis/Hermes setup without Debian's tour.
 - [ ] Real security contact and HTTPS `security.txt` configured.
 - [ ] Trusted PIN/audio path replaces prototype D-Bus string.
-- [ ] PipeWire/STT/TTS, GNOME and Calamares adapters implemented and tested.
+- [x] GTK accessibility metadata, local voice setup path and Calamares target-copy code are present and structurally validated in the final ISO.
+- [ ] Complete Calamares install and target-copy behavior validated on a persistent virtual or physical disk.
 - [ ] ISO, package repository and update metadata signed.
 - [ ] Exact ISO checksum boots, speaks and installs successfully on supported physical hardware.
 - [ ] Snapshot rollback and speech health recovery verified on hardware.

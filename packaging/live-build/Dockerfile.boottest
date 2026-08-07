@@ -2,5 +2,5 @@ FROM debian:stable-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    qemu-system-x86 xorriso ca-certificates && \
+    qemu-system-x86 xorriso ca-certificates socat netpbm && \
     rm -rf /var/lib/apt/lists/*

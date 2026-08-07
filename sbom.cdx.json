@@ -7,9 +7,9 @@
     "timestamp": "2026-08-06T16:00:00Z",
     "component": {
       "type": "application",
-      "bom-ref": "pkg:pypi/clausis-core@0.1.2",
+      "bom-ref": "pkg:pypi/clausis-core@0.2.0",
       "name": "clausis-core",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "licenses": [{"license": {"id": "GPL-3.0-or-later"}}],
       "properties": [
         {"name": "clausis:release-status", "value": "prototype"},
@@ -28,13 +28,15 @@
     },
     {
       "type": "application",
-      "bom-ref": "pkg:github/NousResearch/hermes-agent",
+      "bom-ref": "pkg:github/NousResearch/hermes-agent@0957277f2f468bac22bbfcfa7c43029858c9597e",
       "name": "hermes-agent",
-      "scope": "optional",
+      "version": "0.20.0",
+      "scope": "required",
       "licenses": [{"license": {"id": "MIT"}}],
       "properties": [
-        {"name": "clausis:bundled", "value": "false"},
-        {"name": "clausis:version-pinned", "value": "false"}
+        {"name": "clausis:bundled-in-iso", "value": "true"},
+        {"name": "clausis:upstream-commit", "value": "0957277f2f468bac22bbfcfa7c43029858c9597e"},
+        {"name": "clausis:dependencies-locked", "value": "true"}
       ]
     },
     {
@@ -70,9 +72,10 @@
   ],
   "dependencies": [
     {
-      "ref": "pkg:pypi/clausis-core@0.1.2",
+      "ref": "pkg:pypi/clausis-core@0.2.0",
       "dependsOn": [
         "pkg:pypi/dbus-next@0.2.3",
+        "pkg:github/NousResearch/hermes-agent@0957277f2f468bac22bbfcfa7c43029858c9597e",
         "pkg:pypi/faster-whisper@1.2.1",
         "pkg:pypi/sounddevice@0.5.5",
         "pkg:huggingface/Systran/faster-whisper-base"
