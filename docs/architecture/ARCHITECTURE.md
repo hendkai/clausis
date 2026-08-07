@@ -163,11 +163,20 @@ provider or secret details.
   volume avoids relying on GRUB to unlock Argon2-backed LUKS2.
 - The setup window now keeps status and primary buttons outside the scrollable
   form so they stay visible at small virtual-machine resolutions.
+- A nine-line GPL-compatible patch is built against Debian's exact Calamares
+  3.3.14-1 source. On leaving the partition page it publishes only selected
+  device node, mode, encryption boolean and filesystem to GlobalStorage; the
+  LUKS passphrase is never exported.
+- `shellprocess@clausis-guard` is inserted immediately before the partition
+  placeholder in Calamares' execution sequence. For whole-disk mode it re-runs
+  discovery and denies a missing, changed, mounted, removable, unstable,
+  unencrypted or non-Btrfs target before any Calamares partition job starts.
 
-The missing enforcement boundary is important: the validated Clausis target
-is not yet structurally tied to the partition jobs that Calamares will execute.
-Until that boundary and a persistent-disk VM test pass, the phrase is test-only
-and Calamares's own summary remains authoritative.
+The target/profile enforcement boundary is now tied to Calamares' execution
+queue. The missing boundary is protected user authorisation: the random phrase
+and recovery-key export are not yet consumed by that pre-write guard. Until
+those and a persistent-disk VM test pass, the phrase is test-only and
+Calamares's own summary remains authoritative.
 
 ## Not implemented after 0.4.1
 
@@ -179,8 +188,8 @@ and Calamares's own summary remains authoritative.
 - Physical proof of trusted microphone/seat isolation and replay detection;
   the former string-based D-Bus PIN transport has been removed.
 - Speaker verification, replay detection or biometric enrollment.
-- Enforced voice-native Calamares partition execution, recovery-key export,
-  TPM enrollment, Btrfs subvolume snapshots and rollback.
+- Protected-phrase authorisation of the guarded Calamares transaction,
+  recovery-key export, TPM enrollment, Btrfs subvolume snapshots and rollback.
 - Short-lived OpenAI client credentials from a trusted backend; 0.4.1 stores
   the voluntarily supplied standard API key in the user's private `0600` file.
 - Cryptographic verification of the upstream Hermes release tag against a

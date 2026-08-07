@@ -92,11 +92,18 @@ Vergleich ist als interner Baustein vorhanden.
 
 Calamares startet weiterhin ohne vorausgewählte Löschaktion. Verschlüsselung
 ist vorausgewählt; die Zielkonfiguration verwendet LUKS2, ein getrenntes
-unverschlüsseltes `/boot` und Btrfs. Die Clausis-Planbindung steuert Calamares'
-tatsächlichen Partitionsauftrag jedoch noch nicht. Deshalb darf die Phrase noch
-nicht als Freigabe einer realen Installation verwendet werden. Dafür ist ein
-eigenes Calamares-Modul oder ein vollständig getesteter Clausis-Installer nötig,
-nicht Screen-Scraping.
+unverschlüsseltes `/boot` und Btrfs. Eine minimale, aus der exakten Debian-Quelle
+gebaute Calamares-Anpassung exportiert Zielgerät, Modus, Verschlüsselungsstatus
+und Dateisystem ohne Passphrase. Ein Clausis-Wächter bindet diese Werte direkt
+vor dem ersten Partitionsjob erneut an die aktuelle Hardware. Geändertes Ziel,
+fehlende stabile Kennung, Einhängung, deaktiviertes LUKS oder anderes Dateisystem
+brechen eine automatische Komplettinstallation ab. Manuelle, Koexistenz- und
+Ersetzen-Modi bleiben als von Calamares selbst bestätigte Tastatur-/Orca-Wege.
+
+Die Zufallsphrase und ein tatsächlich exportierter Recovery-Key sind noch nicht
+mit diesem Wächter verbunden. Deshalb darf die Phrase noch nicht als Freigabe
+einer realen Installation verwendet werden. Die Lösung verwendet kein
+Screen-Scraping.
 
 Zusätzlich fehlen durchgängiges Audio in Initramfs, LUKS-Entsperrung, GDM,
 Recovery, Btrfs-Subvolume-Layout und Rollback. Stimme allein ist keine sichere

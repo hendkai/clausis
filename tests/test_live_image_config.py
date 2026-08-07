@@ -242,6 +242,31 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertIn("neuesten offiziellen stabilen Version", welcome)
         self.assertIn("bundled-fallback", welcome)
 
+    def test_calamares_target_guard_runs_before_first_partition_job(self) -> None:
+        hook = (
+            ROOT
+            / "packaging/live-build/config/hooks/normal/035-clausis-calamares.hook.chroot"
+        ).read_text(encoding="utf-8")
+        module = (
+            ROOT / "packaging/calamares/shellprocess@clausis-guard.conf"
+        ).read_text(encoding="utf-8")
+        dockerfile = (ROOT / "packaging/live-build/Dockerfile").read_text(
+            encoding="utf-8"
+        )
+        patch_source = (
+            ROOT
+            / "packaging/live-build/patches/calamares/0001-export-selected-device-metadata.patch"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('/^  - partition$/i\\  - shellprocess@clausis-guard', hook)
+        self.assertIn("--guard-transaction", module)
+        self.assertIn("${gs[clausisSelectedDevice]}", module)
+        self.assertIn("${gs[partitionChoices.install]}", module)
+        self.assertIn("${gs[clausisEncryptionEnabled]}", module)
+        self.assertIn("apt-get source calamares=3.3.14-1", dockerfile)
+        self.assertIn('gs->insert( "clausisSelectedDevice"', patch_source)
+        self.assertNotIn("luksPassphrase", module)
+
     def test_calamares_defaults_are_encrypted_btrfs_but_never_preselect_erase(self) -> None:
         partition = (ROOT / "packaging/calamares/partition.conf").read_text(
             encoding="utf-8"

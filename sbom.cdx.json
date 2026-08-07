@@ -19,6 +19,20 @@
   },
   "components": [
     {
+      "type": "application",
+      "bom-ref": "pkg:deb/debian/calamares@3.3.14-1%2Bclausis11",
+      "name": "calamares",
+      "version": "3.3.14-1+clausis11",
+      "scope": "required",
+      "licenses": [{"license": {"id": "GPL-3.0-or-later"}}],
+      "properties": [
+        {"name": "clausis:bundled-in-iso", "value": "true"},
+        {"name": "clausis:debian-source-version", "value": "3.3.14-1"},
+        {"name": "clausis:modification", "value": "non-secret selected-device metadata for pre-write guard"},
+        {"name": "clausis:patch", "value": "packaging/live-build/patches/calamares/0001-export-selected-device-metadata.patch"}
+      ]
+    },
+    {
       "type": "library",
       "bom-ref": "pkg:pypi/dbus-next@0.2.3",
       "name": "dbus-next",
@@ -123,6 +137,7 @@
       "ref": "pkg:pypi/clausis-core@0.4.1",
       "dependsOn": [
         "pkg:pypi/dbus-next@0.2.3",
+        "pkg:deb/debian/calamares@3.3.14-1%2Bclausis11",
         "pkg:github/NousResearch/hermes-agent@0957277f2f468bac22bbfcfa7c43029858c9597e",
         "pkg:pypi/faster-whisper@1.2.1",
         "pkg:pypi/sounddevice@0.5.5",

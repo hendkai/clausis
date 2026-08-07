@@ -38,16 +38,25 @@ unencrypted boot partition, Btrfs root and an explicitly installed cryptsetup
 initramfs integration. The GTK Hermes setup footer was moved outside the
 scrolling form for small VM displays.
 
-The new code does not yet bind the accepted plan to Calamares's actual
-partition jobs, generate/export a recovery key, enroll TPM/FIDO2, or write a
-disk. Documentation and the threat model explicitly prohibit treating the
-phrase as a production installation authorisation until that boundary and a
-persistent disposable-disk test pass. This change introduces no model,
-provider, biometric processing or cloud data flow. Local STT use and the
-existing direct-AI-interaction disclosure are unchanged. Codex authored the
-code, tests, packaging and documentation; 156 automated tests passed, and the
-Calamares YAML was parsed in a clean Debian 13 amd64 container. No human
-security, accessibility or legal approval is recorded.
+Codex then added a minimal nine-line patch against the exact Debian Calamares
+3.3.14-1 source. It exports only selected device node, mode, encryption boolean
+and filesystem from the in-memory partition view; it never exports the LUKS
+passphrase. The ISO builder obtains Debian's signed source package, applies the
+public patch, creates the higher-versioned `3.3.14-1+clausis11` binary and
+injects it into the image. A guard job runs immediately before Calamares's
+partition placeholder, re-discovers the target and blocks a changed,
+ineligible, unencrypted or non-Btrfs automatic erase proposal before the first
+partition job. The custom amd64 package compiled successfully and its module
+binary was checked for all three exported key names.
+
+The code does not yet connect the phrase to that guard, generate/export a
+recovery key, enroll TPM/FIDO2, or write a disk in tests. Documentation and the
+threat model prohibit treating the phrase as production authorisation until
+those boundaries and a persistent disposable-disk test pass. This change
+introduces no model, provider, biometric processing or cloud data flow. Local
+STT use and the existing direct-AI-interaction disclosure are unchanged. Codex
+authored the code, tests, packaging and documentation; 160 automated tests
+passed. No human security, accessibility or legal approval is recorded.
 
 On 2026-08-06 Codex added the first local audio frontend, the accessible live
 session welcome, a Calamares-based installation image configuration and a
@@ -324,6 +333,19 @@ from Hermes text prompts and has its own opt-in and withdrawal path.
 Target users are private individuals in the EU, including people relying on
 accessibility functions. The present prototype does not implement medical,
 employment, education, credit, law-enforcement or public-authority decisions.
+
+On 2026-08-07 Codex also built and inspected the complete 0.4.1 amd64 ISO after
+adding the Calamares pre-write guard. The final image passed its SHA-256,
+BIOS/UEFI, SquashFS-content, custom-Calamares-version, non-secret metadata
+patch, Hermes 0.20.0, license, offline-model, dconf-branding and installer-order
+checks. A first QEMU TCG run reached GDM from the exact ISO; a second graphical
+run produced a reviewed screenshot of the authenticated live GNOME session
+with the Clausis wallpaper, branded launchers, AI notice and accessible
+Clausis/Hermes setup. The first verification run exposed a shell-quoting defect
+in the test itself; Codex corrected that diagnostic and reran the complete ISO
+verification successfully. This evidence does not cover a persistent disk
+installation, real microphone/speaker behavior, VirtualBox-specific behavior
+or physical hardware.
 
 ## EU AI Act assessment
 

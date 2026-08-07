@@ -14,7 +14,11 @@ import subprocess
 import sys
 from typing import Sequence
 
-from clausis.installer import InstallerPlan, discover_install_disks
+from clausis.installer import (
+    InstallerPlan,
+    discover_install_disks,
+    guard_calamares_erase_transaction,
+)
 
 
 def _public_disk(disk) -> dict:
@@ -32,15 +36,56 @@ def main(argv: Sequence[str] = ()) -> int:
         help="nur die schreibgeschützte Datenträgererkennung als JSON ausgeben",
     )
     parser.add_argument(
+        "--guard-transaction",
+        action="store_true",
+        help="Calamares-Auswahl unmittelbar vor der Partitionierung erneut binden",
+    )
+    parser.add_argument("--device", default="")
+    parser.add_argument("--install-mode", default="")
+    parser.add_argument("--encrypted", default="")
+    parser.add_argument("--filesystem", default="")
+    parser.add_argument(
         "--fixture-no-device-check",
         action="store_true",
         help=argparse.SUPPRESS,
     )
     args = parser.parse_args(list(argv) or None)
     try:
+        if args.inventory and args.guard_transaction:
+            raise ValueError("choose exactly one bridge operation")
         if args.inventory:
             disks = discover_install_disks()
             print(json.dumps({"disks": [_public_disk(disk) for disk in disks]}, ensure_ascii=False))
+            return 0
+        if args.guard_transaction:
+            if args.install_mode != "erase":
+                print(
+                    json.dumps(
+                        {
+                            "status": "standard_calamares_fallback",
+                            "message": "non-erase mode is not voice-authorized",
+                        }
+                    )
+                )
+                return 0
+            disk = guard_calamares_erase_transaction(
+                discover_install_disks(),
+                device_node=args.device,
+                encrypted=args.encrypted,
+                filesystem=args.filesystem,
+            )
+            print(
+                json.dumps(
+                    {
+                        "status": "target_bound",
+                        "device": disk.path,
+                        "stable_id": disk.stable_id,
+                        "size_bytes": disk.size_bytes,
+                        "serial_suffix": disk.serial_suffix,
+                    },
+                    ensure_ascii=False,
+                )
+            )
             return 0
         payload = json.load(sys.stdin)
         if not isinstance(payload, dict):
