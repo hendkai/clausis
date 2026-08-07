@@ -22,5 +22,9 @@ window = SetupWindow(Path("/tmp/clausis-setup-probe"), stage_for_installer=True)
 assert not window.confirmation_pin.get_visibility()
 assert not window.confirmation_pin_repeat.get_visibility()
 assert window.confirmation_pin.get_input_purpose() == Gtk.InputPurpose.PIN
-assert any(isinstance(item, Gtk.ScrolledWindow) for item in descendants(window.window))
-print("real GTK setup has masked PIN fields and a scrollable layout")
+scroller = next(
+    item for item in descendants(window.window) if isinstance(item, Gtk.ScrolledWindow)
+)
+assert window.voice_button not in tuple(descendants(scroller))
+assert window.save_button not in tuple(descendants(scroller))
+print("real GTK setup has masked PIN fields, a scrollable form and fixed primary actions")

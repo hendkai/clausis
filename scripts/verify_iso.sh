@@ -38,6 +38,7 @@ docker run --rm --platform linux/amd64 --entrypoint sh \
             squashfs-root/etc/dconf/db/local.d/00-clausis \
             squashfs-root/etc/dconf/db/local \
             squashfs-root/etc/calamares/modules/shellprocess@clausis.conf \
+            squashfs-root/etc/calamares/modules/partition.conf \
             squashfs-root/usr/share/applications/clausis-hermes-chat.desktop \
             squashfs-root/usr/share/clausis/models/faster-whisper-base/model.bin
         do
@@ -61,6 +62,12 @@ docker run --rm --platform linux/amd64 --entrypoint sh \
             etc/calamares/settings.conf | sed -n "/^- exec:/,\$p" >/tmp/calamares-exec
         grep -A1 -Fx "  - users" /tmp/calamares-exec \
             | tail -n 1 | grep -Fxq "  - shellprocess@clausis"
+
+        unsquashfs -cat /tmp/filesystem.squashfs \
+            etc/calamares/modules/partition.conf >/tmp/clausis-partition
+        grep -Fxq "initialPartitioningChoice: none" /tmp/clausis-partition
+        grep -Fxq "luksGeneration: luks2" /tmp/clausis-partition
+        grep -Fxq '''defaultFileSystemType: "btrfs"''' /tmp/clausis-partition
 
         unsquashfs -cat /tmp/filesystem.squashfs \
             opt/hermes-agent/pyproject.toml | grep -Fq '\''version = "0.20.0"'\''
