@@ -38,6 +38,7 @@ class VoiceRuntime:
         self.broker = broker
         self.hermes_fallback = hermes_fallback
         self.state = RuntimeState.IDLE
+        self.last_result: Optional[ActionResult] = None
 
     def handle_transcript(self, transcript: str) -> ActionResult:
         self.state = RuntimeState.PROCESSING
@@ -45,19 +46,38 @@ class VoiceRuntime:
         if request is not None and request.action == "voice.stop":
             self.state = RuntimeState.STOPPED
             return ActionResult("stopped", "Hermes wurde sofort gestoppt.", request.action)
+        if request is not None and request.action == "voice.repeat":
+            self.state = RuntimeState.IDLE
+            if self.last_result is None:
+                return ActionResult("completed", "Es gibt noch nichts zu wiederholen.", request.action)
+            return ActionResult("repeated", self.last_result.message, request.action)
+        if request is not None and request.action == "voice.cancel":
+            self.state = RuntimeState.IDLE
+            result = ActionResult("completed", "Der aktuelle Sprachdialog wurde abgebrochen.", request.action)
+            self.last_result = result
+            return result
+        if request is not None and request.action == "voice.correct":
+            self.state = RuntimeState.IDLE
+            result = ActionResult("completed", "Bitte sagen Sie den korrigierten Befehl.", request.action)
+            self.last_result = result
+            return result
         if request is not None:
             result = self.broker.submit(request)
             self.state = RuntimeState.IDLE
+            self.last_result = result
             return result
         if self.hermes_fallback is None:
             self.state = RuntimeState.IDLE
-            return ActionResult(
+            result = ActionResult(
                 "offline_unmatched",
                 "Dieser Befehl ist im Offline-Modus nicht verfügbar.",
                 "voice.unmatched",
             )
+            self.last_result = result
+            return result
         result = self.hermes_fallback(transcript)
         self.state = RuntimeState.IDLE
+        self.last_result = result
         return result
 
 
@@ -66,10 +86,15 @@ def main(argv: Sequence[str] = ()) -> int:
     parser = argparse.ArgumentParser(description="Clausis transcript runtime")
     parser.add_argument("--stdin", action="store_true", help="read one transcript per line")
     parser.add_argument("--pipewire", action="store_true", help="start the local microphone frontend")
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="execute validated low-risk actions in the user session",
+    )
     args = parser.parse_args(list(argv) or None)
     if args.pipewire:
         from .assistant import main as assistant_main
-        return assistant_main([])
+        return assistant_main(["--execute"] if args.execute else [])
     if not args.stdin:
         parser.error("choose --stdin or --pipewire")
     from .broker import SafeExecutor

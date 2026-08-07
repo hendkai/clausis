@@ -2,10 +2,12 @@
 Description=Clausis offline voice runtime
 After=pipewire.service wireplumber.service graphical-session.target
 PartOf=graphical-session.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/clausis-runtime --pipewire
+ExecStart=/usr/bin/clausis-session-runtime
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
@@ -15,7 +17,7 @@ RestrictNamespaces=yes
 LockPersonality=yes
 MemoryDenyWriteExecute=yes
 Restart=on-failure
+RestartSec=30
 
 [Install]
 WantedBy=default.target
-

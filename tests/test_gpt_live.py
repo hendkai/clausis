@@ -61,6 +61,9 @@ class GptLiveTests(unittest.TestCase):
         self.assertNotIn("shell", encoded)
         self.assertNotIn("computer_use", encoded)
         self.assertEqual(payload["session"]["audio"]["input"]["format"]["rate"], 24000)
+        action_enum = payload["session"]["tools"][0]["parameters"]["properties"]["action"]["enum"]
+        self.assertIn("desktop.context.describe", action_enum)
+        self.assertIn("desktop.controls.list", action_enum)
 
     def test_hermes_openai_key_and_live_key_do_not_overwrite_each_other(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

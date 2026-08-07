@@ -1,3 +1,3 @@
 #!/bin/sh
 set -eu
-exec /opt/clausis/bin/python -m clausis.assistant --execute "$@"
+exec /usr/bin/clausis-session-runtime "$@"

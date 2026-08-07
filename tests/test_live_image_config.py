@@ -44,6 +44,22 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertIn("gdm3", package_list)
         self.assertIn("live-config-systemd", package_list)
         self.assertIn("user-setup", package_list)
+        self.assertIn("python3-pyatspi", package_list)
+
+    def test_user_runtime_executes_only_validated_session_actions(self) -> None:
+        service = (
+            ROOT / "packaging/systemd/clausis-runtime.service"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("ExecStart=/usr/bin/clausis-session-runtime", service)
+        self.assertIn("RestartSec=30", service)
+        self.assertIn("NoNewPrivileges=yes", service)
+        self.assertIn("RestrictAddressFamilies=AF_UNIX", service)
+
+        release_workflow = (ROOT / ".github/workflows/release.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("./scripts/atspi_smoke.sh", release_workflow)
 
     def test_live_user_is_selected_on_the_kernel_command_line(self) -> None:
         config = (ROOT / "packaging/live-build/auto/config").read_text(
@@ -127,6 +143,17 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertIn("chmod 0700", welcome)
         self.assertIn("user_id=$(id -u)", welcome)
         self.assertNotIn("${UID}", welcome)
+
+        session_launcher = (
+            ROOT / "packaging/bin/clausis-session-runtime"
+        ).read_text(encoding="utf-8")
+        self.assertIn("/opt/clausis/bin/python", session_launcher)
+        self.assertIn("clausis.assistant --execute", session_launcher)
+        self.assertIn("clausis-session-runtime", (
+            ROOT
+            / "packaging/live-build/config/includes.chroot/usr/local/bin"
+            / "clausis-live-assistant"
+        ).read_text(encoding="utf-8"))
 
         stop_launcher = (
             ROOT

@@ -1,5 +1,12 @@
-clausis-core (0.3.1-1) UNRELEASED; urgency=medium
+clausis-core (0.4.0-1) UNRELEASED; urgency=medium
 
+  * Add local wake, activation-timeout, sleep and emergency-stop gating before
+    any Hermes or cloud fallback.
+  * Add a bounded AT-SPI GNOME adapter for orientation, numbered controls,
+    semantic back navigation and accessible window cycling.
+  * Add deterministic repeat, correction and cancellation voice commands.
+  * Keep all hardware in honest half-duplex until a local interruption
+    detector and physical Barge-in tests exist.
   * Add a matching accessible Clausis GNOME identity and GDM branding.
   * Document the remaining audio, GNOME, installer, confirmation and recovery
     work required before claiming complete voice-only operation.

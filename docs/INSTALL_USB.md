@@ -5,24 +5,24 @@
 - Ein x86-64-PC mit mindestens 8 GB RAM.
 - Ein USB-Stick mit mindestens 8 GB. Sein bisheriger Inhalt wird beim Schreiben
   des ISO vollständig überschrieben.
-- Die Dateien `clausis-0.3.1-amd64.iso` und
-  `clausis-0.3.1-amd64.iso.sha256` aus `dist/`.
+- Die Dateien `clausis-0.4.0-amd64.iso` und
+  `clausis-0.4.0-amd64.iso.sha256` aus `dist/`.
 
 ## Prüfsumme kontrollieren
 
 Unter Linux oder macOS im Download-Ordner:
 
 ```sh
-sha256sum -c clausis-0.3.1-amd64.iso.sha256
+sha256sum -c clausis-0.4.0-amd64.iso.sha256
 ```
 
 Auf macOS wird stattdessen
-`shasum -a 256 -c clausis-0.3.1-amd64.iso.sha256` verwendet.
+`shasum -a 256 -c clausis-0.4.0-amd64.iso.sha256` verwendet.
 
 ## Empfohlener grafischer Weg
 
 1. Raspberry Pi Imager oder balenaEtcher öffnen.
-2. „Eigenes Image“ und `clausis-0.3.1-amd64.iso` auswählen.
+2. „Eigenes Image“ und `clausis-0.4.0-amd64.iso` auswählen.
 3. Den USB-Stick anhand von Hersteller und Größe eindeutig prüfen.
 4. Schreiben und anschließende Verifikation starten.
 5. Den Ziel-PC neu starten und im UEFI-/Bootmenü den USB-Stick auswählen.
@@ -52,16 +52,20 @@ die geprüfte Version aus dem ISO aktiv; der Zustand wird beim ersten Login
 gesprochen und angezeigt.
 
 Nach der Installation startet die lokale Sprachsteuerung beim Anmelden
-automatisch und kündigt die Mikrofonaktivierung an. „Stopp Hermes“ beendet sie
-lokal. Die Einrichtung kann jederzeit über „Clausis und Hermes einrichten“ im
-Anwendungsmenü erneut geöffnet werden.
+automatisch und kündigt die Mikrofonaktivierung an. Sagen Sie zunächst „Hallo
+Clausis“; danach bleibt ein kurzes Befehlsfenster offen. „Geh schlafen“ schließt
+es, „Stopp Clausis“ oder „Stopp Hermes“ beendet den lokalen Prozess. Mit „Wo bin
+ich?“, „Lies das Fenster vor“ und „Was kann ich hier tun?“ liest Clausis den
+aktuellen GNOME-Zustand und nummerierte Bedienelemente vor. Die Einrichtung
+kann jederzeit über „Clausis und Hermes einrichten“ im Anwendungsmenü erneut
+geöffnet werden.
 
-Nach dem GNOME-Start zeigt Version 0.3.1 den dunklen Clausis-Hintergrund mit
+Nach dem GNOME-Start zeigt Version 0.4.0 den dunklen Clausis-Hintergrund mit
 dem türkis-violetten Hörsymbol. Derselbe Stil kennzeichnet Einrichtung,
 Sprachassistent und Anmeldebildschirm. Fehlt diese Gestaltung vollständig,
 wurde wahrscheinlich noch eine ältere ISO gestartet.
 
-Diese 0.3.1-Version ist ein technischer Teststand. Vor dem Einsatz müssen
+Diese 0.4.0-Version ist ein technischer Teststand. Vor dem Einsatz müssen
 wichtige Dateien separat gesichert werden. Stimm-PIN, TPM-Bindung, automatisches
 Rollback und vollständig sprachbedienbare Partitionierung sind noch nicht als
 fertig freigegeben.

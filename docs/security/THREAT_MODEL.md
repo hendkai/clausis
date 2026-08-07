@@ -1,6 +1,6 @@
 # Threat model
 
-Status: living pre-release assessment for Clausis Core 0.3.1.
+Status: living pre-release assessment for Clausis Core 0.4.0.
 
 ## Intended use and boundary
 
@@ -45,6 +45,8 @@ or an accidental utterance from silently performing sensitive system actions.
 | Cloud audio disclosure | GPT Live is off by default and requires a separate explicit consent directly beside the notice | While active, microphone audio is sent to OpenAI; surrounding speech may be captured. Provider retention/account settings require user review. |
 | Live user redirects privileged installer copy | Calamares transfer accepts only bounded regular files, opens with `O_NOFOLLOW` and atomically replaces target names | A compromised root process or Calamares itself remains outside this control. |
 | Audio loss locks out user | Equal keyboard/Orca path and recovery boot requirement | Requires end-to-end hardware testing. |
+| Background speech reaches the local agent | A local wake gate discards transcripts until an exact activation phrase and expires after 25 seconds; stop works in every state | STT-based wake detection is heavier and less resistant to replay than a dedicated verified wake-word model. |
+| Malicious accessible widget is activated by number | AT-SPI targets are re-read from the active window and arbitrary activation is medium risk | A misleading accessible name may still influence the user; trusted confirmation is not yet production-ready. |
 
 ## Release blockers
 

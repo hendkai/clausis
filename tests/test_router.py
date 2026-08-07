@@ -23,6 +23,27 @@ class RouterTests(unittest.TestCase):
 
     def test_stop_is_local(self):
         self.assertEqual(self.router.route("Stopp Hermes").action, "voice.stop")
+        self.assertEqual(self.router.route("Stopp Clausis").action, "voice.stop")
+
+    def test_orientation_commands_are_local_and_semantic(self):
+        self.assertEqual(
+            self.router.route("Wo bin ich").action, "desktop.context.describe"
+        )
+        self.assertEqual(
+            self.router.route("Was kann ich hier tun").action,
+            "desktop.controls.list",
+        )
+        numbered = self.router.route("Nummer drei")
+        self.assertEqual(
+            (numbered.action, numbered.target, numbered.risk),
+            ("desktop.control.activate", "3", Risk.MEDIUM),
+        )
+
+    def test_correction_commands_do_not_need_hermes(self):
+        self.assertEqual(self.router.route("Zurück").action, "desktop.navigate.back")
+        self.assertEqual(self.router.route("Wiederholen").action, "voice.repeat")
+        self.assertEqual(self.router.route("Abbrechen").action, "voice.cancel")
+        self.assertEqual(self.router.route("Korrigieren").action, "voice.correct")
 
     def test_unknown_returns_none(self):
         self.assertIsNone(self.router.route("Schreibe mir ein Gedicht"))
@@ -33,4 +54,3 @@ class RouterTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -53,12 +53,21 @@ def _setting(request: ActionRequest) -> None:
         raise ValueError("invalid settings panel")
 
 
+def _control_number(request: ActionRequest) -> None:
+    if not request.target.isdigit() or not 1 <= int(request.target) <= 30:
+        raise ValueError("control number must be between 1 and 30")
+
+
 ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     "app.launch": ActionPolicy(Risk.LOW, True, ("gtk-launch",), _safe_identifier),
     "app.close": ActionPolicy(Risk.MEDIUM, True, None, _safe_identifier),
     "desktop.overview": ActionPolicy(Risk.LOW, True),
     "desktop.window.next": ActionPolicy(Risk.LOW, True),
     "desktop.window.previous": ActionPolicy(Risk.LOW, True),
+    "desktop.context.describe": ActionPolicy(Risk.LOW, True),
+    "desktop.controls.list": ActionPolicy(Risk.LOW, True),
+    "desktop.control.activate": ActionPolicy(Risk.MEDIUM, True, None, _control_number),
+    "desktop.navigate.back": ActionPolicy(Risk.LOW, True),
     "desktop.settings.open": ActionPolicy(Risk.LOW, True, ("gnome-control-center",), _setting),
     "file.open": ActionPolicy(Risk.LOW, True, ("gio", "open"), _path),
     "file.search": ActionPolicy(Risk.LOW, True, None, _target_required),
@@ -115,4 +124,3 @@ def evaluate(request: ActionRequest) -> PolicyDecision:
         reason=reason,
         policy=policy,
     )
-
