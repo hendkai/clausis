@@ -1,16 +1,209 @@
-"""Voice installer plan validation and secret-safe summaries."""
+"""Secret-safe installation plans and conservative block-device discovery.
+
+Nothing in this module writes to a block device.  The inventory is deliberately
+stricter than Calamares: a device is only offered when it is a writable,
+non-removable disk, is large enough and neither it nor a child is mounted.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
+from pathlib import Path
 import re
-from typing import Dict, Mapping, Optional
+import secrets
+import subprocess
+import time
+from typing import Callable, Iterable, Mapping, Optional, Sequence
 
 
 LOCALES = {"de_DE.UTF-8", "en_GB.UTF-8", "en_US.UTF-8"}
 TIMEZONE_RE = re.compile(r"^[A-Za-z_+-]+(?:/[A-Za-z0-9_+.-]+)+$")
 USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
+DEVICE_RE = re.compile(r"^/dev/(?:disk/by-id/)?[A-Za-z0-9._:+-]+$")
 PROVIDERS = {"none", "nous", "openai-compatible", "local"}
+FILESYSTEMS = {"btrfs", "ext4"}
+BOOT_MODES = {"uefi", "bios"}
+MINIMUM_DISK_BYTES = 32 * 1024**3
+LIVE_MOUNT_PREFIXES = (
+    "/run/live/medium",
+    "/lib/live/mount/medium",
+    "/usr/lib/live/mount/medium",
+)
+
+
+def _clean(value: object) -> str:
+    return " ".join(str(value or "").split())
+
+
+def _mountpoints(value: object) -> tuple[str, ...]:
+    if isinstance(value, str):
+        values: Iterable[object] = (value,)
+    elif isinstance(value, list):
+        values = value
+    else:
+        values = ()
+    return tuple(text for item in values if (text := _clean(item)))
+
+
+def _as_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.casefold().strip()
+        if normalized in {"0", "false", "no"}:
+            return False
+        if normalized in {"1", "true", "yes"}:
+            return True
+    raise ValueError("lsblk returned an invalid boolean field")
+
+
+@dataclass(frozen=True)
+class InstallDisk:
+    path: str
+    stable_id: str
+    size_bytes: int
+    model: str = "Unbekannter Datenträger"
+    serial: str = ""
+    transport: str = ""
+    removable: bool = False
+    readonly: bool = False
+    mountpoints: tuple[str, ...] = ()
+    child_mountpoints: tuple[str, ...] = ()
+    device_type: str = "disk"
+
+    @property
+    def serial_suffix(self) -> str:
+        return self.serial[-6:] if self.serial else "nicht verfügbar"
+
+    @property
+    def size_gib(self) -> float:
+        return self.size_bytes / 1024**3
+
+    def rejection_reasons(self, *, minimum_bytes: int = MINIMUM_DISK_BYTES) -> tuple[str, ...]:
+        reasons: list[str] = []
+        if self.device_type != "disk":
+            reasons.append("kein physischer Gesamtdatenträger")
+        if self.readonly:
+            reasons.append("schreibgeschützt")
+        if self.removable:
+            reasons.append("Wechseldatenträger")
+        if self.size_bytes < minimum_bytes:
+            reasons.append("kleiner als 32 GiB")
+        mounts = self.mountpoints + self.child_mountpoints
+        if mounts:
+            if any(any(mount.startswith(prefix) for prefix in LIVE_MOUNT_PREFIXES) for mount in mounts):
+                reasons.append("enthält das gestartete Live-System")
+            else:
+                reasons.append("Datenträger oder Partition ist eingehängt")
+        if not self.stable_id.startswith("/dev/disk/by-id/"):
+            reasons.append("keine stabile Gerätekennung")
+        return tuple(reasons)
+
+    @property
+    def eligible(self) -> bool:
+        return not self.rejection_reasons()
+
+    def spoken_identity(self) -> str:
+        return (
+            f"{self.model}, {self.size_gib:.1f} GiB, "
+            f"Seriennummer endet auf {self.serial_suffix}"
+        )
+
+
+def _stable_ids(by_id_directory: Path = Path("/dev/disk/by-id")) -> dict[str, str]:
+    """Map canonical device paths to stable IDs, ignoring partition aliases."""
+    result: dict[str, str] = {}
+    try:
+        entries = sorted(by_id_directory.iterdir(), key=lambda item: item.name)
+    except OSError:
+        return result
+    for entry in entries:
+        if "-part" in entry.name:
+            continue
+        try:
+            resolved = str(entry.resolve(strict=True))
+        except OSError:
+            continue
+        result.setdefault(resolved, str(entry))
+    return result
+
+
+def parse_lsblk_inventory(
+    payload: Mapping[str, object],
+    *,
+    stable_ids: Optional[Mapping[str, str]] = None,
+) -> tuple[InstallDisk, ...]:
+    """Convert an ``lsblk --json`` response into immutable disk identities."""
+    devices = payload.get("blockdevices")
+    if not isinstance(devices, list):
+        raise ValueError("lsblk response has no blockdevices list")
+    stable_ids = stable_ids or {}
+    disks: list[InstallDisk] = []
+    for item in devices:
+        if not isinstance(item, Mapping):
+            continue
+        path = _clean(item.get("path") or item.get("name"))
+        children = item.get("children")
+        child_mounts: list[str] = []
+
+        def collect_mounts(nodes: object) -> None:
+            if not isinstance(nodes, list):
+                return
+            for node in nodes:
+                if not isinstance(node, Mapping):
+                    continue
+                child_mounts.extend(_mountpoints(node.get("mountpoints") or node.get("mountpoint")))
+                collect_mounts(node.get("children"))
+
+        collect_mounts(children)
+        try:
+            size_bytes = int(item.get("size") or 0)
+        except (TypeError, ValueError):
+            size_bytes = 0
+        disks.append(
+            InstallDisk(
+                path=path,
+                stable_id=stable_ids.get(path, path),
+                size_bytes=size_bytes,
+                model=_clean(item.get("model")) or "Unbekannter Datenträger",
+                serial=_clean(item.get("serial")),
+                transport=_clean(item.get("tran")),
+                removable=_as_bool(item.get("rm", False)),
+                readonly=_as_bool(item.get("ro", False)),
+                mountpoints=_mountpoints(item.get("mountpoints") or item.get("mountpoint")),
+                child_mountpoints=tuple(child_mounts),
+                device_type=_clean(item.get("type")),
+            )
+        )
+    return tuple(disks)
+
+
+def discover_install_disks(
+    *,
+    by_id_directory: Path = Path("/dev/disk/by-id"),
+    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+) -> tuple[InstallDisk, ...]:
+    """Run one fixed, read-only ``lsblk`` query and return all discovered disks."""
+    command = (
+        "lsblk",
+        "--json",
+        "--bytes",
+        "--paths",
+        "--output",
+        "NAME,PATH,TYPE,SIZE,MODEL,SERIAL,WWN,TRAN,RM,RO,MOUNTPOINTS",
+    )
+    result = runner(command, check=True, capture_output=True, text=True, timeout=10)
+    payload = json.loads(result.stdout)
+    if not isinstance(payload, Mapping):
+        raise ValueError("lsblk returned an invalid JSON object")
+    return parse_lsblk_inventory(payload, stable_ids=_stable_ids(by_id_directory))
+
+
+def eligible_install_disks(disks: Sequence[InstallDisk]) -> tuple[InstallDisk, ...]:
+    return tuple(disk for disk in disks if disk.eligible)
 
 
 @dataclass(frozen=True)
@@ -25,6 +218,11 @@ class InstallerPlan:
     hermes_provider: str = "none"
     cloud_consent: bool = False
     recovery_key_exported: bool = False
+    disk_bytes: int = 0
+    disk_model: str = ""
+    disk_serial_suffix: str = ""
+    filesystem: str = "btrfs"
+    boot_mode: str = "uefi"
     metadata: Mapping[str, str] = field(default_factory=dict)
 
     def validate(self) -> None:
@@ -34,8 +232,16 @@ class InstallerPlan:
             raise ValueError("invalid timezone")
         if not USERNAME_RE.fullmatch(self.username):
             raise ValueError("invalid username")
-        if not self.disk_id or any(character in self.disk_id for character in "\x00\n\r"):
+        if not DEVICE_RE.fullmatch(self.disk_id):
             raise ValueError("invalid disk identifier")
+        if not self.erase_disk:
+            raise ValueError("voice-native mode currently supports whole-disk installation only")
+        if self.filesystem not in FILESYSTEMS:
+            raise ValueError("unsupported filesystem")
+        if self.boot_mode not in BOOT_MODES:
+            raise ValueError("unsupported boot mode")
+        if self.disk_bytes < 0:
+            raise ValueError("invalid disk size")
         if self.hermes_provider not in PROVIDERS:
             raise ValueError("unsupported Hermes provider")
         if self.hermes_provider in {"nous", "openai-compatible"} and not self.cloud_consent:
@@ -46,14 +252,75 @@ class InstallerPlan:
         if any(key.casefold() in forbidden for key in self.metadata):
             raise ValueError("installer plan must not contain secrets or biometric templates")
 
+    def bind_to(self, disks: Sequence[InstallDisk]) -> InstallDisk:
+        """Fail closed if a recorded device identity changed before execution."""
+        self.validate()
+        matches = [disk for disk in disks if disk.stable_id == self.disk_id]
+        if len(matches) != 1:
+            raise ValueError("selected disk is missing or no longer unique")
+        disk = matches[0]
+        if not disk.eligible:
+            raise ValueError("selected disk is no longer eligible")
+        if self.disk_bytes and self.disk_bytes != disk.size_bytes:
+            raise ValueError("selected disk size changed")
+        if self.disk_serial_suffix and self.disk_serial_suffix != disk.serial_suffix:
+            raise ValueError("selected disk serial identity changed")
+        return disk
+
     def spoken_summary(self) -> str:
         self.validate()
-        destructive = "wird vollständig gelöscht" if self.erase_disk else "wird ohne vollständiges Löschen verwendet"
+        disk = self.disk_model or self.disk_id
+        size = f", {self.disk_bytes / 1024**3:.1f} GiB" if self.disk_bytes else ""
+        serial = (
+            f", Seriennummer endet auf {self.disk_serial_suffix}"
+            if self.disk_serial_suffix
+            else ""
+        )
         cloud = "mit freigegebenem Cloud-Zugang" if self.cloud_consent else "ohne Cloud-Zugang"
-        encryption = "verschlüsselt" if self.encryption else "nicht verschlüsselt"
+        encryption = "mit LUKS 2 verschlüsselt" if self.encryption else "nicht verschlüsselt"
         return (
-            f"Installation auf {self.disk_id}. Der Datenträger {destructive}. "
-            f"Das System wird {encryption}. Benutzer {self.username}. "
-            f"Sprache {self.locale}. Zeitzone {self.timezone}. Hermes {cloud}."
+            f"Achtung. Installation auf {disk}{size}{serial}. "
+            "Der gesamte Datenträger und alle darauf gespeicherten Daten werden dauerhaft gelöscht. "
+            f"Das System wird {encryption}, mit {self.filesystem} und im Modus {self.boot_mode} eingerichtet. "
+            f"Benutzer {self.username}. Sprache {self.locale}. Zeitzone {self.timezone}. Hermes {cloud}."
         )
 
+
+CONFIRMATION_WORDS = (
+    "anker",
+    "birke",
+    "feder",
+    "hafen",
+    "insel",
+    "laterne",
+    "mond",
+    "quelle",
+    "segel",
+    "wolke",
+)
+
+
+class InstallConfirmationChallenge:
+    """Single-use, expiring exact-phrase confirmation held only in memory."""
+
+    def __init__(self, *, ttl_seconds: float = 120.0, clock: Callable[[], float] = time.monotonic) -> None:
+        if ttl_seconds <= 0:
+            raise ValueError("confirmation timeout must be positive")
+        self._ttl_seconds = ttl_seconds
+        self._clock = clock
+        self._phrase: Optional[str] = None
+        self._expires_at = 0.0
+
+    def issue(self) -> str:
+        first, second = secrets.SystemRandom().sample(CONFIRMATION_WORDS, 2)
+        self._phrase = f"{first} {second} {secrets.randbelow(900) + 100}"
+        self._expires_at = self._clock() + self._ttl_seconds
+        return self._phrase
+
+    def confirm(self, response: str) -> bool:
+        expected, self._phrase = self._phrase, None
+        expires_at, self._expires_at = self._expires_at, 0.0
+        if expected is None or self._clock() > expires_at:
+            return False
+        normalized = " ".join(response.casefold().strip().split())
+        return secrets.compare_digest(normalized, expected.casefold())

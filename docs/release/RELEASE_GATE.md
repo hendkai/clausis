@@ -29,6 +29,11 @@ an explicitly labelled public technical test preview**.
 - [ ] Physical confirmation-audio isolation, replay handling and spoken abort
   pass on every supported hardware profile.
 - [x] GTK accessibility metadata, local voice setup path and Calamares target-copy code are present and structurally validated in the final ISO.
+- [x] Read-only disk inventory rejects live/removable/mounted/read-only/undersized
+  targets, plans rebind stable identity, and destructive Calamares choice is not
+  preselected. LUKS2/Btrfs defaults pass structural Debian checks.
+- [ ] Validated target identity and protected random phrase are enforced by the
+  exact Calamares partition transaction before its first block-device write.
 - [ ] Complete Calamares install and target-copy behavior validated on a persistent virtual or physical disk.
 - [ ] ISO, package repository and update metadata signed.
 - [ ] Online Hermes releases verified against trusted maintainer signing keys.

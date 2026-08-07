@@ -81,11 +81,25 @@ diese Punkte geprüft sind, bleibt der Pfad eine technische Vorschau.
 
 ### 5. Installation, Anmeldung und Wiederherstellung
 
-Calamares muss Installationsdaten über ein eigenes Sprach-Backend erhalten,
-nicht durch Screen-Scraping. Datenträgerplan, Verschlüsselung und Zielgerät
-müssen vollständig vorgelesen und mit einer zufälligen Phrase bestätigt werden.
+Die read-only Datenträgererkennung ist umgesetzt. Sie bietet nur beschreibbare,
+nicht entfernbare, mindestens 32-GiB-große, nicht eingehängte Gesamtdatenträger
+mit stabiler `/dev/disk/by-id`-Kennung an und sperrt insbesondere das gestartete
+Live-Medium. Ein Plan wird vor der Übergabe erneut an Kennung, exakte Größe und
+Seriennummer-Ende gebunden. Der kanonische Text nennt vollständiges Löschen,
+Zielidentität, Dateisystem, Bootmodus, Verschlüsselung, Benutzer, Sprache und
+Zeitzone. Eine exakte, einmalige Zufallsphrase mit Ablauf und fail-closed
+Vergleich ist als interner Baustein vorhanden.
+
+Calamares startet weiterhin ohne vorausgewählte Löschaktion. Verschlüsselung
+ist vorausgewählt; die Zielkonfiguration verwendet LUKS2, ein getrenntes
+unverschlüsseltes `/boot` und Btrfs. Die Clausis-Planbindung steuert Calamares'
+tatsächlichen Partitionsauftrag jedoch noch nicht. Deshalb darf die Phrase noch
+nicht als Freigabe einer realen Installation verwendet werden. Dafür ist ein
+eigenes Calamares-Modul oder ein vollständig getesteter Clausis-Installer nötig,
+nicht Screen-Scraping.
+
 Zusätzlich fehlen durchgängiges Audio in Initramfs, LUKS-Entsperrung, GDM,
-Recovery und Rollback. Stimme allein ist keine sichere
+Recovery, Btrfs-Subvolume-Layout und Rollback. Stimme allein ist keine sichere
 Festplattenentsperrung; FIDO2, TPM-PIN und Recovery-Key bleiben nötig.
 
 ### 6. Anwendungen und Erweiterbarkeit

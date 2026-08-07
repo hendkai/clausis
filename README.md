@@ -67,6 +67,11 @@ disk in VirtualBox. Do not unpack the resulting ISO.
 - Shell-free fixed-argument execution, dry-run by default.
 - Tamper-evident, privacy-redacted audit records.
 - Audio capability degradation and secret-free installer plan validation.
+- Conservative read-only disk discovery that excludes the live medium,
+  removable, mounted, read-only, undersized and unstably identified devices;
+  plans are rebound to stable ID, exact size and serial suffix before hand-off.
+- Calamares defaults to no destructive selection, preselected LUKS2 encryption,
+  a separate boot partition and Btrfs root; keyboard and Orca manual mode remain.
 - D-Bus interface definitions, hardened systemd units, Polkit and Debian
   packaging scaffolding.
 - Local microphone capture, Faster-Whisper transcription and system TTS.
@@ -76,6 +81,9 @@ disk in VirtualBox. Do not unpack the resulting ISO.
   only after a successful installation.
 - Accessible Hermes provider setup before Calamares with local spoken provider
   choice, explicit cloud consent, masked keyboard-only API-key entry and Orca.
+- The local offline assistant now starts before Calamares even when GPT Live is
+  not selected, so window orientation, control lists, back and stop remain
+  spoken without a network connection.
 - Optional GPT Live mode for low-latency online speech during installation and
   on the installed desktop. It is off by default, needs a separate explicit
   audio-transmission consent and a keyboard-only OpenAI API key, and falls back
@@ -94,8 +102,8 @@ The remaining work before Clausis can honestly be called fully voice-operated
 is tracked in
 [`docs/VOICE_ONLY_GAP_ANALYSIS.md`](docs/VOICE_ONLY_GAP_ANALYSIS.md). The main
 missing pieces are a dedicated low-latency wake-word/barge-in detector, broader
-GNOME/portal coverage, protected confirmations, voice-native installation and
-boot/login/recovery audio.
+GNOME/portal coverage, physical confirmation-audio isolation, enforced
+voice-native installation and boot/login/recovery audio.
 
 ## Build the installation ISO
 
@@ -144,8 +152,11 @@ same desktop user remain a credential-theft risk.
 During the live installation GPT Live is a spoken companion and can control the
 currently supported Clausis desktop actions. Calamares disk partition fields
 are not yet controlled directly by GPT Live; those remain available through
-the graphical, keyboard and Orca paths. Fully voice-native partitioning remains
-a release blocker.
+the graphical, keyboard and Orca paths. Clausis can already inventory and bind
+an installation plan to a stable disk identity, but it does not yet enforce
+that plan inside Calamares. The protected phrase must not be treated as
+authorisation until that final binding exists, so fully voice-native
+partitioning remains a release blocker.
 
 Trusted confirmation no longer exposes `Begin`, `Approve`, a challenge phrase,
 a PIN or a capability through the public D-Bus interface. The isolated

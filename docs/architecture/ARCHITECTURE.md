@@ -146,7 +146,30 @@ provider or secret details.
   offline. Numbered control activation is re-read immediately before execution
   and remains confirmation-gated.
 
-## Not implemented in 0.4.1
+## Installer safety foundation after 0.4.1
+
+- A fixed-argument, read-only `lsblk --json` inventory rejects the live medium,
+  removable, read-only, mounted, undersized and non-stably identified devices.
+- The immutable public plan can carry the stable by-id path, exact byte size,
+  model and serial suffix. It is rebound to freshly discovered hardware before
+  hand-off; missing, duplicated, changed or newly mounted targets fail closed.
+- Whole-disk erase is the only mode the voice-plan validator accepts. Coexist
+  and manual partitioning remain keyboard/Orca fallback paths and are not
+  falsely presented as voice-native.
+- A single-use exact confirmation phrase exists only in process memory and
+  expires after 120 seconds. This is not yet connected to a destructive job.
+- Calamares never preselects erase. Its default proposal is LUKS2 with a
+  separate unencrypted `/boot`, Btrfs root and swap file. The separate boot
+  volume avoids relying on GRUB to unlock Argon2-backed LUKS2.
+- The setup window now keeps status and primary buttons outside the scrollable
+  form so they stay visible at small virtual-machine resolutions.
+
+The missing enforcement boundary is important: the validated Clausis target
+is not yet structurally tied to the partition jobs that Calamares will execute.
+Until that boundary and a persistent-disk VM test pass, the phrase is test-only
+and Calamares's own summary remains authoritative.
+
+## Not implemented after 0.4.1
 
 - Dedicated low-power wake-word inference, certified echo cancellation and
   true Barge-in.
@@ -156,7 +179,8 @@ provider or secret details.
 - Physical proof of trusted microphone/seat isolation and replay detection;
   the former string-based D-Bus PIN transport has been removed.
 - Speaker verification, replay detection or biometric enrollment.
-- Fully voice-native Calamares partitioning, LUKS/TPM enrollment and snapshots.
+- Enforced voice-native Calamares partition execution, recovery-key export,
+  TPM enrollment, Btrfs subvolume snapshots and rollback.
 - Short-lived OpenAI client credentials from a trusted backend; 0.4.1 stores
   the voluntarily supplied standard API key in the user's private `0600` file.
 - Cryptographic verification of the upstream Hermes release tag against a

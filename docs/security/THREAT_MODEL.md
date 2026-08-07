@@ -44,6 +44,8 @@ or an accidental utterance from silently performing sensitive system actions.
 | Cloud remains active after user wants to stop | Local desktop stop action uses a per-user runtime marker and does not require a model response or network | Spoken stop still depends on the active Realtime session recognizing/calling the stop tool; use the local launcher or Ctrl+C if it does not. |
 | Cloud audio disclosure | GPT Live is off by default and requires a separate explicit consent directly beside the notice | While active, microphone audio is sent to OpenAI; surrounding speech may be captured. Provider retention/account settings require user review. |
 | Live user redirects privileged installer copy | Hermes files and the versioned PIN verifier are bounded, reject symlinks, open with `O_NOFOLLOW` and atomically replace target names; plaintext PIN is never staged | A compromised root process or Calamares itself remains outside this control. |
+| Installer erases the live medium or wrong disk | Read-only inventory excludes live/removable/mounted/read-only/undersized disks; execution plans use stable by-id, exact byte size and serial suffix and must rebind immediately before hand-off | The validated plan is not yet enforced by Calamares partition jobs; protected voice authorisation is therefore not enabled for real erasure. |
+| Prompt injection says “confirm installation” | Whole-disk plans require a canonical destructive summary and an exact expiring single-use random phrase; ambiguity, timeout and reuse deny | Challenge logic is not yet wired to a privileged installation transaction and provides no production authorisation today. |
 | Audio loss locks out user | Equal keyboard/Orca path and recovery boot requirement | Requires end-to-end hardware testing. |
 | Background speech reaches the local agent | A local wake gate discards transcripts until an exact activation phrase and expires after 25 seconds; stop works in every state | STT-based wake detection is heavier and less resistant to replay than a dedicated verified wake-word model. |
 | Malicious accessible widget is activated by number | AT-SPI targets are re-read from the active window and arbitrary activation is medium risk | A misleading accessible name may still influence the user; trusted confirmation is not yet production-ready. |
@@ -62,6 +64,9 @@ or an accidental utterance from silently performing sensitive system actions.
 - Ship signed ISO/package repositories and validate automatic rollback.
 - Pin trusted Hermes maintainer signing keys and verify release signatures
   before accepting an online installer update.
+- Bind the validated stable target identity to Calamares's actual partition job
+  before any write and exercise power-loss and device-swap cases on disposable
+  persistent VM disks.
 
 ## Security acceptance gates
 

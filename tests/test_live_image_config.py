@@ -147,6 +147,11 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertIn("QT_ACCESSIBILITY=1", welcome)
         self.assertIn("realtime_enabled", welcome)
         self.assertIn("GPT Live begleitet", welcome)
+        self.assertIn("lokale Clausis Sprachsteuerung begleitet", welcome)
+        self.assertLess(
+            welcome.index("clausis-live-assistant >/dev/null"),
+            welcome.index("calamares-install-debian"),
+        )
 
         setup_source = (ROOT / "src/clausis/setup_app.py").read_text(
             encoding="utf-8"
@@ -236,3 +241,19 @@ class LiveImageConfigurationTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("neuesten offiziellen stabilen Version", welcome)
         self.assertIn("bundled-fallback", welcome)
+
+    def test_calamares_defaults_are_encrypted_btrfs_but_never_preselect_erase(self) -> None:
+        partition = (ROOT / "packaging/calamares/partition.conf").read_text(
+            encoding="utf-8"
+        )
+        packages = (
+            ROOT / "packaging/live-build/config/package-lists/clausis.list.chroot"
+        ).read_text(encoding="utf-8").splitlines()
+
+        self.assertIn("initialPartitioningChoice: none", partition)
+        self.assertIn("luksGeneration: luks2", partition)
+        self.assertIn("preCheckEncryption: true", partition)
+        self.assertIn('defaultFileSystemType: "btrfs"', partition)
+        self.assertIn('mountPoint: "/boot"', partition)
+        self.assertIn("noEncrypt: true", partition)
+        self.assertIn("cryptsetup-initramfs", packages)

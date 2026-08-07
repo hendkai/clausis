@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | Product | Clausis Core |
-| Version | 0.4.1 development prototype |
+| Version | 0.5.0 development prototype |
 | Date | 2026-08-07 |
 | Responsible role | Open; must be assigned before release |
 | Status | Draft; public prototype testing allowed, production release blocked |
@@ -27,6 +27,27 @@ misleading to claim that the result is production-ready or fully compliant.
 The complete 88-test suite and Debian binary-package build also passed inside
 an official fresh Debian Stable container. A later Opus 5 source-review attempt
 did not return output and therefore is not counted as review evidence.
+
+On 2026-08-07 Codex added the first non-destructive voice-installer safety
+foundation after 0.4.1. It implemented fixed-argument read-only block-device
+inventory, conservative target exclusion, stable-ID/size/serial rebinding,
+whole-disk-only plan validation, canonical destructive summaries and an
+in-memory single-use expiring confirmation phrase. Calamares remains fail-safe:
+erase is never preselected. Its proposal now defaults to LUKS2, a separate
+unencrypted boot partition, Btrfs root and an explicitly installed cryptsetup
+initramfs integration. The GTK Hermes setup footer was moved outside the
+scrolling form for small VM displays.
+
+The new code does not yet bind the accepted plan to Calamares's actual
+partition jobs, generate/export a recovery key, enroll TPM/FIDO2, or write a
+disk. Documentation and the threat model explicitly prohibit treating the
+phrase as a production installation authorisation until that boundary and a
+persistent disposable-disk test pass. This change introduces no model,
+provider, biometric processing or cloud data flow. Local STT use and the
+existing direct-AI-interaction disclosure are unchanged. Codex authored the
+code, tests, packaging and documentation; 156 automated tests passed, and the
+Calamares YAML was parsed in a clean Debian 13 amd64 container. No human
+security, accessibility or legal approval is recorded.
 
 On 2026-08-06 Codex added the first local audio frontend, the accessible live
 session welcome, a Calamares-based installation image configuration and a
@@ -345,6 +366,10 @@ AI Act, Commission overview and final Article 50 guidance were rechecked on
   <https://developer.gnome.org/documentation/guidelines/accessibility.html>
 - XDG Desktop Portal FileChooser interface:
   <https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.FileChooser.html>
+- Calamares whole-disk partitioning documentation:
+  <https://calamares.io/docs/partitions/>
+- Debian encrypted-volume boot documentation:
+  <https://www.debian.org/releases/trixie/arm64/ch07s02.en.html>
 
 ## Open actions and triggers
 

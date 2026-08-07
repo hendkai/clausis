@@ -37,5 +37,6 @@ gnome-terminal
 zenity
 fonts-atkinson-hyperlegible
 btrfs-progs
+cryptsetup-initramfs
 snapper
 unattended-upgrades
