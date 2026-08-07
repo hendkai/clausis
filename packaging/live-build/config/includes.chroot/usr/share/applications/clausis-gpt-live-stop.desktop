@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=GPT Live sofort beenden
+Name[de]=GPT Live sofort beenden
+Comment=Online-Audio lokal und ohne Cloud-Verbindung stoppen
+Comment[de]=Online-Audio lokal und ohne Cloud-Verbindung stoppen
+Exec=/usr/local/bin/clausis-live-assistant --stop-live
+Icon=process-stop
+Terminal=false
+Categories=Accessibility;Utility;
+Keywords=Stopp;Stop;GPT;Live;Mikrofon;Audio;Datenschutz;

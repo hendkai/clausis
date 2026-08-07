@@ -56,7 +56,7 @@ def copy_configuration(root: Path, username: str, source: Path = DEFAULT_SOURCE)
     try:
         os.fchmod(directory_fd, 0o700)
         os.fchown(directory_fd, uid, gid)
-        for name in ("config.yaml", ".env"):
+        for name in ("config.yaml", ".env", ".gpt-live.env"):
             source_file = source / name
             try:
                 source_stat = source_file.lstat()

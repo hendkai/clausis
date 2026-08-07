@@ -25,6 +25,7 @@ class Origin(str, Enum):
     HERMES = "hermes"
     EXTERNAL_CONTENT = "external_content"
     INSTALLER = "installer"
+    GPT_LIVE = "gpt_live"
 
 
 class Risk(str, Enum):

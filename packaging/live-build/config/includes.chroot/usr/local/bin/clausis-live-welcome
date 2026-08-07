@@ -32,6 +32,13 @@ if [ "$live_system" -eq 1 ]; then
         clausis-setup --home "${HOME}" >/tmp/clausis-setup.log 2>&1 || true
     fi
 
+    if grep -q '"realtime_enabled": true' "${HOME}/.hermes/config.yaml" 2>/dev/null \
+        && command -v clausis-live-assistant >/dev/null 2>&1; then
+        notice='GPT Live begleitet jetzt freiwillig die Installation. Mikrofon-Audio wird an OpenAI übertragen. Die lokale Sprachsteuerung bleibt als Rückfall verfügbar.'
+        command -v notify-send >/dev/null 2>&1 && notify-send -u normal -t 20000 "Clausis – GPT Live aktiv" "$notice" || true
+        clausis-live-assistant >/dev/null 2>&1 &
+    fi
+
     if command -v calamares-install-debian >/dev/null 2>&1; then
         QT_ACCESSIBILITY=1 calamares-install-debian >/tmp/clausis-calamares.log 2>&1 &
     fi

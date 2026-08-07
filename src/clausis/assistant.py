@@ -6,11 +6,13 @@ import argparse
 import os
 from pathlib import Path
 import sys
+import time
 from typing import Sequence
 
 from .broker import ActionBroker, SafeExecutor
 from .capabilities import CapabilityAuthority
 from .hermes_client import HermesOneShot, hermes_is_configured
+from .gpt_live import GptLiveSession, load_gpt_live_config, request_local_stop
 from .router import OfflineRouter
 from .runtime import RuntimeState, VoiceRuntime
 from .speech import LocalWhisper, MicrophoneRecorder, SpeechError, SystemSpeaker, record_temporary
@@ -35,7 +37,22 @@ def main(argv: Sequence[str] = ()) -> int:
     parser.add_argument("--execute", action="store_true", help="validierte, risikoarme Aktionen ausführen")
     parser.add_argument("--once", action="store_true", help="nach einer Äußerung beenden")
     parser.add_argument("--text", help="Text statt Mikrofon verwenden (Test und Barrierefreiheits-Fallback)")
+    parser.add_argument(
+        "--local",
+        action="store_true",
+        help="freiwillig konfiguriertes GPT Live für diesen Start überspringen",
+    )
+    parser.add_argument(
+        "--stop-live",
+        action="store_true",
+        help="eine laufende GPT-Live-Sitzung lokal und ohne Cloud beenden",
+    )
     args = parser.parse_args(list(argv) or None)
+
+    if args.stop_live:
+        request_local_stop()
+        print("Lokaler Stopp für GPT Live wurde angefordert.", flush=True)
+        return 0
 
     speaker = SystemSpeaker()
     print(AI_NOTICE_DE, flush=True)
@@ -44,10 +61,53 @@ def main(argv: Sequence[str] = ()) -> int:
     except SpeechError as exc:
         print(f"Sprachausgabe eingeschränkt: {exc}", file=sys.stderr)
 
+    broker = ActionBroker(
+        CapabilityAuthority.generate(), SafeExecutor(dry_run=not args.execute)
+    )
+    live_config = None if args.local or args.text is not None else load_gpt_live_config(Path.home())
+    if live_config is not None:
+        live_notice = (
+            "GPT Live ist aktiv. Mikrofon-Audio wird jetzt an OpenAI übertragen. "
+            "Sagen Sie Stopp Clausis oder drücken Sie Steuerung C zum Beenden."
+        )
+        print(live_notice, flush=True)
+        try:
+            speaker.speak(live_notice, language=args.language)
+            while True:
+                started = time.monotonic()
+                try:
+                    return GptLiveSession(
+                        live_config, broker, language=args.language
+                    ).run()
+                except RuntimeError:
+                    if time.monotonic() - started < 50 * 60:
+                        raise
+                    reconnect_notice = (
+                        "Die GPT Live Sitzung wird nach der Zeitgrenze sicher neu verbunden."
+                    )
+                    print(reconnect_notice, flush=True)
+                    try:
+                        speaker.speak(reconnect_notice, language=args.language)
+                    except SpeechError:
+                        pass
+        except KeyboardInterrupt:
+            print("Clausis beendet.", flush=True)
+            return 130
+        except (OSError, RuntimeError) as exc:
+            print(f"GPT Live nicht verfügbar: {exc}", file=sys.stderr, flush=True)
+            fallback_notice = (
+                "GPT Live ist nicht erreichbar. Clausis verwendet jetzt automatisch "
+                "die lokale Sprachsteuerung."
+            )
+            try:
+                speaker.speak(fallback_notice, language=args.language)
+            except SpeechError:
+                pass
+
     hermes_fallback = HermesOneShot(home=Path.home()) if hermes_is_configured(Path.home()) else None
     runtime = VoiceRuntime(
         OfflineRouter(),
-        ActionBroker(CapabilityAuthority.generate(), SafeExecutor(dry_run=not args.execute)),
+        broker,
         hermes_fallback=hermes_fallback,
     )
     recorder = MicrophoneRecorder()

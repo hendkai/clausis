@@ -1,9 +1,11 @@
-clausis-core (0.2.1-1) UNRELEASED; urgency=medium
+clausis-core (0.3.0-1) UNRELEASED; urgency=medium
 
   * Preinstall pinned Hermes Agent 0.20.0 in the live and target system.
   * Add accessible GTK, Orca, keyboard and local-voice provider setup.
   * Carry staged Hermes settings into the Calamares target account privately.
   * Install the latest official stable Hermes release during installation,
     retaining the pinned image version as an offline and failure fallback.
+  * Add voluntary OpenAI Realtime speech with separate consent, private key
+    storage, typed broker actions, local stop and automatic offline fallback.
 
  -- Clausis contributors <maintainers@example.invalid>  Fri, 07 Aug 2026 12:00:00 +0200

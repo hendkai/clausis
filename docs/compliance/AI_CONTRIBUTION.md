@@ -5,8 +5,8 @@
 | Field | Value |
 |---|---|
 | Product | Clausis Core |
-| Version | 0.2.0 development prototype |
-| Date | 2026-08-06 |
+| Version | 0.3.0 development prototype |
+| Date | 2026-08-07 |
 | Responsible role | Open; must be assigned before release |
 | Status | Draft; public prototype testing allowed, production release blocked |
 | Next review | 2027-02-06 or earlier on a trigger below |
@@ -155,9 +155,40 @@ Evidence:
 - `docs/compliance/CRA_SCOPE.md`;
 - `sbom.cdx.json` and `THIRD_PARTY_NOTICES.md`.
 
+On 2026-08-07 Codex implemented the optional OpenAI Realtime frontend for the
+0.3.0 technical preview. The user must separately enable GPT Live, consent to
+continuous microphone-audio transmission and enter an OpenAI API key through a
+masked keyboard field. The key is stored only in the selected user's dedicated
+private `.gpt-live.env` file and is excluded from Hermes' environment, the
+public config and installer
+marker. The setup explicitly states that API billing is separate from ChatGPT.
+
+The implementation uses the documented `gpt-realtime-2.1` WebSocket speech-to-
+speech flow with semantic VAD and a privacy-preserving safety identifier. The
+model receives only an enumerated `clausis_action` function and a stop function;
+it receives no shell, generic computer-use tool, plug-in/MCP access or
+capability token. Tool arguments, origin, minimum risk and reversibility are
+canonicalized locally before the existing broker sees them. Low-risk reversible
+actions may run for responsiveness, while medium-or-higher risk still requires
+the separate trusted confirmation. A local per-user stop marker and desktop
+launcher stop streaming without model or network cooperation, and connection
+failure falls back to local voice control.
+
+Codex checked the current official OpenAI Realtime conversation, WebSocket,
+function-tool and `gpt-realtime-2.1` model documentation on 2026-08-07. The
+OpenAI developer-documentation MCP was registered locally but requires a Codex
+restart, so this turn used the official OpenAI web documentation fallback. The
+102-test suite and a Debian 13 amd64 binary-package build passed. No real API
+The expanded GTK accessibility smoke check also passed under Debian/Xvfb: all
+GPT Live controls had accessible names and both API-key fields remained masked.
+No real API key was available, so a paid end-to-end Realtime call, physical
+audio behavior, the documented one-hour session limit
+and reconnection remain unverified release gates. The data-flow change was
+added to the threat model, DPIA draft, release gate, SBOM and license notice.
+
 ## AI functions in the product
 
-The 0.2.0 development image integrates Hermes Agent for direct
+The 0.3.0 development image integrates Hermes Agent for direct
 natural-language replies after the user selects a local or cloud provider. The
 deterministic offline router is rule-based, runs before Hermes and is not
 treated as AI. System actions continue through the typed Clausis broker rather
@@ -165,6 +196,12 @@ than Hermes' general tools. The image uses a
 local Faster-Whisper base model for STT and eSpeak NG/speech-dispatcher for
 synthetic speech. Wake-word and speaker-verification models remain unselected
 and unbundled.
+
+The voluntary GPT Live mode additionally uses OpenAI Realtime for direct
+speech-to-speech interaction and typed function requests. It is an AI system
+that directly interacts with the user, so the existing spoken first-interaction
+AI notice remains mandatory. Cloud microphone audio is a separate data flow
+from Hermes text prompts and has its own opt-in and withdrawal path.
 
 Target users are private individuals in the EU, including people relying on
 accessibility functions. The present prototype does not implement medical,

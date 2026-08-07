@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="clausis-core",
-    version="0.2.1",
+    version="0.3.0",
     description="Security-first voice control core for Debian and Hermes Agent",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
@@ -15,7 +15,12 @@ setup(
     license="GPL-3.0-or-later",
     extras_require={
         "dbus": ["dbus-next>=0.2.3"],
-        "voice": ["faster-whisper>=1.0", "sounddevice>=0.4", "numpy>=1.24"],
+        "voice": [
+            "faster-whisper>=1.0",
+            "sounddevice>=0.4",
+            "numpy>=1.24",
+            "websocket-client>=1.9,<2",
+        ],
         "test": ["pytest>=7", "coverage>=7"],
     },
     entry_points={

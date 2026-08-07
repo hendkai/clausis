@@ -1,6 +1,6 @@
 # Release gate
 
-Status for 0.2.1: **blocked for production/end-user release; suitable only as
+Status for 0.3.0: **blocked for production/end-user release; suitable only as
 an explicitly labelled public technical test preview**.
 
 - [x] Core unit tests pass.
@@ -11,6 +11,8 @@ an explicitly labelled public technical test preview**.
 - [x] Online Hermes installation accepts only an exact official stable tag,
   uses its frozen lock and retains the bundled fallback until success.
 - [x] Provider secrets are excluded from spoken summaries, logs and public installer state.
+- [x] Optional GPT Live is off by default, has separate audio consent and a local
+  non-cloud stop path, and exposes only typed broker actions.
 - [x] Debian Stable amd64 package and complete automated suite pass in a clean container.
 - [x] Hybrid ISO builds; media, BIOS/UEFI entries and emulated live-to-GDM boot pass.
 - [x] Final ISO graphical capture shows live autologin and the accessible Clausis/Hermes setup without Debian's tour.
@@ -25,5 +27,7 @@ an explicitly labelled public technical test preview**.
 - [ ] Prompt-injection and voice-spoof corpus gates pass.
 - [ ] Orca, keyboard and voice user studies meet acceptance criteria.
 - [ ] Model/voice licenses and cloud data flows approved.
+- [ ] Real OpenAI Realtime session, one-hour reconnect behavior, billing notice
+  and consent withdrawal validated with a dedicated test account on hardware.
 - [ ] Biometric DPIA and legal review completed if voiceprint is enabled.
 - [ ] Human product owner and security lead sign the release evidence.

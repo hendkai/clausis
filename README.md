@@ -13,19 +13,19 @@ release assets through GitHub Actions.
 ## Test image herunterladen
 
 Download all three files from the
-[`v0.2.1` release](https://github.com/hendkai/clausis/releases/tag/v0.2.1):
+[`v0.3.0` release](https://github.com/hendkai/clausis/releases/tag/v0.3.0):
 
-- `clausis-0.2.1-amd64.iso.part-aa`
-- `clausis-0.2.1-amd64.iso.part-ab`
-- `clausis-0.2.1-amd64.iso.sha256`
+- `clausis-0.3.0-amd64.iso.part-aa`
+- `clausis-0.3.0-amd64.iso.part-ab`
+- `clausis-0.3.0-amd64.iso.sha256`
 
 Do **not** unpack the files. On Windows, place all three files in the same
 folder, open PowerShell in that folder and run:
 
 ```powershell
-cmd /c copy /b clausis-0.2.1-amd64.iso.part-aa+clausis-0.2.1-amd64.iso.part-ab clausis-0.2.1-amd64.iso
-$expected = (Get-Content .\clausis-0.2.1-amd64.iso.sha256).Split()[0].ToUpper()
-$actual = (Get-FileHash .\clausis-0.2.1-amd64.iso -Algorithm SHA256).Hash
+cmd /c copy /b clausis-0.3.0-amd64.iso.part-aa+clausis-0.3.0-amd64.iso.part-ab clausis-0.3.0-amd64.iso
+$expected = (Get-Content .\clausis-0.3.0-amd64.iso.sha256).Split()[0].ToUpper()
+$actual = (Get-FileHash .\clausis-0.3.0-amd64.iso -Algorithm SHA256).Hash
 if ($actual -ne $expected) { throw "Checksum mismatch - download the parts again" }
 "Checksum OK: $actual"
 ```
@@ -33,17 +33,17 @@ if ($actual -ne $expected) { throw "Checksum mismatch - download the parts again
 Linux and Git Bash users can assemble and verify the ISO with:
 
 ```sh
-cat clausis-0.2.1-amd64.iso.part-aa clausis-0.2.1-amd64.iso.part-ab > clausis-0.2.1-amd64.iso
-sha256sum -c clausis-0.2.1-amd64.iso.sha256
+cat clausis-0.3.0-amd64.iso.part-aa clausis-0.3.0-amd64.iso.part-ab > clausis-0.3.0-amd64.iso
+sha256sum -c clausis-0.3.0-amd64.iso.sha256
 ```
 
 On macOS, replace the verification command with:
 
 ```sh
-shasum -a 256 -c clausis-0.2.1-amd64.iso.sha256
+shasum -a 256 -c clausis-0.3.0-amd64.iso.sha256
 ```
 
-After verification, select `clausis-0.2.1-amd64.iso` directly as the optical
+After verification, select `clausis-0.3.0-amd64.iso` directly as the optical
 disk in VirtualBox. Do not unpack the resulting ISO.
 
 ## What works now
@@ -66,6 +66,16 @@ disk in VirtualBox. Do not unpack the resulting ISO.
   only after a successful installation.
 - Accessible Hermes provider setup before Calamares with local spoken provider
   choice, explicit cloud consent, masked keyboard-only API-key entry and Orca.
+- Optional GPT Live mode for low-latency online speech during installation and
+  on the installed desktop. It is off by default, needs a separate explicit
+  audio-transmission consent and a keyboard-only OpenAI API key, and falls back
+  to local voice control when unavailable.
+- GPT Live can request only Clausis' typed allowlisted actions. It receives no
+  shell, arbitrary program, plug-in, MCP or capability-token access; medium and
+  higher-risk actions still require the separate trusted confirmation path.
+- A desktop entry named **GPT Live sofort beenden** stops online audio locally,
+  without waiting for the model or an internet connection. Reopening
+  **Clausis und Hermes einrichten** lets the user disable GPT Live permanently.
 - Automatic offline voice-control start after installation; “Stopp Hermes”
   stops it locally without asking a cloud model.
 - Reproducible Debian Stable amd64 ISO build with GNOME, Orca and Calamares.
@@ -99,11 +109,26 @@ and medium-or-higher-risk actions without trusted confirmation fail closed.
 ## Trust boundaries
 
 Hermes does not receive terminal, code-execution, file-write, skill-write or
-capability-signing access. In version 0.2.1 Hermes is a reply-only fallback and
+capability-signing access. In version 0.3.0 Hermes is a reply-only fallback and
 is launched with only its local `todo` toolset; it cannot send system actions to
-the broker. Deterministic offline voice commands use the separate typed Clausis
-broker. A separate trusted-confirmation service owns confirmation phrases and
-capability issuance.
+the broker. The optional OpenAI Realtime frontend can propose only the fixed
+action names published by Clausis; every proposal is reconstructed and checked
+locally by the same typed broker. A separate trusted-confirmation service owns
+confirmation phrases and capability issuance.
+
+GPT Live sends microphone audio to OpenAI while it is active. The OpenAI API is
+billed separately; a ChatGPT subscription does not automatically provide API
+credit. Clausis stores the supplied API key in the selected user's private
+configuration file (mode `0600`), never in the public installer plan, and does
+not bundle a key. This technical preview does not yet provide a backend for
+short-lived client tokens, so other malicious processes already running as the
+same desktop user remain a credential-theft risk.
+
+During the live installation GPT Live is a spoken companion and can control the
+currently supported Clausis desktop actions. Calamares disk partition fields
+are not yet controlled directly by GPT Live; those remain available through
+the graphical, keyboard and Orca paths. Fully voice-native partitioning remains
+a release blocker.
 
 The current D-Bus PIN string is a **prototype-only transport**.  It must be
 replaced by direct trusted audio verification or a protected portal/memfd

@@ -24,11 +24,19 @@ class FinalizeInstallTests(unittest.TestCase):
             source.mkdir()
             (source / "config.yaml").write_text('{"model": {"provider": "zai"}}\n')
             (source / ".env").write_text("GLM_API_KEY=private\n")
+            (source / ".gpt-live.env").write_text(
+                "CLAUSIS_OPENAI_API_KEY=live-private\n"
+            )
 
             self.assertTrue(copy_configuration(root, "anna", source))
             env = root / "home/anna/.hermes/.env"
             self.assertEqual(env.read_text(), "GLM_API_KEY=private\n")
             self.assertEqual(stat.S_IMODE(env.stat().st_mode), 0o600)
+            live_env = root / "home/anna/.hermes/.gpt-live.env"
+            self.assertEqual(
+                live_env.read_text(), "CLAUSIS_OPENAI_API_KEY=live-private\n"
+            )
+            self.assertEqual(stat.S_IMODE(live_env.stat().st_mode), 0o600)
 
     def test_root_and_username_are_validated(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
