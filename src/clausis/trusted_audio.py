@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from .confirmation import ConfirmationResponse
+from .installer import InstallConfirmationChallenge
 from .speech import (
     LocalWhisper,
     MicrophoneRecorder,
@@ -85,3 +86,55 @@ class DirectAudioConfirmation:
         )
         pin = normalize_spoken_pin(self._listen())
         return ConfirmationResponse(phrase=phrase, pin=pin)
+
+
+class DirectInstallConfirmation:
+    """One-shot installer approval held entirely inside the pre-write process.
+
+    The generated phrase and local transcript never cross D-Bus, Calamares'
+    global storage, stdout or the desktop accessibility tree.
+    """
+
+    def __init__(
+        self,
+        model: str = "/usr/share/clausis/models/faster-whisper-base",
+        *,
+        language: str = "de",
+        recorder: Optional[MicrophoneRecorder] = None,
+        transcriber: Optional[LocalWhisper] = None,
+        speaker: Optional[SystemSpeaker] = None,
+        challenge: Optional[InstallConfirmationChallenge] = None,
+    ) -> None:
+        self.language = language
+        self.recorder = recorder or MicrophoneRecorder()
+        self.transcriber = transcriber or LocalWhisper(model, language=language)
+        self.speaker = speaker or SystemSpeaker()
+        self.challenge = challenge or InstallConfirmationChallenge()
+
+    def _listen(self) -> str:
+        path: Optional[Path] = None
+        try:
+            path = record_temporary(self.recorder)
+            return self.transcriber.transcribe(path).strip()
+        finally:
+            if path is not None:
+                path.unlink(missing_ok=True)
+
+    def authorize(self, summary: str) -> bool:
+        phrase = self.challenge.issue()
+        self.speaker.speak(
+            f"{summary} Zum Bestätigen sagen Sie jetzt exakt: {phrase}.",
+            language=self.language,
+        )
+        approved = self.challenge.confirm(self._listen())
+        if approved:
+            self.speaker.speak(
+                "Bestätigung erkannt. Die Installation beginnt jetzt.",
+                language=self.language,
+            )
+            return True
+        self.speaker.speak(
+            "Die Bestätigung war nicht eindeutig. Die Installation wurde abgebrochen.",
+            language=self.language,
+        )
+        return False

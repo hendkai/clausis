@@ -34,8 +34,11 @@ an explicitly labelled public technical test preview**.
   preselected. LUKS2/Btrfs defaults pass structural Debian checks.
 - [x] Patched Calamares exports non-secret in-memory target/profile metadata and
   the stable identity guard runs before its first partition job.
-- [ ] Protected random phrase and exported recovery key are required by that
-  exact pre-write guard transaction.
+- [x] The exact pre-write process creates and speaks the expiring random phrase,
+  captures one local response and never exports phrase or transcript through
+  Calamares state, arguments or stdout.
+- [ ] A recovery key is generated, added to the installed LUKS volume and
+  exported through an accessible verified path before installation can finish.
 - [ ] Complete Calamares install and target-copy behavior validated on a persistent virtual or physical disk.
 - [ ] ISO, package repository and update metadata signed.
 - [ ] Online Hermes releases verified against trusted maintainer signing keys.

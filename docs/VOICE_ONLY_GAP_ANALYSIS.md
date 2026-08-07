@@ -100,10 +100,13 @@ fehlende stabile Kennung, Einhängung, deaktiviertes LUKS oder anderes Dateisyst
 brechen eine automatische Komplettinstallation ab. Manuelle, Koexistenz- und
 Ersetzen-Modi bleiben als von Calamares selbst bestätigte Tastatur-/Orca-Wege.
 
-Die Zufallsphrase und ein tatsächlich exportierter Recovery-Key sind noch nicht
-mit diesem Wächter verbunden. Deshalb darf die Phrase noch nicht als Freigabe
-einer realen Installation verwendet werden. Die Lösung verwendet kein
-Screen-Scraping.
+Der Wächter erzeugt die Zufallsphrase nun erst nach der erneuten Zielbindung,
+spricht Datenträgeridentität und Löschprofil selbst, nimmt genau eine lokale
+Antwort auf und löscht die Aufnahme. Phrase und Transkript erscheinen weder in
+Calamares-Variablen noch auf stdout. Ein tatsächlich exportierter Recovery-Key,
+die nachgewiesene Trennung des Audiogeräts von der Desktop-Sitzung und der
+gleichwertige geschützte Tastaturweg fehlen weiterhin. Die Lösung verwendet
+kein Screen-Scraping; die Produktionsfreigabe bleibt blockiert.
 
 Zusätzlich fehlen durchgängiges Audio in Initramfs, LUKS-Entsperrung, GDM,
 Recovery, Btrfs-Subvolume-Layout und Rollback. Stimme allein ist keine sichere

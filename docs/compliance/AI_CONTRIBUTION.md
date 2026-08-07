@@ -49,14 +49,19 @@ ineligible, unencrypted or non-Btrfs automatic erase proposal before the first
 partition job. The custom amd64 package compiled successfully and its module
 binary was checked for all three exported key names.
 
-The code does not yet connect the phrase to that guard, generate/export a
-recovery key, enroll TPM/FIDO2, or write a disk in tests. Documentation and the
-threat model prohibit treating the phrase as production authorisation until
-those boundaries and a persistent disposable-disk test pass. This change
-introduces no model, provider, biometric processing or cloud data flow. Local
-STT use and the existing direct-AI-interaction disclosure are unchanged. Codex
-authored the code, tests, packaging and documentation; 160 automated tests
-passed. No human security, accessibility or legal approval is recorded.
+The subsequent 2026-08-07 change connects the phrase to the exact pre-write
+process: after fresh target rebinding it speaks the canonical disk warning and
+an in-memory challenge, records and transcribes one response locally, deletes
+the temporary recording and returns no phrase or transcript through Calamares
+or stdout. It adds deterministic success, mismatch, single-attempt, deletion
+and summary-binding tests. The code still does not generate/export a recovery
+key, enroll TPM/FIDO2, prove physical audio isolation or write a disk in tests.
+Those boundaries and a complete installation test remain release blockers.
+This change introduces no model, provider, biometric processing or new cloud
+data flow. Local STT use and the existing direct-AI-interaction disclosure are
+unchanged. Codex authored the code, tests and documentation; 163 automated
+tests and the clean Debian 13 amd64 binary-package build passed. No human
+security, accessibility or legal approval is recorded.
 
 On 2026-08-06 Codex added the first local audio frontend, the accessible live
 session welcome, a Calamares-based installation image configuration and a

@@ -156,8 +156,10 @@ the graphical, keyboard and Orca paths. A small source-built Calamares patch
 exports only the non-secret selected target, mode, encryption state and
 filesystem. Clausis rebinds those values immediately before the first
 partition job and blocks a changed or weakened whole-disk proposal. The
-protected phrase and recovery-key export are not connected to that transaction
-yet, so fully voice-native partitioning remains a release blocker.
+protected phrase is now generated, spoken and checked inside that exact
+pre-write process without entering Calamares state or stdout. Recovery-key
+export, physical trusted-audio isolation and persistent-install validation are
+still missing, so fully voice-native partitioning remains release-blocked.
 
 Trusted confirmation no longer exposes `Begin`, `Approve`, a challenge phrase,
 a PIN or a capability through the public D-Bus interface. The isolated

@@ -12,6 +12,7 @@ from clausis.installer import (
     InstallConfirmationChallenge,
     InstallDisk,
     InstallerPlan,
+    calamares_prewrite_summary,
     eligible_install_disks,
     guard_calamares_erase_transaction,
     parse_lsblk_inventory,
@@ -245,6 +246,22 @@ class DiskInventoryTests(unittest.TestCase):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 guard_calamares_erase_transaction((disk,), **values)
 
+    def test_prewrite_summary_binds_destructive_profile_and_disk_identity(self):
+        disk = InstallDisk(
+            path="/dev/vda",
+            stable_id="/dev/disk/by-id/virtio-clausis-test",
+            size_bytes=64 * 1024**3,
+            model="VIRTUAL DISK",
+            serial="ABC123456",
+        )
+        summary = calamares_prewrite_summary(disk)
+        self.assertIn("VIRTUAL DISK", summary)
+        self.assertIn("64.0 GiB", summary)
+        self.assertIn("123456", summary)
+        self.assertIn("dauerhaft gelöscht", summary)
+        self.assertIn("LUKS 2", summary)
+        self.assertIn("Btrfs", summary)
+
 
 class InstallConfirmationChallengeTests(unittest.TestCase):
     def test_phrase_is_exact_single_use_and_not_reusable(self):
@@ -254,7 +271,7 @@ class InstallConfirmationChallengeTests(unittest.TestCase):
         ):
             phrase = challenge.issue()
         self.assertEqual(phrase, "anker mond 123")
-        self.assertTrue(challenge.confirm("  ANKER   Mond 123 "))
+        self.assertTrue(challenge.confirm("  ANKER,   Mond 123. "))
         self.assertFalse(challenge.confirm(phrase))
 
     def test_ambiguous_or_expired_response_fails_closed(self):
