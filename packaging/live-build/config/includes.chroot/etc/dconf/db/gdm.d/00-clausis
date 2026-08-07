@@ -1,0 +1,3 @@
+[org/gnome/login-screen]
+logo='/usr/share/pixmaps/clausis-logo.png'
+fallback-logo='/usr/share/pixmaps/clausis-logo.png'

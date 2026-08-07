@@ -1,6 +1,6 @@
 # Threat model
 
-Status: living pre-release assessment for Clausis Core 0.3.0.
+Status: living pre-release assessment for Clausis Core 0.3.1.
 
 ## Intended use and boundary
 

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag, for example v0.3.0"
+        description: "Release tag, for example v0.3.1"
         required: true
         type: string
 
@@ -51,12 +51,12 @@ jobs:
       - name: Split ISO below GitHub's 2 GiB asset limit
         run: |
           split -b 1900M -a 2 \
-            dist/clausis-0.3.0-amd64.iso \
-            dist/clausis-0.3.0-amd64.iso.part-
-          expected=$(awk 'NR == 1 {print $1}' dist/clausis-0.3.0-amd64.iso.sha256)
-          actual=$(cat dist/clausis-0.3.0-amd64.iso.part-* | sha256sum | awk '{print $1}')
+            dist/clausis-0.3.1-amd64.iso \
+            dist/clausis-0.3.1-amd64.iso.part-
+          expected=$(awk 'NR == 1 {print $1}' dist/clausis-0.3.1-amd64.iso.sha256)
+          actual=$(cat dist/clausis-0.3.1-amd64.iso.part-* | sha256sum | awk '{print $1}')
           test "$expected" = "$actual"
-          ls -lh dist/clausis-0.3.0-amd64.iso.part-*
+          ls -lh dist/clausis-0.3.1-amd64.iso.part-*
 
       - name: Create prerelease if needed
         run: |
@@ -65,12 +65,12 @@ jobs:
               --target "$GITHUB_SHA" \
               --prerelease \
               --title "Clausis $RELEASE_TAG – technische Vorschau" \
-              --notes-file docs/release/RELEASE_NOTES_0.3.0.md
+              --notes-file docs/release/RELEASE_NOTES_0.3.1.md
           fi
 
       - name: Upload ISO parts and checksums
         run: |
           gh release upload "$RELEASE_TAG" --clobber \
-            dist/clausis-0.3.0-amd64.iso.part-* \
-            dist/clausis-0.3.0-amd64.iso.sha256 \
-            dist/clausis-0.3.0-boot-screen.png
+            dist/clausis-0.3.1-amd64.iso.part-* \
+            dist/clausis-0.3.1-amd64.iso.sha256 \
+            dist/clausis-0.3.1-boot-screen.png

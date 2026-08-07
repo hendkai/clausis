@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | Product | Clausis Core |
-| Version | 0.3.0 development prototype |
+| Version | 0.3.1 development prototype |
 | Date | 2026-08-07 |
 | Responsible role | Open; must be assigned before release |
 | Status | Draft; public prototype testing allowed, production release blocked |
@@ -178,8 +178,8 @@ Codex checked the current official OpenAI Realtime conversation, WebSocket,
 function-tool and `gpt-realtime-2.1` model documentation on 2026-08-07. The
 OpenAI developer-documentation MCP was registered locally but requires a Codex
 restart, so this turn used the official OpenAI web documentation fallback. The
-102-test suite and a Debian 13 amd64 binary-package build passed. No real API
-The expanded GTK accessibility smoke check also passed under Debian/Xvfb: all
+102-test suite and a Debian 13 amd64 binary-package build passed. The expanded
+GTK accessibility smoke check also passed under Debian/Xvfb: all
 GPT Live controls had accessible names and both API-key fields remained masked.
 No real API key was available, so a paid end-to-end Realtime call, physical
 audio behavior, the documented one-hour session limit
@@ -188,7 +188,28 @@ added to the threat model, DPIA draft, release gate, SBOM and license notice.
 
 ## AI functions in the product
 
-The 0.3.0 development image integrates Hermes Agent for direct
+On 2026-08-07 Codex designed and implemented the Clausis 0.3.1 GNOME identity
+from the existing project-specific logo: a rendered 2560×1440 listening-field
+wallpaper, matching application and GDM branding, supported dark/purple GNOME
+preferences, reduced animation, larger cursor, visible accessibility status and
+Atkinson Hyperlegible typography. Codex also produced a source-backed gap
+analysis for genuinely voice-operated GNOME, distinguishing implemented
+features from the missing local audio daemon, AT-SPI/portal adapters, trusted
+confirmation, installer and recovery work. The wallpaper was rendered and
+visually reviewed. All 103 tests and the Debian 13 amd64 binary-package build
+passed; both GNOME dconf databases compiled and the used GNOME/GDM schema keys
+and enum values were verified against Debian 13. The font's Debian copyright
+record identifies OFL-1.1.
+
+This visual and documentation change adds no AI model, provider, biometric
+processing or new product data flow. The existing direct-interaction disclosure
+therefore remains applicable and unchanged. The consolidated AI Act entry and
+the European Commission's final Article 50 transparency guidelines were
+rechecked on 2026-08-07. GNOME's official AT-SPI accessibility guidance and
+the official XDG Desktop Portal FileChooser interface were also checked for the
+technical architecture. This remains a technical assessment, not legal advice.
+
+The 0.3.1 development image integrates Hermes Agent for direct
 natural-language replies after the user selects a local or cloud provider. The
 deterministic offline router is rule-based, runs before Hermes and is not
 treated as AI. System actions continue through the typed Clausis broker rather
@@ -227,7 +248,12 @@ the direct-interaction disclosure at a technical level; legal and human
 accessibility review are still open. This is a technical scope assessment, not
 legal advice.
 
-## Official sources checked on 2026-08-06
+## Official sources checked
+
+The legal sources below were initially checked on 2026-08-06. The consolidated
+AI Act and final Article 50 guidance were rechecked on 2026-08-07 for the
+0.3.1 assessment. GNOME and XDG sources were checked on 2026-08-07 for the
+voice-only architecture analysis.
 
 - Consolidated Regulation (EU) 2024/1689:
   <https://eur-lex.europa.eu/legal-content/DE/TXT/?uri=CELEX:32024R1689>
@@ -239,6 +265,10 @@ legal advice.
   <https://digital-strategy.ec.europa.eu/en/policies/cra-open-source>
 - European Commission CRA implementation FAQ:
   <https://digital-strategy.ec.europa.eu/en/library/cyber-resilience-act-implementation-frequently-asked-questions>
+- GNOME accessibility development guidance (GTK and AT-SPI):
+  <https://developer.gnome.org/documentation/guidelines/accessibility.html>
+- XDG Desktop Portal FileChooser interface:
+  <https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.FileChooser.html>
 
 ## Open actions and triggers
 

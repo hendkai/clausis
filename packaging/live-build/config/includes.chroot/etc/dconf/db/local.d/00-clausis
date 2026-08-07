@@ -1,2 +1,32 @@
 [org/gnome/shell]
 welcome-dialog-last-shown-version='999'
+
+[org/gnome/desktop/interface]
+color-scheme='prefer-dark'
+gtk-theme='Adwaita-dark'
+icon-theme='Adwaita'
+accent-color='purple'
+font-name='Atkinson Hyperlegible 11'
+document-font-name='Atkinson Hyperlegible 11'
+text-scaling-factor=1.1000000000000001
+cursor-theme='Adwaita'
+cursor-size=32
+enable-animations=false
+enable-hot-corners=false
+show-battery-percentage=true
+toolkit-accessibility=true
+
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/clausis/clausis-wallpaper.png'
+picture-uri-dark='file:///usr/share/backgrounds/clausis/clausis-wallpaper.png'
+picture-options='zoom'
+primary-color='#070a17'
+secondary-color='#17234a'
+color-shading-type='solid'
+
+[org/gnome/desktop/a11y]
+always-show-universal-access-status=true
+
+[org/gnome/desktop/sound]
+event-sounds=true
+input-feedback-sounds=true

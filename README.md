@@ -13,19 +13,19 @@ release assets through GitHub Actions.
 ## Test image herunterladen
 
 Download all three files from the
-[`v0.3.0` release](https://github.com/hendkai/clausis/releases/tag/v0.3.0):
+[`v0.3.1` release](https://github.com/hendkai/clausis/releases/tag/v0.3.1):
 
-- `clausis-0.3.0-amd64.iso.part-aa`
-- `clausis-0.3.0-amd64.iso.part-ab`
-- `clausis-0.3.0-amd64.iso.sha256`
+- `clausis-0.3.1-amd64.iso.part-aa`
+- `clausis-0.3.1-amd64.iso.part-ab`
+- `clausis-0.3.1-amd64.iso.sha256`
 
 Do **not** unpack the files. On Windows, place all three files in the same
 folder, open PowerShell in that folder and run:
 
 ```powershell
-cmd /c copy /b clausis-0.3.0-amd64.iso.part-aa+clausis-0.3.0-amd64.iso.part-ab clausis-0.3.0-amd64.iso
-$expected = (Get-Content .\clausis-0.3.0-amd64.iso.sha256).Split()[0].ToUpper()
-$actual = (Get-FileHash .\clausis-0.3.0-amd64.iso -Algorithm SHA256).Hash
+cmd /c copy /b clausis-0.3.1-amd64.iso.part-aa+clausis-0.3.1-amd64.iso.part-ab clausis-0.3.1-amd64.iso
+$expected = (Get-Content .\clausis-0.3.1-amd64.iso.sha256).Split()[0].ToUpper()
+$actual = (Get-FileHash .\clausis-0.3.1-amd64.iso -Algorithm SHA256).Hash
 if ($actual -ne $expected) { throw "Checksum mismatch - download the parts again" }
 "Checksum OK: $actual"
 ```
@@ -33,22 +33,25 @@ if ($actual -ne $expected) { throw "Checksum mismatch - download the parts again
 Linux and Git Bash users can assemble and verify the ISO with:
 
 ```sh
-cat clausis-0.3.0-amd64.iso.part-aa clausis-0.3.0-amd64.iso.part-ab > clausis-0.3.0-amd64.iso
-sha256sum -c clausis-0.3.0-amd64.iso.sha256
+cat clausis-0.3.1-amd64.iso.part-aa clausis-0.3.1-amd64.iso.part-ab > clausis-0.3.1-amd64.iso
+sha256sum -c clausis-0.3.1-amd64.iso.sha256
 ```
 
 On macOS, replace the verification command with:
 
 ```sh
-shasum -a 256 -c clausis-0.3.0-amd64.iso.sha256
+shasum -a 256 -c clausis-0.3.1-amd64.iso.sha256
 ```
 
-After verification, select `clausis-0.3.0-amd64.iso` directly as the optical
+After verification, select `clausis-0.3.1-amd64.iso` directly as the optical
 disk in VirtualBox. Do not unpack the resulting ISO.
 
 ## What works now
 
 - Original Clausis boot branding for both GRUB/UEFI and Syslinux/BIOS.
+- Matching GNOME identity with the Clausis listening-field wallpaper, dark
+  color preference, purple speech accent, branded launchers and GDM logo,
+  reduced animation and Atkinson Hyperlegible typography.
 - 24 deterministic German/English offline command families.
 - Strict, versioned action messages and an allowlisted action broker.
 - Provenance tainting for every Hermes or external-content action.
@@ -80,6 +83,13 @@ disk in VirtualBox. Do not unpack the resulting ISO.
   stops it locally without asking a cloud model.
 - Reproducible Debian Stable amd64 ISO build with GNOME, Orca and Calamares.
 
+The remaining work before Clausis can honestly be called fully voice-operated
+is tracked in
+[`docs/VOICE_ONLY_GAP_ANALYSIS.md`](docs/VOICE_ONLY_GAP_ANALYSIS.md). The main
+missing pieces are a local always-listening audio daemon, semantic GNOME/AT-SPI
+and portal adapters, a consistent orientation/correction dialogue, protected
+confirmations, voice-native installation and boot/login/recovery audio.
+
 ## Build the installation ISO
 
 Docker Desktop with amd64 emulation and at least 25 GB free storage is needed:
@@ -109,7 +119,7 @@ and medium-or-higher-risk actions without trusted confirmation fail closed.
 ## Trust boundaries
 
 Hermes does not receive terminal, code-execution, file-write, skill-write or
-capability-signing access. In version 0.3.0 Hermes is a reply-only fallback and
+capability-signing access. In version 0.3.1 Hermes is a reply-only fallback and
 is launched with only its local `todo` toolset; it cannot send system actions to
 the broker. The optional OpenAI Realtime frontend can propose only the fixed
 action names published by Clausis; every proposal is reconstructed and checked
