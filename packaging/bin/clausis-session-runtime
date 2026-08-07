@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+# The ISO carries native speech dependencies in an isolated environment while
+# the Debian package remains usable for transcript-only recovery. Select the
+# audio environment deterministically; never evaluate user-controlled shell.
+if [ -x /opt/clausis/bin/python ] \
+    && /opt/clausis/bin/python -c 'import faster_whisper, sounddevice' >/dev/null 2>&1; then
+    exec /opt/clausis/bin/python -m clausis.assistant --execute "$@"
+fi
+
+exec /usr/bin/clausis-runtime --pipewire --execute "$@"

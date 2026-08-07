@@ -22,6 +22,20 @@ class RuntimeTests(unittest.TestCase):
         result = self.runtime.handle_transcript("Erkläre Quantenphysik")
         self.assertEqual(result.status, "offline_unmatched")
 
+    def test_repeat_returns_last_actual_result_without_broker_call(self):
+        first = self.runtime.handle_transcript("lauter")
+        repeated = self.runtime.handle_transcript("wiederholen")
+        self.assertEqual(repeated.status, "repeated")
+        self.assertEqual(repeated.message, first.message)
+
+    def test_cancel_and_correct_are_local(self):
+        self.assertIn(
+            "abgebrochen", self.runtime.handle_transcript("abbrechen").message
+        )
+        self.assertIn(
+            "korrigierten", self.runtime.handle_transcript("korrigieren").message
+        )
+
     def test_local_command_routes(self):
         result = self.runtime.handle_transcript("Lauter")
         self.assertEqual(result.status, "dry_run")
@@ -29,4 +43,3 @@ class RuntimeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

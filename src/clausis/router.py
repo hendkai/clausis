@@ -39,12 +39,61 @@ def _volume(match: Match[str]) -> ActionRequest:
     )
 
 
+_SPOKEN_NUMBERS = {
+    "eins": 1,
+    "one": 1,
+    "zwei": 2,
+    "two": 2,
+    "drei": 3,
+    "three": 3,
+    "vier": 4,
+    "four": 4,
+    "fünf": 5,
+    "five": 5,
+    "sechs": 6,
+    "six": 6,
+    "sieben": 7,
+    "seven": 7,
+    "acht": 8,
+    "eight": 8,
+    "neun": 9,
+    "nine": 9,
+    "zehn": 10,
+    "ten": 10,
+}
+
+
+def _control_number(match: Match[str]) -> ActionRequest:
+    value = match.group("number").casefold()
+    number = int(value) if value.isdigit() else _SPOKEN_NUMBERS[value]
+    return ActionRequest(
+        "desktop.control.activate",
+        target=str(number),
+        risk=Risk.MEDIUM,
+    )
+
+
 def _rx(*values: str) -> Sequence[Pattern[str]]:
     return tuple(re.compile(rf"^(?:{value})[.!?]*$", re.IGNORECASE) for value in values)
 
 
 COMMANDS: Sequence[CommandPattern] = (
-    CommandPattern("stop", _rx(r"stopp hermes", r"hermes stopp", r"stop hermes"), _simple("voice.stop")),
+    CommandPattern("stop", _rx(r"stopp (?:hermes|clausis)", r"(?:hermes|clausis) stopp", r"stop (?:hermes|clausis)"), _simple("voice.stop")),
+    CommandPattern("where-am-i", _rx(r"wo bin ich", r"where am i"), _simple("desktop.context.describe")),
+    CommandPattern("read-window", _rx(r"lies (?:das )?fenster vor", r"read (?:the )?window"), _simple("desktop.context.describe")),
+    CommandPattern("available-controls", _rx(r"was kann ich hier tun", r"was kann ich tun", r"what can i do here"), _simple("desktop.controls.list")),
+    CommandPattern(
+        "activate-number",
+        _rx(
+            r"(?:nummer )?(?P<number>\d{1,2}|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)",
+            r"(?:number )?(?P<number>\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)",
+        ),
+        _control_number,
+    ),
+    CommandPattern("back", _rx(r"zurück", r"go back", r"back"), _simple("desktop.navigate.back")),
+    CommandPattern("repeat", _rx(r"wiederholen", r"wiederhole das", r"repeat"), _simple("voice.repeat")),
+    CommandPattern("cancel", _rx(r"abbrechen", r"cancel"), _simple("voice.cancel")),
+    CommandPattern("correct", _rx(r"korrigieren", r"correct that"), _simple("voice.correct")),
     CommandPattern("launch", _rx(r"(?:öffne|starte) (?P<target>[\w.+@:-]+)", r"(?:open|launch) (?P<target>[\w.+@:-]+)"), _target("app.launch")),
     CommandPattern("close", _rx(r"schließe (?P<target>[\w.+@:-]+)", r"close (?P<target>[\w.+@:-]+)"), _target("app.close", Risk.MEDIUM)),
     CommandPattern("settings", _rx(r"öffne (?:die )?einstellungen", r"open settings"), _simple("desktop.settings.open")),
@@ -95,4 +144,3 @@ class OfflineRouter:
                         reversible=request.reversible,
                     )
         return None
-

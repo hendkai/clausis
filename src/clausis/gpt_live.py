@@ -32,7 +32,18 @@ MAX_AUDIO_DELTA_BYTES = 1024 * 1024
 MODEL_RE = re.compile(r"^gpt-realtime-[A-Za-z0-9.]+$")
 SAFETY_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 SUPPORTED_ACTIONS = tuple(
-    action for action, policy in ACTION_POLICIES.items() if policy.command is not None
+    action
+    for action, policy in ACTION_POLICIES.items()
+    if policy.command is not None
+    or action
+    in {
+        "desktop.context.describe",
+        "desktop.controls.list",
+        "desktop.control.activate",
+        "desktop.navigate.back",
+        "desktop.window.next",
+        "desktop.window.previous",
+    }
 )
 
 

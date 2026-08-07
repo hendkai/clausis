@@ -10,9 +10,16 @@ import time
 from typing import Sequence
 
 from .broker import ActionBroker, SafeExecutor
+from .audio import (
+    AudioMode,
+    LocalActivationController,
+    choose_audio_mode,
+    probe_audio_capabilities,
+)
 from .capabilities import CapabilityAuthority
 from .hermes_client import HermesOneShot, hermes_is_configured
 from .gpt_live import GptLiveSession, load_gpt_live_config, request_local_stop
+from .gnome_adapter import SessionExecutor
 from .router import OfflineRouter
 from .runtime import RuntimeState, VoiceRuntime
 from .speech import LocalWhisper, MicrophoneRecorder, SpeechError, SystemSpeaker, record_temporary
@@ -62,7 +69,8 @@ def main(argv: Sequence[str] = ()) -> int:
         print(f"Sprachausgabe eingeschränkt: {exc}", file=sys.stderr)
 
     broker = ActionBroker(
-        CapabilityAuthority.generate(), SafeExecutor(dry_run=not args.execute)
+        CapabilityAuthority.generate(),
+        SessionExecutor(SafeExecutor(dry_run=not args.execute)),
     )
     live_config = None if args.local or args.text is not None else load_gpt_live_config(Path.home())
     if live_config is not None:
@@ -112,7 +120,26 @@ def main(argv: Sequence[str] = ()) -> int:
     )
     recorder = MicrophoneRecorder()
     transcriber = LocalWhisper(_model_path(args.model), language=args.language)
+    activation = LocalActivationController()
     pending_text = args.text
+
+    audio_decision = choose_audio_mode(probe_audio_capabilities())
+    print(audio_decision.announcement, flush=True)
+    try:
+        speaker.speak(audio_decision.announcement, language=args.language)
+    except SpeechError:
+        pass
+    if pending_text is None and audio_decision.mode in {
+        AudioMode.OUTPUT_ONLY,
+        AudioMode.UNAVAILABLE,
+    }:
+        return 2
+    wake_notice = "Die lokale Steuerung ist bereit. Sagen Sie Hallo Clausis."
+    print(wake_notice, flush=True)
+    try:
+        speaker.speak(wake_notice, language=args.language)
+    except SpeechError:
+        pass
 
     while runtime.state is not RuntimeState.STOPPED:
         audio_path = None
@@ -121,15 +148,20 @@ def main(argv: Sequence[str] = ()) -> int:
                 transcript = pending_text
                 pending_text = None
             else:
-                prompt = "Ich höre zu."
-                print(prompt, flush=True)
-                speaker.speak(prompt, language=args.language)
                 audio_path = record_temporary(recorder)
                 transcript = transcriber.transcribe(audio_path)
             if not transcript:
                 raise SpeechError("Ich habe nichts verstanden.")
-            print(f"Erkannt: {transcript}", flush=True)
-            result = runtime.handle_transcript(transcript)
+            gated = activation.ingest(transcript, bypass_wake=args.text is not None)
+            if gated.announcement:
+                print(gated.announcement, flush=True)
+                speaker.speak(gated.announcement, language=args.language)
+            if gated.command is None:
+                if args.once and activation.state.value != "awake":
+                    break
+                continue
+            print(f"Erkannt: {gated.command}", flush=True)
+            result = runtime.handle_transcript(gated.command)
             response = _localized_result(result.status, result.message)
             print(response, flush=True)
             speaker.speak(response, language=args.language)

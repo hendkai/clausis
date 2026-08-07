@@ -67,7 +67,7 @@ if [ ! -e "${HOME}/.hermes/config.yaml" ] && command -v clausis-setup >/dev/null
 fi
 
 if command -v clausis-live-assistant >/dev/null 2>&1 \
-    && ! pgrep -u "$user_id" -f '/opt/clausis/bin/python -m clausis.assistant' >/dev/null 2>&1; then
+    && ! pgrep -u "$user_id" -f 'clausis.(assistant|runtime).*--pipewire|clausis.assistant --execute' >/dev/null 2>&1; then
     # The assistant prints recognized text for an explicitly opened terminal.
     # Automatic startup must not persist those transcripts in a log file.
     clausis-live-assistant >/dev/null 2>&1 &

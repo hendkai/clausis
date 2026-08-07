@@ -1,6 +1,6 @@
 # Release gate
 
-Status for 0.3.1: **blocked for production/end-user release; suitable only as
+Status for 0.4.0: **blocked for production/end-user release; suitable only as
 an explicitly labelled public technical test preview**.
 
 - [x] Core unit tests pass.
@@ -18,6 +18,11 @@ an explicitly labelled public technical test preview**.
 - [x] Final ISO graphical capture shows live autologin and the accessible Clausis/Hermes setup without Debian's tour.
 - [x] Clausis GNOME wallpaper, icon, GDM branding, supported appearance keys,
   reduced motion and legibility font have structural and rendered-image tests.
+- [x] Local wake/timeout/stop gating and semantic GNOME orientation have
+  deterministic tests; a real Debian GTK/AT-SPI smoke test found a live
+  actionable widget; numbered mutation remains confirmation-gated.
+- [ ] Dedicated wake-word and Barge-in latency meet the physical-hardware
+  targets; the current release intentionally stays in half-duplex.
 - [ ] Real security contact and HTTPS `security.txt` configured.
 - [ ] Trusted PIN/audio path replaces prototype D-Bus string.
 - [x] GTK accessibility metadata, local voice setup path and Calamares target-copy code are present and structurally validated in the final ISO.

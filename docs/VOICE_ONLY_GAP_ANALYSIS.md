@@ -1,6 +1,6 @@
 # Clausis: Weg zu vollständig sprach- und audiobedienbarem GNOME
 
-Status: technische Lückenanalyse für Clausis 0.3.x. „Nur mit Sprache“ darf
+Status: fortgeschriebene Lückenanalyse für Clausis 0.4.x. „Nur mit Sprache“ darf
 nicht bedeuten, dass Tastatur und Orca entfernt werden. Diese bleiben
 gleichwertige Rettungs- und Barrierefreiheitswege.
 
@@ -15,6 +15,12 @@ gleichwertige Rettungs- und Barrierefreiheitswege.
   Sprachsteuerung im installierten System.
 - Ein Aktionsbroker, der freie Shell-Befehle verhindert und riskante Aktionen
   von einer getrennten Bestätigung abhängig macht.
+- Ein lokales Aktivierungsfenster: Hintergrundtranskripte werden bis „Hallo
+  Clausis“ verworfen; „Stopp Clausis“ wird vor Agent und Cloud behandelt.
+- Ein erster AT-SPI-Adapter für aktives Fenster, Fokus, nummerierte
+  Bedienelemente, semantisches Zurück und Fensterwechsel.
+- Lokale, anwendungsübergreifende Befehle für Orientierung, Wiederholung,
+  Korrektur und Abbruch.
 
 Das reicht noch nicht für ein vollständig sprachbedienbares Betriebssystem.
 Insbesondere sind unbekannte GNOME-Dialoge, Dateiauswahl, Fensterverwaltung,
@@ -24,22 +30,24 @@ Boot-Fehler und die Datenträgeraufteilung noch nicht durchgängig abgedeckt.
 
 ### 1. Dauerhafte lokale Audio-Schicht
 
-Clausis benötigt einen unprivilegierten PipeWire-Dienst mit lokalem Wake-Word,
-VAD, Echounterdrückung und echtem Barge-in. „Stopp Clausis“ muss vor jeder
-Cloud- oder Agentenverarbeitung lokal erkannt werden. Bei ungeeigneter Hardware
-muss der Dienst hörbar in Halbduplex wechseln. Mikrofon, Lautsprecher und
-Erkennungszustand brauchen eindeutige Audio-Signale, die nicht mit gesprochenen
-Antworten verwechselt werden.
+Der persistente lokale Prozess, die STT-basierte Aktivierung, das lokale
+Not-Aus, die Hardwareprobe und der ehrliche Halbduplex-Fallback sind umgesetzt.
+Noch fehlen ein dediziertes Wake-Word-Modell mit niedriger Dauerlast,
+Echounterdrückung, ein lokal garantierter Unterbrechungsdetektor für echtes
+Barge-in sowie eindeutige nichtsprachliche Hörsignale. Bis diese Kette auf
+zertifizierter Hardware geprüft ist, verspricht Clausis kein Vollduplex.
 
 ### 2. Semantische GNOME-Steuerung
 
-Ein `Clausis GNOME Adapter` muss AT-SPI, definierte D-Bus-Schnittstellen und
-xdg-desktop-portals verbinden. Er braucht typisierte Aktionen für:
+Der erste `Clausis GNOME Adapter` liest AT-SPI begrenzt und ohne
+Bildschirmkoordinaten. Aktives Fenster, Fokus und bis zu 30 semantische Ziele
+können vorgelesen werden; Fensterwechsel, Zurück und bestätigte nummerierte
+Aktivierung sind typisierte Aktionen. Noch ergänzt werden müssen:
 
 - aktives Fenster lesen, wechseln, minimieren, maximieren, schließen und auf
   eine Arbeitsfläche verschieben;
 - Übersicht, Anwendungen, Schnelleinstellungen und Benachrichtigungen;
-- zugängliche Bedienelemente auflisten, benennen, fokussieren und auslösen;
+- komplexe Fokusbewegung und weitere widget-spezifische Aktionen;
 - Datei-, Ordner-, Öffnen-, Speichern- und Berechtigungsdialoge;
 - Zwischenablage, Bildschirmtastatur, Vergrößerung und Orca-Funktionen.
 
@@ -49,12 +57,11 @@ Eingabesimulation als Hauptschnittstelle verwenden.
 
 ### 3. Sprachdialog für Orientierung und Korrektur
 
-Das System braucht überall dieselben lokalen Befehle: „Wo bin ich?“, „Was kann
-ich hier tun?“, „Lies das Fenster vor“, „Nummer drei“, „Zurück“, „Wiederholen“,
-„Korrigieren“ und „Abbrechen“. Mehrdeutige Ziele müssen nummeriert vorgelesen
-werden. Nach jeder Aktion muss Clausis Erfolg, Ablehnung oder unveränderten
-Zustand anhand des tatsächlichen GNOME-Zustands melden – nicht anhand einer
-Modellbehauptung.
+Die lokalen Befehle „Wo bin ich?“, „Was kann ich hier tun?“, „Lies das Fenster
+vor“, „Nummer drei“, „Zurück“, „Wiederholen“, „Korrigieren“ und „Abbrechen“ sind
+umgesetzt. Ziele werden nummeriert aus dem aktuellen AT-SPI-Baum gelesen. Noch
+fehlen dialogübergreifende Korrektur-Slots und eine vollständige
+Nachzustandsprüfung für jede schreibende Aktion.
 
 ### 4. Vertrauenswürdige Bestätigung
 
@@ -91,12 +98,11 @@ Hintergrundsprache, synthetische Stimmen, Prompt Injection und Stromausfall.
 
 ## Empfohlene Reihenfolge
 
-1. Lokaler Audio-Daemon mit Wake-Word, VAD und garantiertem Not-Aus.
-2. GNOME-Adapter für Fenster, Fokus, zugängliche Elemente und Portale.
-3. Einheitlicher Orientierungs- und Korrekturdialog.
-4. Geschütztes Bestätigungsportal und privilegierte Adapter.
-5. Sprach-nativer Installer sowie Boot-, Login- und Recovery-Audio.
-6. Geprüfte Anwendungsprofile, Hardwarematrix und Nutzerstudien.
+1. Dediziertes Wake-Word, lokale Unterbrechung und zertifiziertes Barge-in.
+2. GNOME-Adapter auf Shell, Portale und Standarddialoge ausweiten.
+3. Geschütztes Bestätigungsportal und privilegierte Adapter.
+4. Sprach-nativer Installer sowie Boot-, Login- und Recovery-Audio.
+5. Geprüfte Anwendungsprofile, Hardwarematrix und Nutzerstudien.
 
-Erst wenn diese sechs Stufen auf unterstützter Hardware bestanden sind, sollte
+Erst wenn diese fünf Stufen auf unterstützter Hardware bestanden sind, sollte
 Clausis als vollständig sprachbedienbares Betriebssystem bezeichnet werden.

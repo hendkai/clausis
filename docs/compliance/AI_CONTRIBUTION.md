@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | Product | Clausis Core |
-| Version | 0.3.1 development prototype |
+| Version | 0.4.0 development prototype |
 | Date | 2026-08-07 |
 | Responsible role | Open; must be assigned before release |
 | Status | Draft; public prototype testing allowed, production release blocked |
@@ -187,6 +187,37 @@ and reconnection remain unverified release gates. The data-flow change was
 added to the threat model, DPIA draft, release gate, SBOM and license notice.
 
 ## AI functions in the product
+
+On 2026-08-07 Codex implemented the first functional Voice-only roadmap stage
+for Clausis 0.4.0. It added a deterministic local activation gate, expiry,
+sleep and emergency-stop handling before any Hermes or cloud fallback; an
+honest hardware-degradation decision that makes no Barge-in claim; and a
+bounded GNOME AT-SPI adapter for current-window orientation, numbered controls,
+semantic back navigation and accessible window cycling. Deterministic repeat,
+correction and cancellation commands were added. Arbitrary numbered control
+activation is classified as medium risk and remains capability-gated.
+
+This stage adds no AI provider, model, biometric processing or cloud data flow.
+Wake gating operates on the already-local Faster-Whisper transcript and the
+GNOME adapter reads only the local accessibility tree. Raw recordings retain
+the existing temporary-file deletion behavior. The current approach is not a
+dedicated wake-word model and is not claimed to provide replay resistance,
+low-power wake inference, echo cancellation or true Barge-in. Codex authored
+and transformed the implementation, tests, packaging and documentation; human
+accessibility, security and physical-audio review remain open. All 121 tests
+passed locally and inside the Debian 13 amd64 package build. The resulting
+0.4.0 package contains the executable session launcher and AT-SPI adapter,
+declares Debian's `python3-pyatspi` dependency, and all four systemd units pass
+Debian 13 `systemd-analyze verify`. A separate Debian 13 DBus/Xvfb/GTK3 smoke
+test started the real AT-SPI registry; Clausis identified the live test window
+and its actionable button as a numbered semantic control. These checks do not
+prove real microphone, GNOME Shell, screen-reader or physical-user behavior.
+
+The consolidated AI Act entry and the Commission's final Article 50 guidance
+were rechecked on 2026-08-07. The direct-interaction disclosure remains
+applicable because the product still includes Hermes, Faster-Whisper and
+optional GPT Live; this local feature stage does not create a new disclosure
+category. This is a technical assessment, not legal advice.
 
 On 2026-08-07 Codex designed and implemented the Clausis 0.3.1 GNOME identity
 from the existing project-specific logo: a rendered 2560×1440 listening-field

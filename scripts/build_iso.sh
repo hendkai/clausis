@@ -2,7 +2,7 @@
 set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-builder="clausis-iso-builder:0.3.1"
+builder="clausis-iso-builder:0.4.0"
 
 mkdir -p "$project_dir/dist"
 docker build --platform linux/amd64 -t "$builder" "$project_dir/packaging/live-build"
@@ -14,5 +14,5 @@ docker run --rm --privileged --platform linux/amd64 \
 
 "$project_dir/scripts/verify_iso.sh"
 
-printf '%s\n' "ISO: $project_dir/dist/clausis-0.3.1-amd64.iso"
-printf '%s\n' "SHA-256: $project_dir/dist/clausis-0.3.1-amd64.iso.sha256"
+printf '%s\n' "ISO: $project_dir/dist/clausis-0.4.0-amd64.iso"
+printf '%s\n' "SHA-256: $project_dir/dist/clausis-0.4.0-amd64.iso.sha256"
