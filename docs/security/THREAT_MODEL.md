@@ -1,6 +1,6 @@
 # Threat model
 
-Status: living pre-release assessment for Clausis Core 0.2.1.
+Status: living pre-release assessment for Clausis Core 0.3.0.
 
 ## Intended use and boundary
 
@@ -38,6 +38,11 @@ or an accidental utterance from silently performing sensitive system actions.
 | Audit tampering | HMAC chain and privacy redaction | Local root can still replace log and key; remote/WORM export is future work. |
 | Malicious update | Signed Debian packages, SBOM, snapshot/health rollback plan | ISO signing and rollback integration are not implemented yet. |
 | Malicious online Hermes release | Official GitHub API/repository only, strict stable-tag grammar, exact-tag fetch, frozen lockfile, license check and switch-after-success | A compromised upstream repository/GitHub account or dependency artifact can still publish a malicious stable release; maintainer-key verification is not implemented. |
+| GPT Live model proposes an unsafe action | Only an enumerated function is exposed; action, risk, origin and reversibility are canonicalized locally; medium-or-higher risk requires trusted confirmation | A model may misunderstand a spoken request or socially pressure the user; low-risk reversible actions can execute immediately for responsiveness. |
+| Prompt or audio injection reaches GPT Live | No general computer-use, shell, MCP, plug-in or capability token is exposed; strict size/schema limits and broker policy apply | Nearby speech can still trigger a low-risk reversible allowlisted action. Wake-word and speaker verification are not implemented. |
+| OpenAI API key is stolen by a local process | Key is keyboard-only, excluded from public installer state and stored mode `0600`; never sent as a tool argument | A malicious process running as the same desktop user can read it. Short-lived backend-issued client tokens are not implemented. |
+| Cloud remains active after user wants to stop | Local desktop stop action uses a per-user runtime marker and does not require a model response or network | Spoken stop still depends on the active Realtime session recognizing/calling the stop tool; use the local launcher or Ctrl+C if it does not. |
+| Cloud audio disclosure | GPT Live is off by default and requires a separate explicit consent directly beside the notice | While active, microphone audio is sent to OpenAI; surrounding speech may be captured. Provider retention/account settings require user review. |
 | Live user redirects privileged installer copy | Calamares transfer accepts only bounded regular files, opens with `O_NOFOLLOW` and atomically replaces target names | A compromised root process or Calamares itself remains outside this control. |
 | Audio loss locks out user | Equal keyboard/Orca path and recovery boot requirement | Requires end-to-end hardware testing. |
 

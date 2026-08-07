@@ -33,13 +33,18 @@ def save_setup_configuration(
     plan: HermesSetupPlan,
     *,
     secret: str = "",
+    realtime_secret: str = "",
     stage_for_installer: bool,
 ) -> None:
     """Save once in an installed system or stage an additional Calamares copy."""
     if stage_for_installer:
-        stage_installer_configuration(home, plan, secret=secret)
+        stage_installer_configuration(
+            home, plan, secret=secret, realtime_secret=realtime_secret
+        )
     else:
-        configure_hermes(home, plan, secret=secret)
+        configure_hermes(
+            home, plan, secret=secret, realtime_secret=realtime_secret
+        )
 
 
 def provider_from_speech(transcript: str) -> str:
@@ -82,7 +87,7 @@ class SetupWindow:
         self.speaker = SystemSpeaker()
         self.window = Gtk.Window(title="Clausis – Hermes und Installation")
         self.window.get_accessible().set_name("Clausis Hermes und Installation")
-        self.window.set_default_size(720, 580)
+        self.window.set_default_size(780, 760)
         self.window.set_border_width(24)
         self.window.connect("destroy", Gtk.main_quit)
 
@@ -121,6 +126,37 @@ class SetupWindow:
         self.consent.get_accessible().set_name("Cloud-Übertragung erlauben")
         grid.attach(self.consent, 0, 4, 2, 1)
 
+        self.realtime = Gtk.CheckButton(
+            label="Freiwillig: _GPT Live für flüssige Online-Sprache und Systemsteuerung verwenden"
+        )
+        self.realtime.set_use_underline(True)
+        self.realtime.get_accessible().set_name("GPT Live freiwillig aktivieren")
+        grid.attach(self.realtime, 0, 5, 2, 1)
+        live_notice = Gtk.Label(
+            label=(
+                "Dabei wird Mikrofon-Audio an OpenAI übertragen. Die OpenAI API wird separat "
+                "abgerechnet; ein ChatGPT-Abonnement enthält nicht automatisch API-Guthaben."
+            )
+        )
+        live_notice.set_line_wrap(True)
+        live_notice.set_xalign(0)
+        live_notice.get_accessible().set_name("GPT Live Kosten- und Datenschutzhinweis")
+        grid.attach(live_notice, 0, 6, 2, 1)
+        self.realtime_consent = Gtk.CheckButton(
+            label="Ich stimme der laufenden Übertragung meiner Sprache an OpenAI zu."
+        )
+        self.realtime_consent.get_accessible().set_name(
+            "GPT Live Audioübertragung erlauben"
+        )
+        grid.attach(self.realtime_consent, 0, 7, 2, 1)
+        self.realtime_secret = Gtk.Entry()
+        self.realtime_secret.set_visibility(False)
+        self.realtime_secret.set_input_purpose(Gtk.InputPurpose.PASSWORD)
+        self.realtime_secret.set_placeholder_text(
+            "OpenAI API-Schlüssel – wird nie vorgelesen"
+        )
+        self._row(grid, 8, "OpenAI API-_Schlüssel", self.realtime_secret)
+
         self.status = Gtk.Label(label="Noch nicht eingerichtet.")
         self.status.get_accessible().set_name("Status der Einrichtung")
         self.status.set_xalign(0)
@@ -140,7 +176,9 @@ class SetupWindow:
         self.save_button.connect("clicked", self._save_clicked)
         buttons.add(self.save_button)
         self.provider.connect("changed", self._provider_changed)
+        self.realtime.connect("toggled", self._realtime_changed)
         self._provider_changed(self.provider)
+        self._realtime_changed(self.realtime)
 
     def _row(self, grid, row: int, text: str, widget) -> None:
         label = self.Gtk.Label.new_with_mnemonic(text)
@@ -162,12 +200,21 @@ class SetupWindow:
         if not option.cloud:
             self.consent.set_active(False)
 
+    def _realtime_changed(self, _widget) -> None:
+        enabled = self.realtime.get_active()
+        self.realtime_consent.set_sensitive(enabled)
+        self.realtime_secret.set_sensitive(enabled)
+        if not enabled:
+            self.realtime_consent.set_active(False)
+
     def _plan(self) -> HermesSetupPlan:
         return HermesSetupPlan(
             provider_id=self.provider.get_active_id() or "offline",
             model=self.model.get_text(),
             base_url=self.base_url.get_text(),
             cloud_consent=self.consent.get_active(),
+            realtime_enabled=self.realtime.get_active(),
+            realtime_cloud_consent=self.realtime_consent.get_active(),
         )
 
     def _save_clicked(self, _button) -> None:
@@ -177,6 +224,7 @@ class SetupWindow:
                 self.live_home,
                 plan,
                 secret=self.secret.get_text(),
+                realtime_secret=self.realtime_secret.get_text(),
                 stage_for_installer=self.stage_for_installer,
             )
         except (OSError, ValueError) as exc:
@@ -184,6 +232,7 @@ class SetupWindow:
             self._speak_async(f"Nicht gespeichert. {exc}")
             return
         self.secret.set_text("")
+        self.realtime_secret.set_text("")
         self.status.set_text(plan.public_summary() + " Der Debian-Installer wird geöffnet.")
         self._speak_async(self.status.get_text())
         self.GLib.timeout_add(1200, self._close_after_save)
@@ -223,8 +272,23 @@ class SetupWindow:
                     "/usr/share/clausis/models/faster-whisper-base", language="de"
                 ).transcribe(consent_path)
                 consent = affirmative_from_speech(consent_text)
+            self.speaker.speak(
+                "Möchten Sie freiwillig GPT Live verwenden? Dabei wird Ihre Sprache laufend "
+                "an OpenAI übertragen und die OpenAI API separat berechnet. Sagen Sie Ja oder Nein.",
+                language="de",
+            )
+            realtime_path = record_temporary(MicrophoneRecorder())
+            audio_paths.append(realtime_path)
+            realtime_text = LocalWhisper(
+                "/usr/share/clausis/models/faster-whisper-base", language="de"
+            ).transcribe(realtime_path)
+            realtime_consent = affirmative_from_speech(realtime_text)
             self.GLib.idle_add(
-                self._apply_spoken_provider, provider_id, transcript, consent
+                self._apply_spoken_provider,
+                provider_id,
+                transcript,
+                consent,
+                realtime_consent,
             )
         except (SpeechError, ValueError) as exc:
             self.GLib.idle_add(self.status.set_text, f"Spracheingabe nicht übernommen: {exc}")
@@ -235,7 +299,11 @@ class SetupWindow:
             self.GLib.idle_add(button.set_sensitive, True)
 
     def _apply_spoken_provider(
-        self, provider_id: str, transcript: str, consent: bool | None
+        self,
+        provider_id: str,
+        transcript: str,
+        consent: bool | None,
+        realtime_consent: bool,
     ):
         self.provider.set_active_id(provider_id)
         option = PROVIDERS[provider_id]
@@ -255,6 +323,14 @@ class SetupWindow:
                 self.consent.grab_focus()
         else:
             self.status.set_text(f"Erkannt: {transcript}. {option.label_de} ausgewählt.")
+        self.realtime.set_active(realtime_consent)
+        self.realtime_consent.set_active(realtime_consent)
+        if realtime_consent:
+            self.status.set_text(
+                self.status.get_text()
+                + " GPT Live wurde erlaubt. Bitte den OpenAI API-Schlüssel geschützt eingeben."
+            )
+            self.realtime_secret.grab_focus()
         return False
 
     def _speak_async(self, text: str) -> None:
@@ -272,6 +348,7 @@ class SetupWindow:
             PROVIDERS[self.provider.get_active_id() or "offline"].secret_environment
             is not None
         )
+        self._realtime_changed(self.realtime)
         self._speak_async(WELCOME)
         self.Gtk.main()
         return 0
@@ -285,6 +362,9 @@ class SetupWindow:
             "base_url": self.base_url,
             "secret": self.secret,
             "consent": self.consent,
+            "realtime": self.realtime,
+            "realtime_consent": self.realtime_consent,
+            "realtime_secret": self.realtime_secret,
             "status": self.status,
             "voice": self.voice_button,
             "save": self.save_button,
@@ -294,9 +374,12 @@ class SetupWindow:
             for key, widget in widgets.items()
         }
         return {
-            "ok": all(names.values()) and not self.secret.get_visibility(),
+            "ok": all(names.values())
+            and not self.secret.get_visibility()
+            and not self.realtime_secret.get_visibility(),
             "names": names,
             "secret_hidden": not self.secret.get_visibility(),
+            "realtime_secret_hidden": not self.realtime_secret.get_visibility(),
         }
 
 

@@ -85,6 +85,12 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertIn("/usr/local/bin/hermes", hook)
         self.assertIn("/usr/share/doc/hermes-agent/LICENSE", hook)
 
+        audio_hook = (
+            ROOT
+            / "packaging/live-build/config/hooks/normal/020-clausis-audio.hook.chroot"
+        ).read_text(encoding="utf-8")
+        self.assertIn("websocket-client==1.9.0", audio_hook)
+
     def test_accessibility_setup_runs_before_calamares(self) -> None:
         welcome = (
             ROOT
@@ -95,6 +101,8 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertLess(welcome.index("orca --replace"), welcome.index("clausis-setup"))
         self.assertLess(welcome.index("clausis-setup"), welcome.index("calamares-install-debian"))
         self.assertIn("QT_ACCESSIBILITY=1", welcome)
+        self.assertIn("realtime_enabled", welcome)
+        self.assertIn("GPT Live begleitet", welcome)
 
     def test_installed_autostart_never_reopens_installer(self) -> None:
         welcome = (
@@ -119,6 +127,14 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertIn("chmod 0700", welcome)
         self.assertIn("user_id=$(id -u)", welcome)
         self.assertNotIn("${UID}", welcome)
+
+        stop_launcher = (
+            ROOT
+            / "packaging/live-build/config/includes.chroot/usr/share/applications"
+            / "clausis-gpt-live-stop.desktop"
+        ).read_text(encoding="utf-8")
+        self.assertIn("GPT Live sofort beenden", stop_launcher)
+        self.assertIn("--stop-live", stop_launcher)
 
         launcher = (
             ROOT

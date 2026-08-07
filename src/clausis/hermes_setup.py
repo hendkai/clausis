@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import os
 from pathlib import Path
 import re
+import secrets
 import tempfile
 from typing import Mapping, Optional
 from urllib.parse import urlparse
@@ -14,6 +15,7 @@ from urllib.parse import urlparse
 
 HERMES_UPSTREAM_VERSION = "0.20.0"
 HERMES_UPSTREAM_COMMIT = "0957277f2f468bac22bbfcfa7c43029858c9597e"
+GPT_LIVE_MODEL = "gpt-realtime-2.1"
 
 DANGEROUS_TOOLSETS = (
     "terminal",
@@ -107,6 +109,9 @@ class HermesSetupPlan:
     model: str = ""
     base_url: str = ""
     cloud_consent: bool = False
+    realtime_enabled: bool = False
+    realtime_cloud_consent: bool = False
+    safety_identifier: str = field(default_factory=lambda: secrets.token_hex(16))
 
     @property
     def option(self) -> ProviderOption:
@@ -115,7 +120,7 @@ class HermesSetupPlan:
         except KeyError as exc:
             raise ValueError("Unbekannter Hermes-Anbieter.") from exc
 
-    def validate(self, *, secret: str = "") -> None:
+    def validate(self, *, secret: str = "", realtime_secret: str = "") -> None:
         option = self.option
         model = self.model.strip() or option.default_model
         if model and not _MODEL_RE.fullmatch(model):
@@ -131,13 +136,28 @@ class HermesSetupPlan:
             raise ValueError("Für einen kompatiblen Anbieter wird eine Basis-URL benötigt.")
         if base_url:
             _validate_base_url(base_url, allow_local=not option.cloud)
+        if self.realtime_enabled:
+            if not self.realtime_cloud_consent:
+                raise ValueError(
+                    "GPT Live benötigt eine ausdrückliche Einwilligung zur Audio-Übertragung."
+                )
+            if not realtime_secret.strip():
+                raise ValueError("Für GPT Live fehlt der OpenAI API-Schlüssel.")
+        if any(character in realtime_secret for character in "\r\n\x00"):
+            raise ValueError("Der OpenAI API-Schlüssel enthält nicht erlaubte Steuerzeichen.")
+        if not re.fullmatch(r"[0-9a-f]{32}", self.safety_identifier):
+            raise ValueError("Die lokale GPT-Live-Kennung ist ungültig.")
 
     def public_summary(self) -> str:
         option = self.option
         if option.identifier == "offline":
-            return "Hermes bleibt vorinstalliert. Die Anbieter-Einrichtung wird übersprungen."
-        location = "Cloud" if option.cloud else "diesem Gerät"
-        return f"Hermes wird für {option.label_de} auf {location} eingerichtet."
+            summary = "Hermes bleibt vorinstalliert. Die Anbieter-Einrichtung wird übersprungen."
+        else:
+            location = "Cloud" if option.cloud else "diesem Gerät"
+            summary = f"Hermes wird für {option.label_de} auf {location} eingerichtet."
+        if self.realtime_enabled:
+            summary += " GPT Live wird freiwillig für flüssige Online-Sprache aktiviert."
+        return summary
 
     def config_payload(self) -> dict:
         option = self.option
@@ -166,6 +186,10 @@ class HermesSetupPlan:
                 "setup_complete": option.identifier != "offline",
                 "upstream_version": HERMES_UPSTREAM_VERSION,
                 "upstream_commit": HERMES_UPSTREAM_COMMIT,
+                "realtime_enabled": self.realtime_enabled,
+                "realtime_cloud_consent": self.realtime_cloud_consent,
+                "realtime_model": GPT_LIVE_MODEL,
+                "safety_identifier": self.safety_identifier,
             },
         }
 
@@ -185,9 +209,15 @@ def _validate_base_url(value: str, *, allow_local: bool) -> None:
     raise ValueError("Die Anbieter-URL muss HTTPS verwenden; HTTP ist nur lokal erlaubt.")
 
 
-def configure_hermes(home: Path, plan: HermesSetupPlan, *, secret: str = "") -> None:
+def configure_hermes(
+    home: Path,
+    plan: HermesSetupPlan,
+    *,
+    secret: str = "",
+    realtime_secret: str = "",
+) -> None:
     """Write one user's Hermes configuration without exposing its secret."""
-    plan.validate(secret=secret)
+    plan.validate(secret=secret, realtime_secret=realtime_secret)
     hermes_home = home / ".hermes"
     hermes_home.mkdir(mode=0o700, parents=True, exist_ok=True)
     try:
@@ -203,19 +233,42 @@ def configure_hermes(home: Path, plan: HermesSetupPlan, *, secret: str = "") -> 
     if option.secret_environment:
         env_lines.append(f"{option.secret_environment}={secret.strip()}")
     _atomic_private_write(hermes_home / ".env", "\n".join(env_lines) + ("\n" if env_lines else ""))
+    realtime_lines = (
+        [f"CLAUSIS_OPENAI_API_KEY={realtime_secret.strip()}"]
+        if plan.realtime_enabled
+        else []
+    )
+    _atomic_private_write(
+        hermes_home / ".gpt-live.env",
+        "\n".join(realtime_lines) + ("\n" if realtime_lines else ""),
+    )
 
 
 def stage_installer_configuration(
-    live_home: Path, plan: HermesSetupPlan, *, secret: str = ""
+    live_home: Path,
+    plan: HermesSetupPlan,
+    *,
+    secret: str = "",
+    realtime_secret: str = "",
 ) -> Path:
     """Stage a private copy that Calamares can move into the target account."""
     stage_home = live_home / ".config" / "clausis-installer" / "target-home"
-    configure_hermes(stage_home, plan, secret=secret)
-    configure_hermes(live_home, plan, secret=secret)
+    configure_hermes(
+        stage_home, plan, secret=secret, realtime_secret=realtime_secret
+    )
+    configure_hermes(
+        live_home, plan, secret=secret, realtime_secret=realtime_secret
+    )
     marker = stage_home.parent / "ready.json"
     _atomic_private_write(
         marker,
-        json.dumps({"provider": plan.provider_id, "cloud_consent": plan.cloud_consent})
+        json.dumps(
+            {
+                "provider": plan.provider_id,
+                "cloud_consent": plan.cloud_consent,
+                "realtime_enabled": plan.realtime_enabled,
+            }
+        )
         + "\n",
     )
     return stage_home
