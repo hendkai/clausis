@@ -1,6 +1,6 @@
 # Release gate
 
-Status for 0.4.0: **blocked for production/end-user release; suitable only as
+Status for 0.4.1: **blocked for production/end-user release; suitable only as
 an explicitly labelled public technical test preview**.
 
 - [x] Core unit tests pass.
@@ -24,7 +24,10 @@ an explicitly labelled public technical test preview**.
 - [ ] Dedicated wake-word and Barge-in latency meet the physical-hardware
   targets; the current release intentionally stays in half-duplex.
 - [ ] Real security contact and HTTPS `security.txt` configured.
-- [ ] Trusted PIN/audio path replaces prototype D-Bus string.
+- [x] Public trusted-confirmation API no longer transports phrase, PIN or
+  capability; the isolated service captures locally and submits directly.
+- [ ] Physical confirmation-audio isolation, replay handling and spoken abort
+  pass on every supported hardware profile.
 - [x] GTK accessibility metadata, local voice setup path and Calamares target-copy code are present and structurally validated in the final ISO.
 - [ ] Complete Calamares install and target-copy behavior validated on a persistent virtual or physical disk.
 - [ ] ISO, package repository and update metadata signed.

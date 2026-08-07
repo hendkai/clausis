@@ -14,19 +14,9 @@ ACTION_BROKER_XML = """<node>
 
 TRUSTED_CONFIRM_XML = """<node>
   <interface name="org.clausis.TrustedConfirm1">
-    <method name="Begin">
+    <method name="ConfirmAndSubmit">
       <arg name="request_json" type="s" direction="in"/>
-      <arg name="confirmation_json" type="s" direction="out"/>
-    </method>
-    <method name="Approve">
-      <arg name="confirmation_id" type="s" direction="in"/>
-      <arg name="phrase" type="s" direction="in"/>
-      <arg name="pin_fd" type="h" direction="in"/>
-      <arg name="capability" type="s" direction="out"/>
-    </method>
-    <method name="Deny">
-      <arg name="confirmation_id" type="s" direction="in"/>
+      <arg name="result_json" type="s" direction="out"/>
     </method>
   </interface>
 </node>"""
-

@@ -7,9 +7,9 @@
     "timestamp": "2026-08-07T10:00:00Z",
     "component": {
       "type": "application",
-      "bom-ref": "pkg:pypi/clausis-core@0.4.0",
+      "bom-ref": "pkg:pypi/clausis-core@0.4.1",
       "name": "clausis-core",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "licenses": [{"license": {"id": "GPL-3.0-or-later"}}],
       "properties": [
         {"name": "clausis:release-status", "value": "prototype"},
@@ -120,7 +120,7 @@
   ],
   "dependencies": [
     {
-      "ref": "pkg:pypi/clausis-core@0.4.0",
+      "ref": "pkg:pypi/clausis-core@0.4.1",
       "dependsOn": [
         "pkg:pypi/dbus-next@0.2.3",
         "pkg:github/NousResearch/hermes-agent@0957277f2f468bac22bbfcfa7c43029858c9597e",

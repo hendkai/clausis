@@ -60,6 +60,7 @@ class LiveImageConfigurationTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("./scripts/atspi_smoke.sh", release_workflow)
+        self.assertIn("./scripts/dbus_smoke.sh", release_workflow)
 
     def test_live_user_is_selected_on_the_kernel_command_line(self) -> None:
         config = (ROOT / "packaging/live-build/auto/config").read_text(
@@ -85,6 +86,33 @@ class LiveImageConfigurationTests(unittest.TestCase):
 
         self.assertIn("group clausis-control", postinst)
         self.assertNotIn("group clausis >/dev/null", postinst)
+
+    def test_trusted_confirmation_has_no_automatable_approve_api(self) -> None:
+        from clausis.dbus_api import TRUSTED_CONFIRM_XML
+
+        self.assertIn("ConfirmAndSubmit", TRUSTED_CONFIRM_XML)
+        self.assertNotIn("Approve", TRUSTED_CONFIRM_XML)
+        self.assertNotIn("phrase", TRUSTED_CONFIRM_XML)
+        self.assertNotIn("pin", TRUSTED_CONFIRM_XML.casefold())
+        self.assertNotIn("capability", TRUSTED_CONFIRM_XML)
+
+        unit = (
+            ROOT / "packaging/systemd/clausis-trusted-confirm.service"
+        ).read_text(encoding="utf-8")
+        self.assertIn("ConditionPathExists=/etc/clausis/voice-pin.json", unit)
+        self.assertIn("SupplementaryGroups=clausis-control", unit)
+        self.assertIn("ProtectProc=invisible", unit)
+        self.assertIn("ExecStart=/usr/bin/clausis-trusted-confirm-runtime", unit)
+
+        launcher = (
+            ROOT / "packaging/bin/clausis-trusted-confirm-runtime"
+        ).read_text(encoding="utf-8")
+        self.assertIn("/opt/clausis/bin/python", launcher)
+        self.assertIn("faster_whisper, sounddevice, clausis", launcher)
+        activation = (
+            ROOT / "packaging/dbus/org.clausis.TrustedConfirm1.service"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Exec=/usr/bin/clausis-trusted-confirm-runtime", activation)
 
     def test_hermes_agent_is_pinned_and_preinstalled(self) -> None:
         hook = (
@@ -119,6 +147,12 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertIn("QT_ACCESSIBILITY=1", welcome)
         self.assertIn("realtime_enabled", welcome)
         self.assertIn("GPT Live begleitet", welcome)
+
+        setup_source = (ROOT / "src/clausis/setup_app.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Gtk.ScrolledWindow()", setup_source)
+        self.assertIn("Gtk.InputPurpose.PIN", setup_source)
 
     def test_installed_autostart_never_reopens_installer(self) -> None:
         welcome = (

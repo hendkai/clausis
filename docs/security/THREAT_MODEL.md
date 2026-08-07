@@ -1,6 +1,6 @@
 # Threat model
 
-Status: living pre-release assessment for Clausis Core 0.4.0.
+Status: living pre-release assessment for Clausis Core 0.4.1.
 
 ## Intended use and boundary
 
@@ -33,7 +33,7 @@ or an accidental utterance from silently performing sensitive system actions.
 | Prompt injection proposes an action | Origin taint, strict verb/argument schema, trusted confirmation | User may still approve a misleading but accurately summarized action. |
 | Hermes sends a shell command | No shell action exists; unknown fields and actions are denied | A vulnerable platform adapter could reintroduce injection. |
 | Capability replay or broadening | HMAC, exact request digest, 30 s TTL, one-time JTI | Key compromise defeats the scheme. |
-| Agent automates confirmation | Confirmer separated from AT-SPI path and owns phrase | Prototype D-Bus/PIN transport is not yet a trusted compositor path. |
+| Agent automates confirmation | Public D-Bus exposes only `ConfirmAndSubmit`; phrase, PIN and capability stay inside the isolated system service, which speaks and records directly and submits to Broker itself | Physical isolation from the desktop PipeWire graph is not yet proven on supported hardware. |
 | Recorded or cloned voice | Random phrase, PIN, lockout; future anti-replay | Not sufficient against a targeted attacker; documented home-use limit. |
 | Audit tampering | HMAC chain and privacy redaction | Local root can still replace log and key; remote/WORM export is future work. |
 | Malicious update | Signed Debian packages, SBOM, snapshot/health rollback plan | ISO signing and rollback integration are not implemented yet. |
@@ -43,17 +43,17 @@ or an accidental utterance from silently performing sensitive system actions.
 | OpenAI API key is stolen by a local process | Key is keyboard-only, excluded from public installer state and stored mode `0600`; never sent as a tool argument | A malicious process running as the same desktop user can read it. Short-lived backend-issued client tokens are not implemented. |
 | Cloud remains active after user wants to stop | Local desktop stop action uses a per-user runtime marker and does not require a model response or network | Spoken stop still depends on the active Realtime session recognizing/calling the stop tool; use the local launcher or Ctrl+C if it does not. |
 | Cloud audio disclosure | GPT Live is off by default and requires a separate explicit consent directly beside the notice | While active, microphone audio is sent to OpenAI; surrounding speech may be captured. Provider retention/account settings require user review. |
-| Live user redirects privileged installer copy | Calamares transfer accepts only bounded regular files, opens with `O_NOFOLLOW` and atomically replaces target names | A compromised root process or Calamares itself remains outside this control. |
+| Live user redirects privileged installer copy | Hermes files and the versioned PIN verifier are bounded, reject symlinks, open with `O_NOFOLLOW` and atomically replace target names; plaintext PIN is never staged | A compromised root process or Calamares itself remains outside this control. |
 | Audio loss locks out user | Equal keyboard/Orca path and recovery boot requirement | Requires end-to-end hardware testing. |
 | Background speech reaches the local agent | A local wake gate discards transcripts until an exact activation phrase and expires after 25 seconds; stop works in every state | STT-based wake detection is heavier and less resistant to replay than a dedicated verified wake-word model. |
 | Malicious accessible widget is activated by number | AT-SPI targets are re-read from the active window and arbitrary activation is medium risk | A misleading accessible name may still influence the user; trusted confirmation is not yet production-ready. |
 
 ## Release blockers
 
-- Replace the prototype string PIN D-Bus argument with direct trusted audio
-  verification or a protected memfd/portal transport.
 - Prove Hermes cannot access the confirmation microphone stream, random phrase,
   PIN input or capability credential.
+- Prove direct ALSA/PipeWire capture isolation and add tested replay/synthetic-
+  voice handling on every supported audio profile.
 - Implement and fuzz every privileged adapter; never invoke arbitrary programs.
 - Add real OS-level Hermes sandboxing and verify no terminal/code/file-write
   bypass remains through MCP, skills, hooks or plug-ins.

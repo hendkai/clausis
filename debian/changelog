@@ -1,5 +1,11 @@
-clausis-core (0.4.0-1) UNRELEASED; urgency=medium
+clausis-core (0.4.1-1) UNRELEASED; urgency=medium
 
+  * Remove the automatable D-Bus phrase/PIN approval transport.
+  * Capture the random phrase and voice PIN only inside the isolated trusted
+    confirmation service and submit its capability directly to ActionBroker.
+  * Canonicalize public-bus provenance and reject caller-supplied capabilities.
+  * Add spoken or masked PIN enrollment and private Calamares verifier copy.
+  * Require the pinned local speech runtime for trusted confirmation.
   * Add local wake, activation-timeout, sleep and emergency-stop gating before
     any Hermes or cloud fallback.
   * Add a bounded AT-SPI GNOME adapter for orientation, numbered controls,

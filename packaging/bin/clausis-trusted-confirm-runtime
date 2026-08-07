@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+
+# The isolated system service needs the same pinned native speech stack as the
+# desktop runtime.  Never fall back to a half-installed service that could ask
+# for approval but fail to verify the answer.
+if [ -x /opt/clausis/bin/python ] \
+    && /opt/clausis/bin/python -c 'import faster_whisper, sounddevice, clausis' >/dev/null 2>&1; then
+    exec /opt/clausis/bin/python -c 'from clausis.services import confirm_main; confirm_main()'
+fi
+
+if /usr/bin/python3 -c 'import faster_whisper, sounddevice, clausis' >/dev/null 2>&1; then
+    exec /usr/bin/clausis-trusted-confirm
+fi
+
+echo 'Clausis trusted confirmation requires the pinned local speech runtime.' >&2
+exit 78

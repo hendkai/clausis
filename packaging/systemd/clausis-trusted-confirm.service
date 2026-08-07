@@ -1,13 +1,16 @@
 [Unit]
 Description=Clausis trusted confirmation authority
-After=dbus.service sound.target
+ConditionPathExists=/etc/clausis/voice-pin.json
+Requires=clausis-action-broker.service
+After=dbus.service sound.target clausis-action-broker.service
 Before=clausis-runtime.service
 
 [Service]
 Type=simple
 User=clausis-confirm
 Group=audio
-ExecStart=/usr/bin/clausis-trusted-confirm
+SupplementaryGroups=clausis-control
+ExecStart=/usr/bin/clausis-trusted-confirm-runtime
 LoadCredential=capability.key:/etc/clausis/capability.key
 LoadCredential=voice-pin.json:/etc/clausis/voice-pin.json
 NoNewPrivileges=yes
@@ -22,9 +25,12 @@ ProtectKernelLogs=yes
 ProtectKernelModules=yes
 ProtectKernelTunables=yes
 ProtectSystem=strict
+ProtectProc=invisible
+ProcSubset=pid
 RestrictAddressFamilies=AF_UNIX
 RestrictNamespaces=yes
 RestrictRealtime=yes
+RestrictSUIDSGID=yes
 SystemCallArchitectures=native
 SystemCallFilter=@system-service
 UMask=0077
@@ -32,4 +38,3 @@ Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
-

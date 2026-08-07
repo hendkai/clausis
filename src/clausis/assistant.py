@@ -23,6 +23,7 @@ from .gnome_adapter import SessionExecutor
 from .router import OfflineRouter
 from .runtime import RuntimeState, VoiceRuntime
 from .speech import LocalWhisper, MicrophoneRecorder, SpeechError, SystemSpeaker, record_temporary
+from .system_client import ConfirmationAwareBroker, SystemTrustedConfirmation
 
 
 AI_NOTICE_DE = (
@@ -68,10 +69,16 @@ def main(argv: Sequence[str] = ()) -> int:
     except SpeechError as exc:
         print(f"Sprachausgabe eingeschränkt: {exc}", file=sys.stderr)
 
-    broker = ActionBroker(
+    local_broker = ActionBroker(
         CapabilityAuthority.generate(),
         SessionExecutor(SafeExecutor(dry_run=not args.execute)),
     )
+    confirmer = (
+        SystemTrustedConfirmation()
+        if args.execute and Path("/etc/clausis/voice-pin.json").is_file()
+        else None
+    )
+    broker = ConfirmationAwareBroker(local_broker, confirmer)
     live_config = None if args.local or args.text is not None else load_gpt_live_config(Path.home())
     if live_config is not None:
         live_notice = (
