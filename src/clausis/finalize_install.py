@@ -10,6 +10,8 @@ import secrets
 import stat
 from typing import Sequence
 
+from .hermes_update import HermesUpdateError, install_latest_stable, record_fallback
+
 
 USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 DEFAULT_SOURCE = Path("/home/clausis/.config/clausis-installer/target-home/.hermes")
@@ -132,6 +134,13 @@ def main(argv: Sequence[str] = ()) -> int:
     args = parser.parse_args(list(argv) or None)
     copied = copy_configuration(args.root, args.user)
     print("Hermes configuration installed." if copied else "No staged Hermes configuration.")
+    try:
+        result = install_latest_stable(args.root)
+    except HermesUpdateError:
+        record_fallback(args.root.resolve(), "online-update-unavailable")
+        print("Latest Hermes release unavailable; bundled reviewed version retained.")
+    else:
+        print(f"Hermes {result.release.tag} installed from official stable release.")
     return 0
 
 

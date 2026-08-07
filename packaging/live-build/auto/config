@@ -10,8 +10,8 @@ lb config noauto \
   --bootappend-live "boot=live components username=clausis hostname=clausis quiet splash clausis.audio_bootstrap=1" \
   --bootloaders "grub-efi,syslinux" \
   --debian-installer none \
-  --image-name clausis-0.2.0-amd64 \
-  --iso-application "Clausis 0.2.0" \
+  --image-name clausis-0.2.1-amd64 \
+  --iso-application "Clausis 0.2.1" \
   --iso-publisher "Clausis community prototype" \
   --iso-volume "CLAUSIS_020" \
   --memtest none \

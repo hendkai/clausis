@@ -121,6 +121,32 @@ The installed-system setup path was separated from live-installer staging so
 that reopening the settings after installation does not retain a redundant
 second API-key copy under the Calamares staging directory.
 
+On 2026-08-07 Codex implemented the Clausis 0.2.1 online Hermes installation
+path. It queries the official NousResearch GitHub latest-release API during the
+Calamares target installation, accepts only a non-draft/non-prerelease release
+with a constrained version tag, fetches that exact tag and installs the
+release with its committed `uv.lock`. The Hermes launcher changes only after a
+complete successful install. Network, source, lockfile, license or environment
+failures preserve the reviewed image version and create a non-secret local
+fallback status, which the first installed login speaks and displays.
+
+Codex added deterministic tests for stable-release parsing, prerelease and
+command-injection tag rejection, success ordering, frozen installation,
+provenance recording and preservation of the existing launcher on failure.
+The full suite passed with 93 tests. The official upstream release endpoint and
+tag metadata were checked on 2026-08-07; the then-current stable release was
+`v2026.8.3`, resolving to commit
+`3c27eb6234bf91b8ceee9e9071591b31e9b148cb`. Remaining risk: the installer does
+not yet verify the release tag against a Clausis-owned allowlist of trusted
+Hermes maintainer signing keys. A compromised official upstream account or
+dependency artifact therefore remains in the supply-chain threat model.
+Codex additionally ran the real `v2026.8.3` checkout and frozen installation in
+a clean Debian 13 amd64 container with the shipped uv 0.9.28, then executed the
+resulting Hermes CLI successfully. A separate clean Debian package build ran
+all 93 tests and confirmed that version 0.2.1 contains both the updater module
+and privileged Calamares finalizer entry point. A complete 0.2.1 ISO install to
+a persistent disk remains a release test still to be performed.
+
 Evidence:
 
 - `tests/` and the latest local test output;

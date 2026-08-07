@@ -24,7 +24,7 @@ if command -v orca >/dev/null 2>&1; then
 fi
 
 if [ "$live_system" -eq 1 ]; then
-    notice='Willkommen bei Clausis. Hermes Agent ist vorinstalliert. Die Einrichtung und der Installer können mit Sprache, Orca oder Tastatur verwendet werden. API-Schlüssel werden niemals vorgelesen.'
+    notice='Willkommen bei Clausis. Hermes Agent ist vorinstalliert. Bei der Installation wird nach der neuesten offiziellen stabilen Version gesucht. Ohne Internet bleibt die geprüfte mitgelieferte Version erhalten. Die Einrichtung und der Installer können mit Sprache, Orca oder Tastatur verwendet werden. API-Schlüssel werden niemals vorgelesen.'
     command -v spd-say >/dev/null 2>&1 && spd-say -w -l de "$notice" || true
     command -v notify-send >/dev/null 2>&1 && notify-send -u normal -t 20000 "Clausis – KI-Hinweis" "$notice" || true
 
@@ -46,6 +46,9 @@ mkdir -p "$installed_state"
 chmod 0700 "$installed_state"
 if [ ! -e "$installed_state/installed-welcome-shown" ]; then
     notice='Clausis ist installiert. Die Sprachsteuerung startet jetzt und aktiviert das Mikrofon. Sagen Sie Stopp Hermes, um sie jederzeit zu beenden.'
+    if grep -q '"status": "bundled-fallback"' /var/lib/clausis/hermes-install.json 2>/dev/null; then
+        notice="$notice Die Online-Aktualisierung von Hermes war nicht erreichbar. Die geprüfte mitgelieferte Version ist aktiv."
+    fi
     command -v spd-say >/dev/null 2>&1 && spd-say -w -l de "$notice" || true
     command -v notify-send >/dev/null 2>&1 && notify-send -u normal -t 20000 "Clausis – Sprachsteuerung" "$notice" || true
     touch "$installed_state/installed-welcome-shown"

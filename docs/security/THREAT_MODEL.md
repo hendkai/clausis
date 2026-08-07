@@ -1,6 +1,6 @@
 # Threat model
 
-Status: living pre-release assessment for Clausis Core 0.2.0.
+Status: living pre-release assessment for Clausis Core 0.2.1.
 
 ## Intended use and boundary
 
@@ -37,6 +37,7 @@ or an accidental utterance from silently performing sensitive system actions.
 | Recorded or cloned voice | Random phrase, PIN, lockout; future anti-replay | Not sufficient against a targeted attacker; documented home-use limit. |
 | Audit tampering | HMAC chain and privacy redaction | Local root can still replace log and key; remote/WORM export is future work. |
 | Malicious update | Signed Debian packages, SBOM, snapshot/health rollback plan | ISO signing and rollback integration are not implemented yet. |
+| Malicious online Hermes release | Official GitHub API/repository only, strict stable-tag grammar, exact-tag fetch, frozen lockfile, license check and switch-after-success | A compromised upstream repository/GitHub account or dependency artifact can still publish a malicious stable release; maintainer-key verification is not implemented. |
 | Live user redirects privileged installer copy | Calamares transfer accepts only bounded regular files, opens with `O_NOFOLLOW` and atomically replaces target names | A compromised root process or Calamares itself remains outside this control. |
 | Audio loss locks out user | Equal keyboard/Orca path and recovery boot requirement | Requires end-to-end hardware testing. |
 
@@ -52,6 +53,8 @@ or an accidental utterance from silently performing sensitive system actions.
 - Complete biometric DPIA and qualified legal review before voiceprint storage.
 - Test at least 50 prompt-injection payloads and the audio spoofing matrix.
 - Ship signed ISO/package repositories and validate automatic rollback.
+- Pin trusted Hermes maintainer signing keys and verify release signatures
+  before accepting an online installer update.
 
 ## Security acceptance gates
 

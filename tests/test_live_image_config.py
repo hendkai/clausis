@@ -79,6 +79,7 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertIn("0957277f2f468bac22bbfcfa7c43029858c9597e", hook)
         self.assertIn("uv sync", hook)
         self.assertIn("uv_version='0.9.28'", hook)
+        self.assertIn("/opt/clausis-hermes-updater/bin/uv", hook)
         self.assertIn("--frozen", hook)
         self.assertIn("--extra anthropic", hook)
         self.assertIn("/usr/local/bin/hermes", hook)
@@ -149,3 +150,12 @@ class LiveImageConfigurationTests(unittest.TestCase):
         self.assertIn("clausis-finalize-hermes-install", module)
         self.assertIn("${ROOT}", module)
         self.assertIn("${USER}", module)
+        self.assertIn("timeout: 1800", module)
+
+        welcome = (
+            ROOT
+            / "packaging/live-build/config/includes.chroot/usr/local/bin"
+            / "clausis-live-welcome"
+        ).read_text(encoding="utf-8")
+        self.assertIn("neuesten offiziellen stabilen Version", welcome)
+        self.assertIn("bundled-fallback", welcome)
