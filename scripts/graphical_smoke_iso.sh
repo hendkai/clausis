@@ -50,19 +50,42 @@ docker run --rm --entrypoint sh -v "$project_dir/dist:/artifacts" "$image" -ec '
         exit 1
     fi
 
-    # Give GDM enough time to create the live account session and show the
-    # first accessible Clausis window under slow software emulation.
+    # GDM can start well before software-emulated graphics reaches the live
+    # session. Keep sampling until the PNG is materially richer than the small
+    # static SeaBIOS screen; never publish that boot screen as desktop proof.
+    captured=0
     elapsed=0
-    while [ "$elapsed" -lt 90 ] && kill -0 "$qemu_pid" >/dev/null 2>&1; do
-        sleep 2
-        elapsed=$((elapsed + 2))
+    while [ "$elapsed" -lt 300 ] && kill -0 "$qemu_pid" >/dev/null 2>&1; do
+        sleep 10
+        elapsed=$((elapsed + 10))
+        test -S /tmp/qemu-monitor
+        printf "screendump /tmp/boot-screen.ppm\n" \
+            | socat - UNIX-CONNECT:/tmp/qemu-monitor \
+                >/artifacts/clausis-0.2.0-monitor.log 2>&1
+        test -s /tmp/boot-screen.ppm
+        pnmtopng /tmp/boot-screen.ppm > /tmp/boot-screen.png
+        png_bytes=$(wc -c < /tmp/boot-screen.png)
+        if [ "$png_bytes" -ge 20000 ]; then
+            # The authenticated desktop exists. Allow its accessibility and
+            # Clausis autostarts to finish before taking the release evidence.
+            sleep 90
+            kill -0 "$qemu_pid" >/dev/null 2>&1
+            printf "screendump /tmp/boot-screen.ppm\n" \
+                | socat - UNIX-CONNECT:/tmp/qemu-monitor \
+                    >/artifacts/clausis-0.2.0-monitor.log 2>&1
+            pnmtopng /tmp/boot-screen.ppm \
+                > /artifacts/clausis-0.2.0-boot-screen.png
+            final_png_bytes=$(wc -c < /artifacts/clausis-0.2.0-boot-screen.png)
+            test "$final_png_bytes" -ge 20000
+            captured=1
+            break
+        fi
     done
-    test -S /tmp/qemu-monitor
-    printf "screendump /tmp/boot-screen.ppm\n" \
-        | socat - UNIX-CONNECT:/tmp/qemu-monitor >/artifacts/clausis-0.2.0-monitor.log 2>&1
-    test -s /tmp/boot-screen.ppm
-    pnmtopng /tmp/boot-screen.ppm > /artifacts/clausis-0.2.0-boot-screen.png
-    test -s /artifacts/clausis-0.2.0-boot-screen.png
+    if [ "$captured" -ne 1 ]; then
+        printf "%s\n" "No graphical live-session frame appeared within 300 seconds." >&2
+        tail -120 /artifacts/clausis-0.2.0-graphical-boot.log 2>/dev/null || true
+        exit 1
+    fi
     grep -E "Started .*GNOME Display Manager|Started .*gdm.service" /artifacts/clausis-0.2.0-graphical-boot.log | tail -1
   '
 
