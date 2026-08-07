@@ -21,6 +21,7 @@ LOCALES = {"de_DE.UTF-8", "en_GB.UTF-8", "en_US.UTF-8"}
 TIMEZONE_RE = re.compile(r"^[A-Za-z_+-]+(?:/[A-Za-z0-9_+.-]+)+$")
 USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 DEVICE_RE = re.compile(r"^/dev/(?:disk/by-id/)?[A-Za-z0-9._:+-]+$")
+DEVICE_NODE_RE = re.compile(r"^/dev/[A-Za-z0-9._+-]+$")
 PROVIDERS = {"none", "nous", "openai-compatible", "local"}
 FILESYSTEMS = {"btrfs", "ext4"}
 BOOT_MODES = {"uefi", "bios"}
@@ -204,6 +205,35 @@ def discover_install_disks(
 
 def eligible_install_disks(disks: Sequence[InstallDisk]) -> tuple[InstallDisk, ...]:
     return tuple(disk for disk in disks if disk.eligible)
+
+
+def guard_calamares_erase_transaction(
+    disks: Sequence[InstallDisk],
+    *,
+    device_node: str,
+    encrypted: str,
+    filesystem: str,
+) -> InstallDisk:
+    """Bind Calamares' in-memory erase choice to a freshly discovered disk.
+
+    The patched partition view exports these three non-secret values when the
+    user leaves that page.  This guard runs in the execution queue immediately
+    before Calamares' partition module and must complete before its first write.
+    """
+    if not DEVICE_NODE_RE.fullmatch(device_node):
+        raise ValueError("invalid Calamares target device")
+    if encrypted != "true":
+        raise ValueError("voice whole-disk installation requires encryption")
+    if filesystem != "btrfs":
+        raise ValueError("voice whole-disk installation requires btrfs")
+    matches = [disk for disk in disks if disk.path == device_node]
+    if len(matches) != 1:
+        raise ValueError("Calamares target is missing or no longer unique")
+    disk = matches[0]
+    if not disk.eligible:
+        reasons = ", ".join(disk.rejection_reasons())
+        raise ValueError(f"Calamares target is not eligible: {reasons}")
+    return disk
 
 
 @dataclass(frozen=True)

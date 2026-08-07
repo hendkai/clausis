@@ -1,0 +1,34 @@
+From: Clausis contributors <maintainers@example.invalid>
+Subject: partition: expose non-secret selected-device metadata for pre-write guard
+
+Clausis inserts a separate execution job immediately before the partition
+module. That job must be able to bind the protected spoken summary to the exact
+device and encryption choice held in Calamares' in-memory partition model.
+Never expose the LUKS passphrase itself.
+
+---
+ src/modules/partition/gui/ChoicePage.cpp | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/modules/partition/gui/ChoicePage.cpp b/src/modules/partition/gui/ChoicePage.cpp
+index 94db60b..5fb3617 100644
+--- a/src/modules/partition/gui/ChoicePage.cpp
++++ b/src/modules/partition/gui/ChoicePage.cpp
+@@ -697,6 +697,15 @@ ChoicePage::onLeave()
+     const QString storedLuksPassphrase
+         = useLuksPassphrase ? Calamares::String::obscure( m_encryptWidget->passphrase() ) : QString();
+     gs->insert( "luksPassphrase", storedLuksPassphrase );
++
++    // Non-secret Clausis transaction metadata. A guard job consumes these
++    // values before the first partition job writes to any block device.
++    Device* clausisSelectedDevice = selectedDevice();
++    gs->insert( "clausisSelectedDevice",
++                clausisSelectedDevice ? clausisSelectedDevice->deviceNode() : QString() );
++    gs->insert( "clausisEncryptionEnabled", useLuksPassphrase ? QStringLiteral( "true" )
++                                                               : QStringLiteral( "false" ) );
++    gs->insert( "clausisFilesystem", m_config->eraseFsType() );
+ 
+     if ( m_config->installChoice() == InstallChoice::Alongside )
+     {
+-- 
+2.47.2

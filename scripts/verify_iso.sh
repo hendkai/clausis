@@ -13,7 +13,7 @@ actual=$(shasum -a 256 "$iso" | awk '{print $1}')
 test "$expected" = "$actual"
 
 docker run --rm --platform linux/amd64 --entrypoint sh \
-    -v "$project_dir/dist:/artifacts:ro" "$builder" -ec '
+    -v "$project_dir/dist:/artifacts:ro" "$builder" -exc '
         xorriso -indev /artifacts/clausis-0.4.1-amd64.iso -check_media -- >/tmp/media-check 2>&1
         xorriso -indev /artifacts/clausis-0.4.1-amd64.iso -report_el_torito plain >/tmp/boot-report 2>&1
         xorriso -indev /artifacts/clausis-0.4.1-amd64.iso -find / -type f -exec echo -- >/tmp/file-list 2>&1
@@ -38,6 +38,7 @@ docker run --rm --platform linux/amd64 --entrypoint sh \
             squashfs-root/etc/dconf/db/local.d/00-clausis \
             squashfs-root/etc/dconf/db/local \
             squashfs-root/etc/calamares/modules/shellprocess@clausis.conf \
+            squashfs-root/etc/calamares/modules/shellprocess@clausis-guard.conf \
             squashfs-root/etc/calamares/modules/partition.conf \
             squashfs-root/usr/share/applications/clausis-hermes-chat.desktop \
             squashfs-root/usr/share/clausis/models/faster-whisper-base/model.bin
@@ -62,12 +63,24 @@ docker run --rm --platform linux/amd64 --entrypoint sh \
             etc/calamares/settings.conf | sed -n "/^- exec:/,\$p" >/tmp/calamares-exec
         grep -A1 -Fx "  - users" /tmp/calamares-exec \
             | tail -n 1 | grep -Fxq "  - shellprocess@clausis"
+        grep -B1 -Fx "  - partition" /tmp/calamares-exec \
+            | head -n 1 | grep -Fxq "  - shellprocess@clausis-guard"
 
         unsquashfs -cat /tmp/filesystem.squashfs \
             etc/calamares/modules/partition.conf >/tmp/clausis-partition
         grep -Fxq "initialPartitioningChoice: none" /tmp/clausis-partition
         grep -Fxq "luksGeneration: luks2" /tmp/clausis-partition
-        grep -Fxq '''defaultFileSystemType: "btrfs"''' /tmp/clausis-partition
+        grep -Fxq "defaultFileSystemType: \"btrfs\"" /tmp/clausis-partition
+
+        unsquashfs -cat /tmp/filesystem.squashfs var/lib/dpkg/status \
+            >/tmp/package-status
+        sed -n "/^Package: calamares$/,/^$/p" /tmp/package-status \
+            | grep -Fxq "Version: 3.3.14-1+clausis11"
+        unsquashfs -f -d /tmp/calamares-module /tmp/filesystem.squashfs \
+            usr/lib/x86_64-linux-gnu/calamares/modules/partition/libcalamares_viewmodule_partition.so \
+            >/tmp/extract-calamares.log
+        strings /tmp/calamares-module/usr/lib/x86_64-linux-gnu/calamares/modules/partition/libcalamares_viewmodule_partition.so \
+            | grep -Fxq "clausisSelectedDevice"
 
         unsquashfs -cat /tmp/filesystem.squashfs \
             opt/hermes-agent/pyproject.toml | grep -Fq '\''version = "0.20.0"'\''

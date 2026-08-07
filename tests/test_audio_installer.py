@@ -13,6 +13,7 @@ from clausis.installer import (
     InstallDisk,
     InstallerPlan,
     eligible_install_disks,
+    guard_calamares_erase_transaction,
     parse_lsblk_inventory,
 )
 
@@ -218,6 +219,31 @@ class DiskInventoryTests(unittest.TestCase):
             stable_ids={"/dev/vda": "/dev/disk/by-id/virtio-clausis-test"},
         )
         self.assertTrue(inventory[0].eligible)
+
+    def test_calamares_guard_binds_exact_encrypted_btrfs_target(self):
+        disk = InstallDisk(
+            path="/dev/vda",
+            stable_id="/dev/disk/by-id/virtio-clausis-test",
+            size_bytes=64 * 1024**3,
+        )
+        result = guard_calamares_erase_transaction(
+            (disk,), device_node="/dev/vda", encrypted="true", filesystem="btrfs"
+        )
+        self.assertIs(result, disk)
+
+    def test_calamares_guard_rejects_changed_target_or_weakened_profile(self):
+        disk = InstallDisk(
+            path="/dev/vda",
+            stable_id="/dev/disk/by-id/virtio-clausis-test",
+            size_bytes=64 * 1024**3,
+        )
+        for values in (
+            {"device_node": "/dev/sda", "encrypted": "true", "filesystem": "btrfs"},
+            {"device_node": "/dev/vda", "encrypted": "false", "filesystem": "btrfs"},
+            {"device_node": "/dev/vda", "encrypted": "true", "filesystem": "ext4"},
+        ):
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                guard_calamares_erase_transaction((disk,), **values)
 
 
 class InstallConfirmationChallengeTests(unittest.TestCase):

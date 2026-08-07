@@ -11,6 +11,7 @@ mkdir -p /build/iso
 cp -a packaging/live-build/auto packaging/live-build/config /build/iso/
 mkdir -p /build/iso/config/packages.chroot
 cp /build/clausis-core_*.deb /build/iso/config/packages.chroot/
+cp /opt/clausis-calamares-debs/calamares_*_amd64.deb /build/iso/config/packages.chroot/
 cd /build/iso
 lb clean --purge || true
 ./auto/config

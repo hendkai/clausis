@@ -152,11 +152,12 @@ same desktop user remain a credential-theft risk.
 During the live installation GPT Live is a spoken companion and can control the
 currently supported Clausis desktop actions. Calamares disk partition fields
 are not yet controlled directly by GPT Live; those remain available through
-the graphical, keyboard and Orca paths. Clausis can already inventory and bind
-an installation plan to a stable disk identity, but it does not yet enforce
-that plan inside Calamares. The protected phrase must not be treated as
-authorisation until that final binding exists, so fully voice-native
-partitioning remains a release blocker.
+the graphical, keyboard and Orca paths. A small source-built Calamares patch
+exports only the non-secret selected target, mode, encryption state and
+filesystem. Clausis rebinds those values immediately before the first
+partition job and blocks a changed or weakened whole-disk proposal. The
+protected phrase and recovery-key export are not connected to that transaction
+yet, so fully voice-native partitioning remains a release blocker.
 
 Trusted confirmation no longer exposes `Begin`, `Approve`, a challenge phrase,
 a PIN or a capability through the public D-Bus interface. The isolated
