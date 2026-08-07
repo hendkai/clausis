@@ -103,7 +103,11 @@ is tracked in
 [`docs/VOICE_ONLY_GAP_ANALYSIS.md`](docs/VOICE_ONLY_GAP_ANALYSIS.md). The main
 missing pieces are a dedicated low-latency wake-word/barge-in detector, broader
 GNOME/portal coverage, physical confirmation-audio isolation, enforced
-voice-native installation and boot/login/recovery audio.
+voice-native installation, a protected keyboard/Orca confirmation path and
+boot/login/recovery audio. The installer now creates a high-entropy spoken
+recovery key and adds it directly to the encrypted LUKS2 system without placing
+the key or disk passphrase in process arguments or Calamares state; the complete
+install-and-unlock path still needs persistent-VM and hardware validation.
 
 ## Build the installation ISO
 

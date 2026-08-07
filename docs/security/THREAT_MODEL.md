@@ -44,7 +44,8 @@ or an accidental utterance from silently performing sensitive system actions.
 | Cloud remains active after user wants to stop | Local desktop stop action uses a per-user runtime marker and does not require a model response or network | Spoken stop still depends on the active Realtime session recognizing/calling the stop tool; use the local launcher or Ctrl+C if it does not. |
 | Cloud audio disclosure | GPT Live is off by default and requires a separate explicit consent directly beside the notice | While active, microphone audio is sent to OpenAI; surrounding speech may be captured. Provider retention/account settings require user review. |
 | Live user redirects privileged installer copy | Hermes files and the versioned PIN verifier are bounded, reject symlinks, open with `O_NOFOLLOW` and atomically replace target names; plaintext PIN is never staged | A compromised root process or Calamares itself remains outside this control. |
-| Installer erases the live medium or wrong disk | A patched Calamares exports its in-memory target without secrets; a guard re-runs strict inventory immediately before the partition placeholder and blocks changed/live/removable/mounted/read-only/undersized/unstable targets before the first write | Recovery export is not yet connected; hot-unplug after the guard and a compromised root/Calamares remain outside this control. |
+| Installer erases the live medium or wrong disk | A patched Calamares exports its in-memory target without secrets; a guard re-runs strict inventory immediately before the partition placeholder and blocks changed/live/removable/mounted/read-only/undersized/unstable targets before the first write | Hot-unplug after the guard and a compromised root/Calamares remain outside this control. |
+| Recovery key leaks during installation | The trusted guard generates and speaks it locally, stages it mode 0600 in tmpfs, and the patched LUKS module adds it without command-line arguments before overwriting and unlinking temporary copies | Root, a compromised installer, room audio recording or unproven desktop-audio isolation can still expose it; persistent-VM verification is pending. |
 | Prompt injection says “confirm installation” | After exact target rebinding, the pre-write process itself speaks the destructive summary and expiring single-use phrase, records one local answer, deletes the recording and exports neither phrase nor transcript | Physical separation from desktop audio and a protected keyboard/Orca equivalent still require implementation and hardware proof. |
 | Audio loss locks out user | Equal keyboard/Orca path and recovery boot requirement | Requires end-to-end hardware testing. |
 | Background speech reaches the local agent | A local wake gate discards transcripts until an exact activation phrase and expires after 25 seconds; stop works in every state | STT-based wake detection is heavier and less resistant to replay than a dedicated verified wake-word model. |
@@ -64,9 +65,9 @@ or an accidental utterance from silently performing sensitive system actions.
 - Ship signed ISO/package repositories and validate automatic rollback.
 - Pin trusted Hermes maintainer signing keys and verify release signatures
   before accepting an online installer update.
-- Connect recovery-key export to the pre-write guard, prove trusted-audio and
-  protected keyboard isolation, then exercise power-loss and device-swap cases
-  on disposable persistent VM disks.
+- Verify the spoken recovery key against an installed LUKS volume, prove
+  trusted-audio and protected keyboard isolation, then exercise power-loss and
+  device-swap cases on disposable persistent VM disks.
 
 ## Security acceptance gates
 

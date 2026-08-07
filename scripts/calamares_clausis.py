@@ -17,8 +17,11 @@ from typing import Sequence
 from clausis.installer import (
     InstallerPlan,
     calamares_prewrite_summary,
+    discard_staged_recovery_key,
     discover_install_disks,
+    generate_recovery_key,
     guard_calamares_erase_transaction,
+    stage_recovery_key,
 )
 from clausis.trusted_audio import DirectInstallConfirmation
 
@@ -60,6 +63,9 @@ def main(argv: Sequence[str] = ()) -> int:
             print(json.dumps({"disks": [_public_disk(disk) for disk in disks]}, ensure_ascii=False))
             return 0
         if args.guard_transaction:
+            # Remove a key left by a killed/aborted earlier guard before any
+            # Calamares mode can continue into the LUKS module.
+            discard_staged_recovery_key()
             if args.install_mode != "erase":
                 print(
                     json.dumps(
@@ -76,22 +82,29 @@ def main(argv: Sequence[str] = ()) -> int:
                 encrypted=args.encrypted,
                 filesystem=args.filesystem,
             )
-            if not DirectInstallConfirmation().authorize(
-                calamares_prewrite_summary(disk)
-            ):
-                raise ValueError("protected installation confirmation failed")
-            print(
-                json.dumps(
-                    {
-                        "status": "target_bound",
-                        "device": disk.path,
-                        "stable_id": disk.stable_id,
-                        "size_bytes": disk.size_bytes,
-                        "serial_suffix": disk.serial_suffix,
-                    },
-                    ensure_ascii=False,
+            recovery_key = generate_recovery_key()
+            stage_recovery_key(recovery_key)
+            try:
+                approved = DirectInstallConfirmation().authorize(
+                    calamares_prewrite_summary(disk), recovery_key
                 )
-            )
+                if not approved:
+                    raise ValueError("protected installation confirmation failed")
+                print(
+                    json.dumps(
+                        {
+                            "status": "target_bound",
+                            "device": disk.path,
+                            "stable_id": disk.stable_id,
+                            "size_bytes": disk.size_bytes,
+                            "serial_suffix": disk.serial_suffix,
+                        },
+                        ensure_ascii=False,
+                    )
+                )
+            except Exception:
+                discard_staged_recovery_key()
+                raise
             return 0
         payload = json.load(sys.stdin)
         if not isinstance(payload, dict):

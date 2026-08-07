@@ -120,10 +120,14 @@ class DirectInstallConfirmation:
             if path is not None:
                 path.unlink(missing_ok=True)
 
-    def authorize(self, summary: str) -> bool:
+    def authorize(self, summary: str, recovery_key: str) -> bool:
         phrase = self.challenge.issue()
+        spoken_key = ", ".join(recovery_key.split("-"))
         self.speaker.speak(
-            f"{summary} Zum Bestätigen sagen Sie jetzt exakt: {phrase}.",
+            f"{summary} Notieren Sie jetzt den einmaligen LUKS Recovery Schlüssel. "
+            "Er wird nach dieser Installation nicht erneut angezeigt. "
+            f"Der Schlüssel lautet: {spoken_key}. Ich wiederhole: {spoken_key}. "
+            f"Zum Bestätigen sagen Sie jetzt exakt: {phrase}.",
             language=self.language,
         )
         approved = self.challenge.confirm(self._listen())

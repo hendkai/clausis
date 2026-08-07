@@ -37,8 +37,10 @@ an explicitly labelled public technical test preview**.
 - [x] The exact pre-write process creates and speaks the expiring random phrase,
   captures one local response and never exports phrase or transcript through
   Calamares state, arguments or stdout.
-- [ ] A recovery key is generated, added to the installed LUKS volume and
-  exported through an accessible verified path before installation can finish.
+- [x] A high-entropy recovery key is generated, spoken twice and added to the
+  installed LUKS volume without command-line or Calamares-state disclosure.
+- [ ] The user-noted recovery key is verified by an accessible unlock test on a
+  disposable persistent installation before installation can finish.
 - [ ] Complete Calamares install and target-copy behavior validated on a persistent virtual or physical disk.
 - [ ] ISO, package repository and update metadata signed.
 - [ ] Online Hermes releases verified against trusted maintainer signing keys.

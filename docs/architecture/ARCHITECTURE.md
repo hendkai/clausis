@@ -156,8 +156,9 @@ provider or secret details.
 - Whole-disk erase is the only mode the voice-plan validator accepts. Coexist
   and manual partitioning remain keyboard/Orca fallback paths and are not
   falsely presented as voice-native.
-- A single-use exact confirmation phrase exists only in process memory and
-  expires after 120 seconds. This is not yet connected to a destructive job.
+- The exact pre-write process creates a single-use confirmation phrase only
+  after rebinding the selected disk. It speaks the destructive summary,
+  records one local answer and expires after 120 seconds.
 - Calamares never preselects erase. Its default proposal is LUKS2 with a
   separate unencrypted `/boot`, Btrfs root and swap file. The separate boot
   volume avoids relying on GRUB to unlock Argon2-backed LUKS2.
@@ -176,8 +177,13 @@ The target/profile enforcement boundary is now tied to Calamares' execution
 queue. That same pre-write process now creates the expiring random phrase,
 speaks the freshly rebound disk identity and destructive profile, captures one
 local response and deletes its temporary recording. Neither phrase nor
-transcript is placed in Calamares global storage, arguments or stdout. Recovery
-key export, physical trusted-audio isolation, an equivalent protected keyboard
+transcript is placed in Calamares global storage, arguments or stdout. It also
+creates a 12-by-4-digit recovery key with about 159 bits of entropy, speaks it
+twice and stages it root-only in tmpfs. A second minimal Calamares patch adds
+that key to the installed LUKS2 volume while the original passphrase remains
+inside Calamares, then removes both temporary key files. Key material enters
+neither process arguments nor GlobalStorage. Physical trusted-audio isolation,
+an accessible verification of the noted key, an equivalent protected keyboard
 path and a persistent-disk VM test remain release blockers.
 
 ## Not implemented after 0.4.1
@@ -190,7 +196,8 @@ path and a persistent-disk VM test remain release blockers.
 - Physical proof of trusted microphone/seat isolation and replay detection;
   the former string-based D-Bus PIN transport has been removed.
 - Speaker verification, replay detection or biometric enrollment.
-- Recovery-key export, TPM enrollment, Btrfs subvolume snapshots and rollback.
+- Accessible recovery-key unlock verification, TPM enrollment, Btrfs
+  subvolume snapshots and rollback.
 - Physical trusted-audio isolation and an equivalent protected keyboard/Orca
   confirmation path for the guarded Calamares transaction.
 - Short-lived OpenAI client credentials from a trusted backend; 0.4.1 stores
