@@ -2,19 +2,28 @@
 set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-iso="$project_dir/dist/clausis-0.4.1-amd64.iso"
-image="clausis-boot-smoke:0.4.1"
-screenshot="clausis-0.4.1-boot-screen.png"
+version=$("$project_dir/scripts/project_version.sh")
+iso_name="clausis-$version-amd64.iso"
+iso="$project_dir/dist/$iso_name"
+image="clausis-boot-smoke:$version"
+screenshot="clausis-$version-boot-screen.png"
 
 test -s "$iso"
 docker build -f "$project_dir/packaging/live-build/Dockerfile.boottest" \
     -t "$image" "$project_dir/packaging/live-build"
-docker run --rm --entrypoint sh -v "$project_dir/dist:/artifacts" "$image" -ec '
+docker run --rm --entrypoint sh \
+    -e CLAUSIS_ISO_NAME="$iso_name" -e CLAUSIS_VERSION="$version" \
+    -v "$project_dir/dist:/artifacts" "$image" -ec '
     mkdir -p /tmp/boot
-    : > /artifacts/clausis-0.4.1-graphical-boot.log
-    : > /artifacts/clausis-0.4.1-graphical-qemu.log
-    : > /artifacts/clausis-0.4.1-monitor.log
-    xorriso -osirrox on -indev /artifacts/clausis-0.4.1-amd64.iso \
+    prefix="/artifacts/clausis-$CLAUSIS_VERSION"
+    boot_log="$prefix-graphical-boot.log"
+    qemu_log="$prefix-graphical-qemu.log"
+    monitor_log="$prefix-monitor.log"
+    screenshot="$prefix-boot-screen.png"
+    : > "$boot_log"
+    : > "$qemu_log"
+    : > "$monitor_log"
+    xorriso -osirrox on -indev "/artifacts/$CLAUSIS_ISO_NAME" \
         -extract /live/vmlinuz /tmp/boot/vmlinuz \
         -extract /live/initrd.img /tmp/boot/initrd.img >/tmp/extract.log 2>&1
     qemu-system-x86_64 \
@@ -23,11 +32,11 @@ docker run --rm --entrypoint sh -v "$project_dir/dist:/artifacts" "$image" -ec '
         -kernel /tmp/boot/vmlinuz \
         -initrd /tmp/boot/initrd.img \
         -append "boot=live components username=clausis hostname=clausis console=ttyS0,115200" \
-        -drive file=/artifacts/clausis-0.4.1-amd64.iso,media=cdrom,readonly=on \
+        -drive file="/artifacts/$CLAUSIS_ISO_NAME",media=cdrom,readonly=on \
         -display none -vga std \
-        -serial file:/artifacts/clausis-0.4.1-graphical-boot.log \
+        -serial "file:$boot_log" \
         -monitor unix:/tmp/qemu-monitor,server=on,wait=off \
-        -no-reboot >/artifacts/clausis-0.4.1-graphical-qemu.log 2>&1 &
+        -no-reboot >"$qemu_log" 2>&1 &
     qemu_pid=$!
     cleanup() {
         kill "$qemu_pid" >/dev/null 2>&1 || true
@@ -38,7 +47,7 @@ docker run --rm --entrypoint sh -v "$project_dir/dist:/artifacts" "$image" -ec '
     ready=0
     elapsed=0
     while [ "$elapsed" -lt 360 ] && kill -0 "$qemu_pid" >/dev/null 2>&1; do
-        if grep -Eq "Started .*GNOME Display Manager|Started .*gdm.service" /artifacts/clausis-0.4.1-graphical-boot.log 2>/dev/null; then
+        if grep -Eq "Started .*GNOME Display Manager|Started .*gdm.service" "$boot_log" 2>/dev/null; then
             ready=1
             break
         fi
@@ -46,7 +55,7 @@ docker run --rm --entrypoint sh -v "$project_dir/dist:/artifacts" "$image" -ec '
         elapsed=$((elapsed + 2))
     done
     if [ "$ready" -ne 1 ]; then
-        tail -120 /artifacts/clausis-0.4.1-graphical-boot.log 2>/dev/null || true
+        tail -120 "$boot_log" 2>/dev/null || true
         exit 1
     fi
 
@@ -61,7 +70,7 @@ docker run --rm --entrypoint sh -v "$project_dir/dist:/artifacts" "$image" -ec '
         test -S /tmp/qemu-monitor
         printf "screendump /tmp/boot-screen.ppm\n" \
             | socat - UNIX-CONNECT:/tmp/qemu-monitor \
-                >/artifacts/clausis-0.4.1-monitor.log 2>&1
+                >"$monitor_log" 2>&1
         test -s /tmp/boot-screen.ppm
         pnmtopng /tmp/boot-screen.ppm > /tmp/boot-screen.png
         png_bytes=$(wc -c < /tmp/boot-screen.png)
@@ -72,10 +81,10 @@ docker run --rm --entrypoint sh -v "$project_dir/dist:/artifacts" "$image" -ec '
             kill -0 "$qemu_pid" >/dev/null 2>&1
             printf "screendump /tmp/boot-screen.ppm\n" \
                 | socat - UNIX-CONNECT:/tmp/qemu-monitor \
-                    >/artifacts/clausis-0.4.1-monitor.log 2>&1
+                    >"$monitor_log" 2>&1
             pnmtopng /tmp/boot-screen.ppm \
-                > /artifacts/clausis-0.4.1-boot-screen.png
-            final_png_bytes=$(wc -c < /artifacts/clausis-0.4.1-boot-screen.png)
+                > "$screenshot"
+            final_png_bytes=$(wc -c < "$screenshot")
             test "$final_png_bytes" -ge 20000
             captured=1
             break
@@ -83,10 +92,10 @@ docker run --rm --entrypoint sh -v "$project_dir/dist:/artifacts" "$image" -ec '
     done
     if [ "$captured" -ne 1 ]; then
         printf "%s\n" "No graphical live-session frame appeared within 300 seconds." >&2
-        tail -120 /artifacts/clausis-0.4.1-graphical-boot.log 2>/dev/null || true
+        tail -120 "$boot_log" 2>/dev/null || true
         exit 1
     fi
-    grep -E "Started .*GNOME Display Manager|Started .*gdm.service" /artifacts/clausis-0.4.1-graphical-boot.log | tail -1
+    grep -E "Started .*GNOME Display Manager|Started .*gdm.service" "$boot_log" | tail -1
   '
 
 printf '%s\n' "Graphical live-session screenshot: $project_dir/dist/$screenshot"

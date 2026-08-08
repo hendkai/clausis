@@ -1,6 +1,13 @@
 #!/bin/sh
 set -eu
 
+: "${CLAUSIS_VERSION:?CLAUSIS_VERSION must be supplied by build_iso.sh}"
+case "$CLAUSIS_VERSION" in
+    [0-9]*.[0-9]*.[0-9]*) ;;
+    *) printf '%s\n' "Invalid CLAUSIS_VERSION" >&2; exit 1 ;;
+esac
+iso_name="clausis-$CLAUSIS_VERSION-amd64.iso"
+
 rm -rf /build/clausis
 mkdir -p /build/clausis /output
 rsync -a --delete --exclude .git --exclude .venv --exclude build --exclude dist /source/ /build/clausis/
@@ -19,6 +26,6 @@ lb build
 
 iso_path="$(find . -maxdepth 1 -type f -name '*.hybrid.iso' -print -quit)"
 test -n "$iso_path"
-install -m 0644 "$iso_path" /output/clausis-0.4.1-amd64.iso
+install -m 0644 "$iso_path" "/output/$iso_name"
 cd /output
-sha256sum clausis-0.4.1-amd64.iso > clausis-0.4.1-amd64.iso.sha256
+sha256sum "$iso_name" > "$iso_name.sha256"

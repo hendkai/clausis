@@ -1,0 +1,49 @@
+#!/bin/sh
+# Put the Clausis unlock prompts, a minimal ALSA player and the sound modules
+# into the initramfs.
+#
+# Without this, the disk-unlock prompt is a silent black screen: PipeWire, the
+# speech synthesiser and the desktop do not exist yet at that point. The
+# prompts are therefore pre-rendered at package configuration time and only
+# played back here.
+set -e
+
+PREREQ="cryptroot"
+prereqs() { echo "$PREREQ"; }
+case "${1:-}" in
+    prereqs) prereqs; exit 0 ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+# The player. alsa-utils is a hard dependency of this hook; without aplay the
+# initramfs simply stays silent rather than failing the boot.
+if [ -x /usr/bin/aplay ]; then
+    copy_exec /usr/bin/aplay /usr/bin
+else
+    echo "clausis-audio: aplay not found, boot audio will be silent" >&2
+fi
+
+# Sound card drivers are not in a default initramfs.
+if [ -d "/lib/modules/${version}/kernel/sound" ]; then
+    copy_modules_dir kernel/sound
+fi
+
+# ALSA needs its configuration to open the default device.
+for file in /usr/share/alsa/alsa.conf /usr/share/alsa/cards /usr/share/alsa/pcm; do
+    if [ -e "$file" ]; then
+        copy_file config "$file" "$file" 2>/dev/null || \
+            cp -r "$file" "${DESTDIR}${file%/*}/" 2>/dev/null || true
+    fi
+done
+
+# The pre-rendered prompts.
+if [ -d /usr/share/clausis/boot-audio ]; then
+    mkdir -p "${DESTDIR}/usr/share/clausis/boot-audio"
+    for wav in /usr/share/clausis/boot-audio/*.wav; do
+        [ -e "$wav" ] || continue
+        cp "$wav" "${DESTDIR}/usr/share/clausis/boot-audio/"
+    done
+fi
+
+exit 0

@@ -26,7 +26,7 @@ class SafeExecutor:
 
     def command_for(self, request: ActionRequest, policy: ActionPolicy) -> List[str]:
         if policy.command is None:
-            raise ValueError("action requires a platform adapter")
+            raise ValueError(f"{request.action} requires a platform adapter in this context")
         command = list(policy.command)
         if request.action in {"app.launch", "desktop.settings.open", "file.open", "file.move_to_trash"}:
             command.append(request.target)

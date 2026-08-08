@@ -11,7 +11,15 @@ packaging/calamares/shellprocess@clausis.conf etc/calamares/modules/
 packaging/calamares/shellprocess@clausis-guard.conf etc/calamares/modules/
 packaging/calamares/partition.conf etc/calamares/modules/
 packaging/hermes/config.yaml usr/share/clausis/hermes/
+packaging/trust/hermes-maintainers.asc usr/share/clausis/trust/
+packaging/models/wake/README usr/share/clausis/models/wake/
+packaging/pipewire/99-clausis-echo-cancel.conf usr/share/pipewire/pipewire.conf.d/
+packaging/initramfs/hooks/clausis-audio usr/share/initramfs-tools/hooks/
+packaging/initramfs/scripts/init-premount/clausis-audio usr/share/initramfs-tools/scripts/init-premount/
 packaging/bin/clausis-session-runtime usr/bin/
 packaging/bin/clausis-trusted-confirm-runtime usr/bin/
+packaging/libexec/clausis-system-action usr/libexec/
+packaging/gnome-shell/clausis@clausis.local/metadata.json usr/share/gnome-shell/extensions/clausis@clausis.local/
+packaging/gnome-shell/clausis@clausis.local/extension.js usr/share/gnome-shell/extensions/clausis@clausis.local/
 scripts/calamares_clausis.py usr/libexec/calamares-clausis
 THIRD_PARTY_NOTICES.md usr/share/doc/clausis-core/

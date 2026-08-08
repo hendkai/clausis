@@ -40,3 +40,5 @@ btrfs-progs
 cryptsetup-initramfs
 snapper
 unattended-upgrades
+alsa-utils
+initramfs-tools

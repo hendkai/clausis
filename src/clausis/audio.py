@@ -35,6 +35,12 @@ class AudioCapabilities:
     shared_clock: bool = False
     echo_cancellation: bool = False
     hardware_certified: bool = False
+    #: Whether a local interruption detector is present and armed.  Without it
+    #: full duplex is only a promise, so it is the last gate that opens.
+    interrupt_detector: bool = False
+    #: Whether a dedicated wake-word model is configured; without one Clausis
+    #: falls back to matching the wake phrase in the transcript.
+    wake_word: bool = False
 
 
 @dataclass(frozen=True)
@@ -58,7 +64,21 @@ def choose_audio_mode(capabilities: AudioCapabilities) -> AudioDecision:
         return AudioDecision(AudioMode.OUTPUT_ONLY, "Kein Mikrofon erkannt. Spracheingabe ist ausgeschaltet.", False)
     if not capabilities.speaker:
         return AudioDecision(AudioMode.HALF_DUPLEX, "Kein Lautsprecher erkannt. Antworten werden nur angezeigt.", False)
-    if capabilities.hardware_certified and capabilities.shared_clock and capabilities.echo_cancellation:
+    duplex_hardware = (
+        capabilities.hardware_certified
+        and capabilities.shared_clock
+        and capabilities.echo_cancellation
+    )
+    if duplex_hardware and capabilities.interrupt_detector:
+        # Every part of the chain is present: certified hardware, a shared
+        # clock, echo cancellation so Clausis does not hear itself, and a local
+        # interruption detector that needs no network.
+        return AudioDecision(
+            AudioMode.FULL_DUPLEX,
+            "Vollduplex ist aktiv. Sie können mich jederzeit unterbrechen.",
+            True,
+        )
+    if duplex_hardware:
         return AudioDecision(
             AudioMode.HALF_DUPLEX,
             "Vollduplex-Hardware wurde erkannt. Bis der lokale Unterbrechungsdetektor geprüft ist, verwendet Clausis sicheren Halbduplexbetrieb.",
@@ -95,19 +115,34 @@ def probe_audio_capabilities(
     certified = False
     shared_clock = False
     echo_cancellation = False
+    interrupt_detector = False
     try:
         record = json.loads(certification_path.read_text(encoding="utf-8"))
         certified = record.get("certified") is True
         shared_clock = record.get("shared_clock") is True
         echo_cancellation = record.get("echo_cancellation") is True
+        # The marker is written only for a hardware profile whose interruption
+        # latency was actually measured; detecting devices never sets it.
+        interrupt_detector = record.get("interrupt_detector") is True
     except (OSError, ValueError, TypeError):
         pass
+
+    wake_word = False
+    try:
+        from .wake import wake_model_is_configured
+
+        wake_word = wake_model_is_configured()
+    except Exception:
+        pass
+
     return AudioCapabilities(
         microphone=microphone,
         speaker=speaker,
         shared_clock=shared_clock,
         echo_cancellation=echo_cancellation,
         hardware_certified=certified,
+        interrupt_detector=interrupt_detector,
+        wake_word=wake_word,
     )
 
 

@@ -23,6 +23,7 @@ class ActionPolicy:
 
 SAFE_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+@:-]{0,127}$")
 SAFE_SETTING = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
+DEBIAN_PACKAGE = re.compile(r"^[a-z0-9][a-z0-9+.-]{1,62}$")
 
 
 def _target_required(request: ActionRequest) -> None:
@@ -58,10 +59,49 @@ def _control_number(request: ActionRequest) -> None:
         raise ValueError("control number must be between 1 and 30")
 
 
+def _package_name(request: ActionRequest) -> None:
+    """Reject anything that could be read as an ``apt-get`` option."""
+
+    _target_required(request)
+    if not DEBIAN_PACKAGE.fullmatch(request.target):
+        raise ValueError("target is not a Debian package name")
+
+
+def _no_target(request: ActionRequest) -> None:
+    if request.target:
+        raise ValueError("action does not accept a target")
+
+
+def _dictated_text(request: ActionRequest) -> None:
+    """Accept spoken prose, but nothing that is not printable text.
+
+    Field-level protection lives in the GNOME adapter, which refuses password
+    fields and terminals outright; this validator only keeps control characters
+    and empty dictation out of the request.
+    """
+
+    if not request.target.strip():
+        raise ValueError("dictated text is empty")
+    if len(request.target) > 512:
+        raise ValueError("dictated text is too long")
+
+
 ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     "app.launch": ActionPolicy(Risk.LOW, True, ("gtk-launch",), _safe_identifier),
     "app.close": ActionPolicy(Risk.MEDIUM, True, None, _safe_identifier),
-    "desktop.overview": ActionPolicy(Risk.LOW, True),
+    # Shell surfaces and window state: all reversible, all visible, none of
+    # them touching user data, so they stay low risk and immediate.
+    "desktop.overview": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "desktop.applications": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "desktop.quick_settings": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "desktop.notifications": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "desktop.window.minimize": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "desktop.window.maximize": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "desktop.window.unmaximize": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "desktop.workspace.next": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "desktop.workspace.previous": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "desktop.window.to_next_workspace": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "desktop.window.to_previous_workspace": ActionPolicy(Risk.LOW, True, None, _no_target),
     "desktop.window.next": ActionPolicy(Risk.LOW, True),
     "desktop.window.previous": ActionPolicy(Risk.LOW, True),
     "desktop.context.describe": ActionPolicy(Risk.LOW, True),
@@ -69,10 +109,60 @@ ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     "desktop.control.activate": ActionPolicy(Risk.MEDIUM, True, None, _control_number),
     "desktop.navigate.back": ActionPolicy(Risk.LOW, True),
     "desktop.settings.open": ActionPolicy(Risk.LOW, True, ("gnome-control-center",), _setting),
+    # Dictation stays low risk: it is visible, spoken back and correctable, and
+    # the adapter refuses password fields and terminals outright. Requiring a
+    # phrase and PIN per sentence would make voice-only operation unusable.
+    "text.read": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.insert": ActionPolicy(Risk.LOW, True, None, _dictated_text),
+    "text.delete_word": ActionPolicy(Risk.LOW, True, None, _no_target),
+    # Discarding a whole field is not a correction; it needs confirmation.
+    "text.clear": ActionPolicy(Risk.MEDIUM, True, None, _no_target),
+    "dialog.describe": ActionPolicy(Risk.LOW, True, None, _no_target),
+    # Declining is always safe; committing to an unknown dialog is not, so
+    # accepting stays medium risk, exactly like activating a numbered control.
+    "dialog.cancel": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "dialog.accept": ActionPolicy(Risk.MEDIUM, True, None, _no_target),
+    # Accessibility switches are fully specified fixed vectors: the caller
+    # names the action, never the schema key or the value.
+    "a11y.keyboard.enable": ActionPolicy(
+        Risk.LOW, True,
+        ("gsettings", "set", "org.gnome.desktop.a11y.applications", "screen-keyboard-enabled", "true"),
+        _no_target,
+    ),
+    "a11y.keyboard.disable": ActionPolicy(
+        Risk.LOW, True,
+        ("gsettings", "set", "org.gnome.desktop.a11y.applications", "screen-keyboard-enabled", "false"),
+        _no_target,
+    ),
+    "a11y.magnifier.enable": ActionPolicy(
+        Risk.LOW, True,
+        ("gsettings", "set", "org.gnome.desktop.a11y.applications", "screen-magnifier-enabled", "true"),
+        _no_target,
+    ),
+    "a11y.magnifier.disable": ActionPolicy(
+        Risk.LOW, True,
+        ("gsettings", "set", "org.gnome.desktop.a11y.applications", "screen-magnifier-enabled", "false"),
+        _no_target,
+    ),
+    "a11y.screenreader.enable": ActionPolicy(
+        Risk.LOW, True,
+        ("gsettings", "set", "org.gnome.desktop.a11y.applications", "screen-reader-enabled", "true"),
+        _no_target,
+    ),
+    "a11y.screenreader.disable": ActionPolicy(
+        Risk.LOW, True,
+        ("gsettings", "set", "org.gnome.desktop.a11y.applications", "screen-reader-enabled", "false"),
+        _no_target,
+    ),
+    # Producing a diagnostic report must itself be voice-operable: needing a
+    # terminal to report that voice control failed is a broken loop.
+    "system.report": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "clipboard.read": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "clipboard.copy": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "clipboard.paste": ActionPolicy(Risk.LOW, True, None, _no_target),
     "file.open": ActionPolicy(Risk.LOW, True, ("gio", "open"), _path),
     "file.search": ActionPolicy(Risk.LOW, True, None, _target_required),
     "file.move_to_trash": ActionPolicy(Risk.HIGH, True, ("gio", "trash"), _path),
-    "file.delete": ActionPolicy(Risk.CRITICAL, False, None, _path),
     "audio.volume.set": ActionPolicy(Risk.LOW, True, ("wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@"), _percentage),
     "audio.volume.up": ActionPolicy(Risk.LOW, True, ("wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%+")),
     "audio.volume.down": ActionPolicy(Risk.LOW, True, ("wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%-")),
@@ -83,12 +173,15 @@ ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     "system.status": ActionPolicy(Risk.LOW, True),
     "system.lock": ActionPolicy(Risk.LOW, True, ("loginctl", "lock-session")),
     "system.logout": ActionPolicy(Risk.HIGH, True, ("gnome-session-quit", "--logout", "--no-prompt")),
-    "system.reboot": ActionPolicy(Risk.CRITICAL, False, ("systemctl", "reboot"), privileged=True),
-    "system.poweroff": ActionPolicy(Risk.CRITICAL, False, ("systemctl", "poweroff"), privileged=True),
-    "package.install": ActionPolicy(Risk.HIGH, True, None, _safe_identifier, privileged=True),
-    "package.remove": ActionPolicy(Risk.CRITICAL, False, None, _safe_identifier, privileged=True),
+    # Privileged actions carry no argument vector here: the root-side table in
+    # clausis.privileged is authoritative, so a session process can never widen
+    # the command that Polkit ends up authorising.
+    "system.reboot": ActionPolicy(Risk.CRITICAL, False, None, _no_target, privileged=True),
+    "system.poweroff": ActionPolicy(Risk.CRITICAL, False, None, _no_target, privileged=True),
+    "package.install": ActionPolicy(Risk.HIGH, True, None, _package_name, privileged=True),
+    "package.remove": ActionPolicy(Risk.CRITICAL, False, None, _package_name, privileged=True),
     "update.check": ActionPolicy(Risk.LOW, True),
-    "update.install_security": ActionPolicy(Risk.HIGH, True, None, privileged=True),
+    "update.install_security": ActionPolicy(Risk.HIGH, True, None, _no_target, privileged=True),
 }
 
 

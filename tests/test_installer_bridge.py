@@ -54,26 +54,28 @@ class InstallerBridgeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertEqual(json.loads(result.stdout)["status"], "denied")
 
-    def test_non_erase_calamares_mode_stays_standard_fallback(self):
+    def test_non_erase_or_missing_calamares_mode_fails_closed(self):
         environment = os.environ.copy()
         environment["PYTHONPATH"] = str(ROOT / "src")
-        result = subprocess.run(
-            [
-                sys.executable,
-                str(BRIDGE),
-                "--guard-transaction",
-                "--install-mode",
-                "manual",
-            ],
-            text=True,
-            capture_output=True,
-            env=environment,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(
-            json.loads(result.stdout)["status"], "standard_calamares_fallback"
-        )
+        for mode in ("manual", ""):
+            with self.subTest(mode=mode):
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(BRIDGE),
+                        "--guard-transaction",
+                        "--install-mode",
+                        mode,
+                    ],
+                    text=True,
+                    capture_output=True,
+                    env=environment,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 2, result.stderr)
+                response = json.loads(result.stdout)
+                self.assertEqual(response["status"], "denied")
+                self.assertIn("not protected", response["message"])
 
         payload = self.valid_payload()
         payload["erase_disk"] = False

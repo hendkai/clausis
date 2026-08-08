@@ -1,4 +1,4 @@
-clausis-core (0.4.1-1) UNRELEASED; urgency=medium
+clausis-core (0.5.0-1) UNRELEASED; urgency=medium
 
   * Remove the automatable D-Bus phrase/PIN approval transport.
   * Capture the random phrase and voice PIN only inside the isolated trusted
@@ -23,5 +23,10 @@ clausis-core (0.4.1-1) UNRELEASED; urgency=medium
     retaining the pinned image version as an offline and failure fallback.
   * Add voluntary OpenAI Realtime speech with separate consent, private key
     storage, typed broker actions, local stop and automatic offline fallback.
+  * Bind the exact selected disk and destructive profile immediately before
+    Calamares writes partitions and require a protected spoken random phrase.
+  * Generate, speak and enroll a high-entropy LUKS2 recovery key without
+    exposing key material through process arguments or Calamares state.
+  * Derive ISO names and release assets from one authoritative project version.
 
  -- Clausis contributors <maintainers@example.invalid>  Fri, 07 Aug 2026 12:00:00 +0200

@@ -1,0 +1,8 @@
+{
+  "uuid": "clausis@clausis.local",
+  "name": "Clausis Shell Bridge",
+  "description": "Exports a private, parameterless session-bus interface so Clausis voice control can reach GNOME Shell surfaces that are not part of the AT-SPI tree. No screen coordinates, no input simulation and no arbitrary code execution are exposed.",
+  "shell-version": ["45", "46", "47", "48"],
+  "session-modes": ["user"],
+  "url": "https://github.com/hendkai/clausis"
+}

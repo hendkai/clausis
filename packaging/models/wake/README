@@ -1,0 +1,24 @@
+Clausis wake-word model directory — NOT YET CONFIGURED.
+
+CLAUSIS-PLACEHOLDER-NO-WAKE-MODEL
+
+This directory must contain the keyword model(s) that detect the Clausis wake
+phrase, as .onnx or .tflite files. It ships empty on purpose: the weights carry
+their own licence, they have to be trained or selected for the actual wake
+phrase, and their false-accept rate has to be measured on real hardware before
+anyone relies on them.
+
+While this placeholder is present, clausis.wake.WakeWordGate reports itself
+unavailable and Clausis keeps matching the wake phrase in the transcript, as it
+did before. Nothing silently stops listening.
+
+To configure it:
+
+1. Choose or train an openWakeWord model for the wake phrase and record its
+   licence in THIRD_PARTY_NOTICES.md.
+2. Copy the model file into this directory and delete this README.
+3. Measure false accepts against a background-speech corpus and interruption
+   latency on each supported hardware profile.
+4. Only after that measurement, set "interrupt_detector": true in
+   /etc/clausis/audio-certified.json — that flag is what allows full duplex,
+   and it must never be set from device detection alone.

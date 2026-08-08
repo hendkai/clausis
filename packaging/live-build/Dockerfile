@@ -27,8 +27,8 @@ RUN apt-get update && \
     patch -p1 < /tmp/calamares.patch && \
     patch -p1 < /tmp/calamares-recovery.patch && \
     DEBEMAIL=maintainers@example.invalid DEBFULLNAME='Clausis contributors' \
-        dch --local +clausis1 --distribution trixie \
-        'Export non-secret selected-device metadata for the Clausis pre-write guard.' && \
+        dch --newversion 3.3.14-1+clausis12 --distribution trixie \
+        'Export guarded target metadata and enroll the ephemeral Clausis recovery key.' && \
     DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -b && \
     cp ../calamares_*_amd64.deb /opt/clausis-calamares-debs/ && \
     rm -rf /var/lib/apt/lists/* /usr/src/clausis-calamares

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag, for example v0.4.1"
+        description: "Release tag, for example v0.5.0"
         required: true
         type: string
 
@@ -30,6 +30,14 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Resolve and validate release version
+        run: |
+          version=$(./scripts/project_version.sh)
+          test "$RELEASE_TAG" = "v$version"
+          test -f "docs/release/RELEASE_NOTES_$version.md"
+          echo "CLAUSIS_VERSION=$version" >> "$GITHUB_ENV"
+          echo "CLAUSIS_ISO=clausis-$version-amd64.iso" >> "$GITHUB_ENV"
+
       - name: Free space for the Debian live filesystem
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
@@ -45,6 +53,9 @@ jobs:
       - name: Exercise the isolated system D-Bus services
         run: ./scripts/dbus_smoke.sh
 
+      - name: Exercise the platform adapters on real Debian
+        run: ./scripts/adapter_smoke.sh
+
       - name: Build and verify hybrid ISO
         run: ./scripts/build_iso.sh
 
@@ -57,12 +68,26 @@ jobs:
       - name: Split ISO below GitHub's 2 GiB asset limit
         run: |
           split -b 1900M -a 2 \
-            dist/clausis-0.4.1-amd64.iso \
-            dist/clausis-0.4.1-amd64.iso.part-
-          expected=$(awk 'NR == 1 {print $1}' dist/clausis-0.4.1-amd64.iso.sha256)
-          actual=$(cat dist/clausis-0.4.1-amd64.iso.part-* | sha256sum | awk '{print $1}')
+            "dist/$CLAUSIS_ISO" \
+            "dist/$CLAUSIS_ISO.part-"
+          expected=$(awk 'NR == 1 {print $1}' "dist/$CLAUSIS_ISO.sha256")
+          actual=$(cat "dist/$CLAUSIS_ISO".part-* | sha256sum | awk '{print $1}')
           test "$expected" = "$actual"
-          ls -lh dist/clausis-0.4.1-amd64.iso.part-*
+          ls -lh "dist/$CLAUSIS_ISO".part-*
+
+      - name: Sign the release checksum
+        env:
+          CLAUSIS_SIGNING_KEY_ID: ${{ secrets.CLAUSIS_SIGNING_KEY_ID }}
+          CLAUSIS_SIGNING_KEY: ${{ secrets.CLAUSIS_SIGNING_KEY }}
+        run: |
+          if [ -z "${CLAUSIS_SIGNING_KEY_ID:-}" ]; then
+            echo "::warning::No release signing key configured."
+            echo "Artifacts are published unsigned and are a technical preview only."
+            echo "CLAUSIS_SIGNED=0" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          ./scripts/sign_release.sh
+          echo "CLAUSIS_SIGNED=1" >> "$GITHUB_ENV"
 
       - name: Create prerelease if needed
         run: |
@@ -71,12 +96,17 @@ jobs:
               --target "$GITHUB_SHA" \
               --prerelease \
               --title "Clausis $RELEASE_TAG – technische Vorschau" \
-              --notes-file docs/release/RELEASE_NOTES_0.4.1.md
+              --notes-file "docs/release/RELEASE_NOTES_$CLAUSIS_VERSION.md"
           fi
 
       - name: Upload ISO parts and checksums
         run: |
           gh release upload "$RELEASE_TAG" --clobber \
-            dist/clausis-0.4.1-amd64.iso.part-* \
-            dist/clausis-0.4.1-amd64.iso.sha256 \
-            dist/clausis-0.4.1-boot-screen.png
+            "dist/$CLAUSIS_ISO".part-* \
+            "dist/$CLAUSIS_ISO.sha256" \
+            "dist/clausis-$CLAUSIS_VERSION-boot-screen.png"
+          if [ "${CLAUSIS_SIGNED:-0}" = "1" ]; then
+            gh release upload "$RELEASE_TAG" --clobber \
+              "dist/$CLAUSIS_ISO.sha256.asc" \
+              "dist/clausis-release-key.asc"
+          fi

@@ -1,5 +1,7 @@
 [org/gnome/shell]
 welcome-dialog-last-shown-version='999'
+disable-user-extensions=false
+enabled-extensions=['clausis@clausis.local']
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'

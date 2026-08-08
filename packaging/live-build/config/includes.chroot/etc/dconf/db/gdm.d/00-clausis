@@ -1,3 +1,8 @@
 [org/gnome/login-screen]
 logo='/usr/share/pixmaps/clausis-logo.png'
 fallback-logo='/usr/share/pixmaps/clausis-logo.png'
+
+[org/gnome/desktop/a11y/applications]
+# The login screen is the one place where a voice-only user cannot fall back to
+# Clausis, because nothing of Clausis runs yet. Orca has to speak here.
+screen-reader-enabled=true

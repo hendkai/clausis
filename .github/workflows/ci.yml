@@ -20,7 +20,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install --no-deps -e .
       - run: python -m unittest discover -s tests -v
-      - run: python -m compileall -q src scripts tests
+      - run: python -m compileall -q src scripts tests packaging/libexec
       - name: Confirm release remains fail-closed while blockers exist
         run: |
           if python scripts/check_release.py; then

@@ -99,10 +99,16 @@ def main(argv: Sequence[str] = ()) -> int:
         parser.error("choose --stdin or --pipewire")
     from .broker import SafeExecutor
     from .capabilities import CapabilityAuthority
+    from .executors import SessionExecutor
 
+    # The recovery frontend uses the same adapter routing as the desktop
+    # assistant, so a command behaves identically in both paths.
     runtime = VoiceRuntime(
         OfflineRouter(),
-        ActionBroker(CapabilityAuthority.generate(), SafeExecutor(dry_run=True)),
+        ActionBroker(
+            CapabilityAuthority.generate(),
+            SessionExecutor(SafeExecutor(dry_run=True)),
+        ),
     )
     for line in sys.stdin:
         result = runtime.handle_transcript(line.rstrip("\n"))

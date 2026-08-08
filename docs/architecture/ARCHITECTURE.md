@@ -1,6 +1,6 @@
 # Clausis architecture
 
-Status: executable core prototype, version 0.4.1.
+Status: executable core prototype, version 0.5.0.
 
 ## Data flow
 
@@ -17,10 +17,12 @@ microphone -> optional OpenAI Realtime -> typed function request -> ActionBroker
 The unprivileged audio frontend owns local STT, activation state and TTS. Its
 local gate discards background transcripts until “Hallo Clausis”, expires the
 short command window automatically and recognizes stop before an agent or cloud
-fallback. Recording uses adaptive energy detection. Dedicated low-power
-wake-word inference, echo cancellation and a tested interruption detector for
-true barge-in remain open; all current hardware therefore announces
-half-duplex. `VoiceRuntime` always checks deterministic offline commands first.
+fallback. Recording uses adaptive energy detection. A two-stage wake path is
+implemented — an energy gate ahead of an optional keyword model — together with
+a local interruption detector and a PipeWire echo-cancel configuration. The
+detector refuses to arm without certified echo cancellation, and the keyword
+model is not bundled, so unless a machine is explicitly certified the system
+still announces half-duplex and matches the wake phrase in the transcript. `VoiceRuntime` always checks deterministic offline commands first.
 Only unmatched activated utterances may be sent to Hermes, and only after cloud
 consent when a remote provider is used.
 
@@ -45,8 +47,13 @@ failure and returns to local STT automatically.
    to the 0.4.1 runtime yet.
 3. **GPT Live frontend** holds the user's OpenAI key and streams audio only
    after separate opt-in. Its model can propose fixed typed actions, but cannot
-   execute or confirm them. A per-user local stop marker and desktop launcher
-   terminate streaming without cloud cooperation.
+   execute or confirm them. The proposable set is derived from adapter
+   coverage (`adapted_actions()`), not from the presence of an argument vector,
+   so it covers the whole allowlist and cannot drift away from what is actually
+   implemented. Every proposal is reconstructed locally with the policy's own
+   risk and reversibility, so the model cannot understate an action. A per-user
+   local stop marker and desktop launcher terminate streaming without cloud
+   cooperation.
 4. **Action Broker** accepts only allowlisted verbs and validated arguments. It
    does not accept shell strings and cannot reduce an action's minimum risk.
 5. **Trusted Confirm** runs as the separate `clausis-confirm` system user. Its
@@ -57,11 +64,43 @@ failure and returns to local STT automatically.
    desktop caller. Tokens bind action, target, arguments, origin and expiry and
    are single-use.
 6. **Platform adapters** translate one approved action into a fixed argv vector
-   or desktop API call. Missing adapters fail closed.
+   or desktop API call. `SessionExecutor` routes every allowlisted action to
+   exactly one adapter — semantic GNOME, read-only local query, privileged
+   helper or fixed argv — and `unadapted_actions()` is asserted to stay empty,
+   so an allowlisted action can no longer reach the user without an adapter.
+   Missing adapters still fail closed.
 7. **GNOME semantic adapter** runs inside the unprivileged user session and
    reads the bounded AT-SPI tree. It uses no screen coordinates or global input
    synthesis. Read-only orientation is low risk; arbitrary numbered activation
-   is medium risk and requires a capability.
+   and closing a window are medium risk and require a capability. Closing a
+   window invokes only an accessible close action the application publishes
+   itself; Clausis never terminates a process by force.
+8. **Clausis Shell Bridge** is a GNOME Shell extension for the surfaces that
+   are not in the AT-SPI tree: overview, application grid, quick settings,
+   notifications, window minimize/maximize/restore and workspace movement.
+   Every exported D-Bus method is parameterless and maps to one fixed shell
+   surface; the interface carries no evaluation, coordinate or input-synthesis
+   capability, and a test asserts that every action Clausis maps exists in the
+   extension.
+9. **Dictation adapter** writes into the focused AT-SPI `EditableText` node.
+   It refuses password roles, the `PROTECTED` state and any terminal widget or
+   ancestor, because a line of text in a terminal is a command. After writing
+   it re-reads the field from the accessibility tree, so an input the widget
+   silently rejected is never reported as written. Pasting reuses exactly these
+   refusals, since clipboard content originates outside Clausis.
+10. **Dialog adapter** classifies the active dialog as file-open, file-save,
+   plain message or permission/authentication. A permission or authentication
+   prompt is never approved by voice — only described and cancellable — which
+   keeps the one dialog class an injected utterance would target out of reach.
+   Any other dialog is accepted only through a medium-risk, confirmed action.
+11. **Privileged helper** `/usr/libexec/clausis-system-action` is the only path
+   to reboot, power-off, package management and security updates. Polkit gates
+   the call, the typed request arrives on standard input so no capability or
+   target enters an argument list, and the root side re-parses the request,
+   re-evaluates the policy, re-verifies the action-bound capability against its
+   own replay store and then runs a fixed argument vector from a root-side
+   table. A caller can name an action and one validated Debian package name —
+   never a command.
 
 Broker and confirmer receive a root-created HMAC credential through systemd
 credentials; Hermes and the desktop session do not receive it. The voice PIN
@@ -99,16 +138,23 @@ provider or secret details.
 
 | Failure | Behavior |
 |---|---|
-| No network | Offline router continues; an attempted Hermes reply fails after its provider/network error or the 45-second hard timeout. |
+| No network | Offline router continues; an attempted Hermes reply fails after its provider/network error or the 45-second hard timeout and names the equal keyboard/Orca path. |
 | No remote model | Same as no network; no silent provider fallback. |
 | GPT Live unavailable | A spoken notice is emitted and the existing local voice loop starts automatically. |
 | User wants online audio stopped | “GPT Live sofort beenden” writes a local per-user stop marker; the Realtime loop checks it independently of the cloud. |
 | Unknown audio hardware | Device presence is probed locally and Clausis announces safe half-duplex; no Barge-in promise is made. |
-| No microphone | Setup, desktop, keyboard and Orca remain available; the current automatic voice loop cannot accept a stop phrase. |
-| No audio | Keyboard, visual setup and Orca remain available. |
+| No microphone | The recovery is announced with its keyboard/Orca path before the voice loop exits; setup, desktop, keyboard and Orca remain available. |
+| No audio | The recovery is announced through the surviving channel; keyboard, visual setup and Orca remain available. |
+| Disk unlock before any of Clausis runs | Prompts are pre-rendered at package configuration and played from the initramfs by a minimal ALSA player; a missing card, player or file is silent but never blocks the boot. The prompt states that the passphrase is typed, not spoken. |
+| Login screen | Orca is enabled at the GDM greeter, which is the only voice available before a session exists. |
+| No speech output | `Announcer` falls back from speech to a desktop notification — which Orca reads — and finally to the terminal, and reports the dead speech path once instead of retrying it per message. |
+| Broker or adapter crashes | The exception never leaves the voice loop: it becomes a spoken failure that names the keyboard path, and "Stopp" keeps working afterwards. |
+| Trusted confirmation unavailable | The action is not executed and the spoken answer names the keyboard/Orca route as the equal path, not as a workaround. |
+| Permission dialog cannot be answered by voice | Refusal is deliberate; the spoken hint explains Tab and Enter, which Orca narrates. |
 | Broker refusal | Canonical reason is spoken and displayed; no automatic bypass. |
 | Hermes release lookup or install fails | The launcher remains on the pinned image version; status is recorded and announced at first installed login. |
-| System package update fails | Health-check and snapshot scaffolding exist, but automatic rollback is not wired in 0.4.1. |
+| Update is undone on a system without the Clausis subvolume layout | The rollback still runs, and the spoken answer states that the log lies inside the reverted area and may be incomplete. |
+| System package update fails | The failure is reported with its recovery; the health check separates "an update broke something a rollback repairs" from "this machine lacks a capability", so a missing microphone no longer looks like a reason to roll back. Automatic rollback itself is still not wired. |
 
 ## Implemented for the 0.4.1 image
 

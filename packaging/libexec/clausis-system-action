@@ -1,0 +1,15 @@
+#!/usr/bin/python3
+"""Polkit-gated root helper for privileged Clausis actions.
+
+The Polkit action ``org.clausis.system.manage`` annotates exactly this path.
+All logic lives in :mod:`clausis.privileged` so it can be unit tested without
+root.  The helper reads one typed request from standard input; it never accepts
+a command, a shell string or an argument vector from its caller.
+"""
+
+import sys
+
+from clausis.privileged import helper_main
+
+if __name__ == "__main__":
+    raise SystemExit(helper_main(sys.argv[1:]))

@@ -4,6 +4,19 @@ set -eu
 settings=/etc/calamares/settings.conf
 test -f "${settings}"
 
+# Calamares does not derive a custom instance's configuration filename from
+# the `module@id` sequence entry. Without these explicit mappings both jobs
+# silently fall back to shellprocess.conf and execute no Clausis command.
+sed -i '/^sequence:/i\
+instances:\
+  - module: shellprocess\
+    id: clausis-guard\
+    config: shellprocess@clausis-guard.conf\
+  - module: shellprocess\
+    id: clausis\
+    config: shellprocess@clausis.conf\
+' "${settings}"
+
 # Register the Clausis post-install job after Calamares has created the target
 # user. Restrict the edit to the execution phase; the view sequence also has a
 # users entry and must remain unchanged.

@@ -21,6 +21,7 @@ REQUIRED = (
     "docs/compliance/DPIA_DRAFT.md",
     "docs/release/RELEASE_GATE.md",
     ".well-known/security.txt",
+    "packaging/trust/hermes-maintainers.asc",
 )
 
 
@@ -41,6 +42,18 @@ def main() -> int:
     security = (ROOT / ".well-known/security.txt").read_text(encoding="utf-8")
     if "example.invalid" in security or "PLACEHOLDER" in security:
         errors.append("security.txt still contains release-blocking placeholders")
+
+    sys.path.insert(0, str(ROOT / "src"))
+    try:
+        from clausis.signing import trust_store_is_configured
+
+        if not trust_store_is_configured(ROOT / "packaging/trust/hermes-maintainers.asc"):
+            errors.append(
+                "no Hermes maintainer trust anchor is configured; online releases "
+                "cannot be verified"
+            )
+    except ImportError:
+        errors.append("the signing module is missing")
 
     gate = (ROOT / "docs/release/RELEASE_GATE.md").read_text(encoding="utf-8")
     if "blocked for end-user release" in gate:

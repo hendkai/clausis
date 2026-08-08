@@ -10,7 +10,7 @@ Homepage: https://github.com/hendkai/clausis
 Package: clausis-core
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}, python3-dbus-next, python3-gi, python3-pyatspi, gir1.2-gtk-3.0, dbus, polkitd, pipewire, wireplumber
-Recommends: orca, espeak-ng, speech-dispatcher, network-manager, btrfs-progs, snapper
+Recommends: orca, espeak-ng, speech-dispatcher, network-manager, btrfs-progs, snapper, alsa-utils, initramfs-tools
 Description: security-first voice control core for Debian
  Clausis provides an offline command router, typed action broker, trusted
  confirmation authority and Hermes Agent adapter for a voice-first GNOME

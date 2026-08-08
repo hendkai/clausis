@@ -19,7 +19,11 @@ from .audio import (
 from .capabilities import CapabilityAuthority
 from .hermes_client import HermesOneShot, hermes_is_configured
 from .gpt_live import GptLiveSession, load_gpt_live_config, request_local_stop
-from .gnome_adapter import SessionExecutor
+from .models import ActionResult
+from .earcons import Earcon, EarconPlayer
+from .recovery import Announcer, Failure, recovery_for
+from .wake import WakeListener, WakeWordGate
+from .executors import SessionExecutor
 from .router import OfflineRouter
 from .runtime import RuntimeState, VoiceRuntime
 from .speech import LocalWhisper, MicrophoneRecorder, SpeechError, SystemSpeaker, record_temporary
@@ -114,10 +118,7 @@ def main(argv: Sequence[str] = ()) -> int:
                 "GPT Live ist nicht erreichbar. Clausis verwendet jetzt automatisch "
                 "die lokale Sprachsteuerung."
             )
-            try:
-                speaker.speak(fallback_notice, language=args.language)
-            except SpeechError:
-                pass
+            Announcer(speaker, language=args.language).announce(fallback_notice)
 
     hermes_fallback = HermesOneShot(home=Path.home()) if hermes_is_configured(Path.home()) else None
     runtime = VoiceRuntime(
@@ -130,23 +131,50 @@ def main(argv: Sequence[str] = ()) -> int:
     activation = LocalActivationController()
     pending_text = args.text
 
+    # From here on every message goes through the announcer, so a dead speech
+    # output degrades to a desktop notification instead of silence.
+    announcer = Announcer(speaker, language=args.language)
     audio_decision = choose_audio_mode(probe_audio_capabilities())
     print(audio_decision.announcement, flush=True)
-    try:
-        speaker.speak(audio_decision.announcement, language=args.language)
-    except SpeechError:
-        pass
+    announcer.announce(audio_decision.announcement)
     if pending_text is None and audio_decision.mode in {
         AudioMode.OUTPUT_ONLY,
         AudioMode.UNAVAILABLE,
     }:
+        failure = (
+            Failure.NO_AUDIO
+            if audio_decision.mode is AudioMode.UNAVAILABLE
+            else Failure.NO_MICROPHONE
+        )
+        # Exiting without naming the keyboard path would leave a user who
+        # cannot see the screen with no way forward at all.
+        announcer.announce_recovery(failure)
+        print(recovery_for(failure).message(), file=sys.stderr, flush=True)
         return 2
+    if announcer.speech_failed:
+        announcer.announce_recovery(Failure.NO_SPEECH_OUTPUT)
+
+    # A dedicated keyword model, when one is configured, replaces the constant
+    # transcription of everything the room says. Without it nothing changes:
+    # the transcript gate keeps working exactly as before.
+    earcons = EarconPlayer()
+    wake_gate = WakeWordGate.from_model() if pending_text is None else WakeWordGate(None)
+    wake_reader = None
+    wake_stream = None
+    if wake_gate.available():
+        try:
+            from .wake import microphone_frames
+
+            wake_reader, wake_stream = microphone_frames()
+        except Exception:
+            wake_gate = WakeWordGate(None)
+    print(
+        "Wake-Word-Modell aktiv." if wake_gate.available() else "Wake-Wort wird im Transkript erkannt.",
+        flush=True,
+    )
     wake_notice = "Die lokale Steuerung ist bereit. Sagen Sie Hallo Clausis."
     print(wake_notice, flush=True)
-    try:
-        speaker.speak(wake_notice, language=args.language)
-    except SpeechError:
-        pass
+    announcer.announce(wake_notice)
 
     while runtime.state is not RuntimeState.STOPPED:
         audio_path = None
@@ -155,29 +183,38 @@ def main(argv: Sequence[str] = ()) -> int:
                 transcript = pending_text
                 pending_text = None
             else:
+                if wake_reader is not None:
+                    # Nothing is transcribed until the keyword model fires, so
+                    # background conversation never reaches an agent at all.
+                    if not WakeListener(
+                        wake_gate,
+                        wake_reader,
+                        on_detect=lambda: earcons.play(Earcon.WAKE),
+                    ).wait(timeout=None):
+                        wake_reader = None
                 audio_path = record_temporary(recorder)
                 transcript = transcriber.transcribe(audio_path)
             if not transcript:
                 raise SpeechError("Ich habe nichts verstanden.")
-            gated = activation.ingest(transcript, bypass_wake=args.text is not None)
+            gated = activation.ingest(
+                transcript,
+                bypass_wake=args.text is not None or wake_reader is not None,
+            )
             if gated.announcement:
                 print(gated.announcement, flush=True)
-                speaker.speak(gated.announcement, language=args.language)
+                announcer.announce(gated.announcement)
             if gated.command is None:
                 if args.once and activation.state.value != "awake":
                     break
                 continue
             print(f"Erkannt: {gated.command}", flush=True)
-            result = runtime.handle_transcript(gated.command)
+            result = _submit(runtime, gated.command)
             response = _localized_result(result.status, result.message)
             print(response, flush=True)
-            speaker.speak(response, language=args.language)
+            announcer.announce(response)
         except SpeechError as exc:
             print(str(exc), file=sys.stderr, flush=True)
-            try:
-                speaker.speak(str(exc), language=args.language)
-            except SpeechError:
-                pass
+            announcer.announce(str(exc))
         except KeyboardInterrupt:
             print("Clausis beendet.", flush=True)
             return 130
@@ -186,7 +223,33 @@ def main(argv: Sequence[str] = ()) -> int:
                 audio_path.unlink(missing_ok=True)
         if args.once or args.text is not None:
             break
+    earcons.play(Earcon.SLEEP)
+    earcons.close()
+    if wake_stream is not None:
+        try:
+            wake_stream.stop()
+            wake_stream.close()
+        except Exception:
+            pass
     return 0
+
+
+def _submit(runtime: VoiceRuntime, transcript: str) -> ActionResult:
+    """Never let a broker or adapter crash end the voice session.
+
+    A failing component has to degrade into a spoken recovery path, because an
+    exception here would drop a user who has no other input method.
+    """
+
+    try:
+        return runtime.handle_transcript(transcript)
+    except Exception:
+        runtime.state = RuntimeState.IDLE
+        return ActionResult(
+            "failed",
+            recovery_for(Failure.BROKER_UNAVAILABLE).message(),
+            "voice.unavailable",
+        )
 
 
 def _localized_result(status: str, message: str) -> str:
@@ -195,7 +258,12 @@ def _localized_result(status: str, message: str) -> str:
     if status == "dry_run":
         return "Aktion erkannt. Die Ausführung ist im sicheren Testmodus ausgeschaltet."
     if status == "confirmation_required":
-        return "Diese Aktion benötigt eine vertrauenswürdige Bestätigung und wurde nicht ausgeführt."
+        return (
+            "Diese Aktion benötigt eine vertrauenswürdige Bestätigung und wurde "
+            "nicht ausgeführt."
+        )
+    if status == "denied" and "Bestätigung" in message:
+        return recovery_for(Failure.CONFIRMATION_UNAVAILABLE).message()
     if status == "offline_unmatched":
         return message if message else "Diesen Befehl kenne ich offline noch nicht."
     if status == "hermes_response":

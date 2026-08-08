@@ -8,6 +8,44 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LiveImageConfigurationTests(unittest.TestCase):
+    def test_release_artifacts_share_one_authoritative_project_version(self) -> None:
+        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertIn('version = "0.5.0"', pyproject)
+        self.assertIn(
+            '__version__ = "0.5.0"',
+            (ROOT / "src/clausis/__init__.py").read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            'version="0.5.0"',
+            (ROOT / "setup.py").read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            '"version": "0.5.0"',
+            (ROOT / "sbom.cdx.json").read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            (ROOT / "debian/changelog")
+            .read_text(encoding="utf-8")
+            .startswith("clausis-core (0.5.0-1)")
+        )
+        for relative in (
+            "scripts/build_iso.sh",
+            "scripts/verify_iso.sh",
+            "scripts/boot_smoke_iso.sh",
+            "scripts/graphical_smoke_iso.sh",
+            "scripts/reassemble_iso.sh",
+        ):
+            script = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn("project_version.sh", script)
+            self.assertNotIn("clausis-0.4.1-amd64.iso", script)
+
+        workflow = (ROOT / ".github/workflows/release.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('test "$RELEASE_TAG" = "v$version"', workflow)
+        self.assertIn("$CLAUSIS_ISO", workflow)
+        self.assertNotIn("clausis-0.4.1-amd64.iso", workflow)
+
     def test_debian_initial_setup_is_suppressed_for_new_users(self) -> None:
         marker = (
             ROOT
@@ -229,6 +267,8 @@ class LiveImageConfigurationTests(unittest.TestCase):
 
         self.assertIn("/^  - users$/a", hook)
         self.assertIn("shellprocess@clausis", hook)
+        self.assertIn("id: clausis", hook)
+        self.assertIn("config: shellprocess@clausis.conf", hook)
         self.assertIn("clausis-finalize-hermes-install", module)
         self.assertIn("${ROOT}", module)
         self.assertIn("${USER}", module)
@@ -263,6 +303,8 @@ class LiveImageConfigurationTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn('/^  - partition$/i\\  - shellprocess@clausis-guard', hook)
+        self.assertIn("id: clausis-guard", hook)
+        self.assertIn("config: shellprocess@clausis-guard.conf", hook)
         self.assertIn("--guard-transaction", module)
         self.assertIn("${gs[clausisSelectedDevice]}", module)
         self.assertIn("${gs[partitionChoices.install]}", module)

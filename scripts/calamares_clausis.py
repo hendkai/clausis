@@ -67,15 +67,14 @@ def main(argv: Sequence[str] = ()) -> int:
             # Calamares mode can continue into the LUKS module.
             discard_staged_recovery_key()
             if args.install_mode != "erase":
-                print(
-                    json.dumps(
-                        {
-                            "status": "standard_calamares_fallback",
-                            "message": "non-erase mode is not voice-authorized",
-                        }
-                    )
+                # This process sits before Calamares' first partition job.
+                # Returning success for an empty, unknown or non-erase value
+                # would turn a failed GS hand-off into a confirmation bypass.
+                # Manual/alongside installs need their own trusted transaction
+                # binding before they can be enabled.
+                raise ValueError(
+                    "installation mode is missing or not protected by the Clausis guard"
                 )
-                return 0
             disk = guard_calamares_erase_transaction(
                 discover_install_disks(),
                 device_node=args.device,

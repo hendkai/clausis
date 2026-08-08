@@ -20,15 +20,33 @@ fi
 install -d -m 0700 -o root -g root /etc/clausis
 install -d -m 0750 -o clausis-broker -g clausis-control /var/log/clausis
 
+# Both services receive the key through systemd LoadCredential, which reads it
+# as root before dropping privileges, so no group needs to read it directly.
 if [ ! -s /etc/clausis/capability.key ]; then
     head -c 32 /dev/urandom > /etc/clausis/capability.key
-    chmod 0640 /etc/clausis/capability.key
-    chown root:clausis-control /etc/clausis/capability.key
+fi
+chmod 0600 /etc/clausis/capability.key
+chown root:root /etc/clausis/capability.key
+
+if [ -f /usr/libexec/clausis-system-action ]; then
+    chown root:root /usr/libexec/clausis-system-action
+    chmod 0755 /usr/libexec/clausis-system-action
 fi
 if [ ! -s /etc/clausis/audit.key ]; then
     head -c 32 /dev/urandom > /etc/clausis/audit.key
     chmod 0640 /etc/clausis/audit.key
     chown root:clausis-audit /etc/clausis/audit.key
+fi
+
+# Pre-render the disk-unlock prompts: there is no synthesiser in an initramfs,
+# so a silent black screen at the passphrase prompt is the alternative.
+if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'from clausis.boot_audio import render_prompts; r = render_prompts(); print("clausis: boot prompts", "spoken" if r.has_speech else "tones only")' || \
+        echo "clausis: boot prompts could not be rendered" >&2
+fi
+
+if command -v update-initramfs >/dev/null 2>&1; then
+    update-initramfs -u || echo "clausis: initramfs was not refreshed" >&2
 fi
 
 exit 0

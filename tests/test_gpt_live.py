@@ -8,15 +8,19 @@ import unittest
 
 from clausis.broker import ActionBroker, SafeExecutor
 from clausis.capabilities import CapabilityAuthority
+from clausis.executors import SessionExecutor, adapted_actions
 from clausis.gpt_live import (
+    SUPPORTED_ACTIONS,
     GptLiveConfig,
     GptLiveSession,
+    action_tool_definition,
     load_gpt_live_config,
     local_stop_path,
     parse_gpt_live_action,
     request_local_stop,
     session_update_event,
 )
+from clausis.policy import ACTION_POLICIES
 from clausis.hermes_setup import HermesSetupPlan, configure_hermes
 from clausis.models import Origin, Risk
 
@@ -117,6 +121,58 @@ class GptLiveTests(unittest.TestCase):
         )
         self.assertEqual(low.status, "dry_run")
         self.assertEqual(risky.status, "confirmation_required")
+
+    def test_every_adapted_action_is_offered_to_the_model(self) -> None:
+        # The offered set must follow adapter coverage, not the presence of an
+        # argument vector: the privileged actions keep theirs on the root side
+        # and were silently dropped when that vector moved.
+        self.assertEqual(set(SUPPORTED_ACTIONS), set(adapted_actions()))
+        self.assertEqual(set(SUPPORTED_ACTIONS), set(ACTION_POLICIES))
+        for action in ("system.reboot", "system.poweroff", "system.status", "app.close"):
+            self.assertIn(action, SUPPORTED_ACTIONS)
+        self.assertEqual(
+            set(action_tool_definition()["parameters"]["properties"]["action"]["enum"]),
+            set(SUPPORTED_ACTIONS),
+        )
+
+    def test_privileged_action_from_the_model_is_never_executed_directly(self) -> None:
+        broker = ActionBroker(
+            CapabilityAuthority.generate(),
+            SessionExecutor(SafeExecutor(dry_run=False)),
+        )
+        for action in ("system.reboot", "system.poweroff", "package.install", "app.close"):
+            with self.subTest(action=action):
+                payload = {"action": action}
+                if action == "package.install":
+                    payload["target"] = "nano"
+                if action == "app.close":
+                    payload["target"] = "firefox"
+                result = broker.submit(parse_gpt_live_action(json.dumps(payload)))
+                self.assertEqual(result.status, "confirmation_required")
+
+    def test_model_cannot_understate_the_risk_of_a_new_action(self) -> None:
+        request = parse_gpt_live_action('{"action":"system.reboot"}')
+        self.assertEqual(request.risk, Risk.CRITICAL)
+        self.assertFalse(request.reversible)
+        self.assertEqual(request.origin, Origin.GPT_LIVE)
+
+    def test_read_only_query_answers_the_model_without_confirmation(self) -> None:
+        broker = ActionBroker(
+            CapabilityAuthority.generate(),
+            SessionExecutor(SafeExecutor(dry_run=False)),
+        )
+        result = broker.submit(parse_gpt_live_action('{"action":"system.status"}'))
+        self.assertEqual(result.status, "completed")
+
+    def test_model_still_cannot_pass_a_command_or_extra_argument(self) -> None:
+        for payload in (
+            {"action": "package.install", "target": "nano", "arguments": {"percent": 5}},
+            {"action": "system.reboot", "command": "rm -rf /"},
+            {"action": "file.search", "arguments": {"depth": 99}},
+        ):
+            with self.subTest(payload=payload):
+                with self.assertRaises(ValueError):
+                    parse_gpt_live_action(json.dumps(payload))
 
     def test_stop_tool_never_reaches_broker(self) -> None:
         broker = ActionBroker(

@@ -32,6 +32,12 @@ def _target(action: str, risk: Risk = Risk.LOW, reversible: bool = True) -> Buil
     )
 
 
+def _dictation(match: Match[str]) -> ActionRequest:
+    """Keep dictated prose exactly as spoken, including case and punctuation."""
+
+    return ActionRequest("text.insert", target=match.group("target").strip())
+
+
 def _volume(match: Match[str]) -> ActionRequest:
     return ActionRequest(
         "audio.volume.set",
@@ -94,10 +100,59 @@ COMMANDS: Sequence[CommandPattern] = (
     CommandPattern("repeat", _rx(r"wiederholen", r"wiederhole das", r"repeat"), _simple("voice.repeat")),
     CommandPattern("cancel", _rx(r"abbrechen", r"cancel"), _simple("voice.cancel")),
     CommandPattern("correct", _rx(r"korrigieren", r"correct that"), _simple("voice.correct")),
+    CommandPattern(
+        "describe-dialog",
+        _rx(r"was fragt (?:mich )?der dialog", r"dialog vorlesen", r"read (?:the )?dialog"),
+        _simple("dialog.describe"),
+    ),
+    CommandPattern("accept-dialog", _rx(r"dialog bestätigen", r"confirm (?:the )?dialog"), _simple("dialog.accept", Risk.MEDIUM)),
+    CommandPattern("cancel-dialog", _rx(r"dialog abbrechen", r"dialog schließen", r"cancel (?:the )?dialog"), _simple("dialog.cancel")),
+    CommandPattern("clipboard-read", _rx(r"was (?:ist|steht) in der zwischenablage", r"zwischenablage vorlesen", r"read (?:the )?clipboard"), _simple("clipboard.read")),
+    CommandPattern("clipboard-copy", _rx(r"kopieren", r"copy(?: that)?"), _simple("clipboard.copy")),
+    CommandPattern("clipboard-paste", _rx(r"einfügen", r"paste"), _simple("clipboard.paste")),
+    CommandPattern("keyboard-on", _rx(r"bildschirmtastatur an", r"(?:screen|on-screen) keyboard on"), _simple("a11y.keyboard.enable")),
+    CommandPattern("keyboard-off", _rx(r"bildschirmtastatur aus", r"(?:screen|on-screen) keyboard off"), _simple("a11y.keyboard.disable")),
+    CommandPattern("magnifier-on", _rx(r"(?:bildschirm)?lupe an", r"magnifier on"), _simple("a11y.magnifier.enable")),
+    CommandPattern("magnifier-off", _rx(r"(?:bildschirm)?lupe aus", r"magnifier off"), _simple("a11y.magnifier.disable")),
+    CommandPattern("screenreader-on", _rx(r"(?:orca|bildschirmleser|screenreader) an", r"screen reader on"), _simple("a11y.screenreader.enable")),
+    CommandPattern("screenreader-off", _rx(r"(?:orca|bildschirmleser|screenreader) aus", r"screen reader off"), _simple("a11y.screenreader.disable")),
+    CommandPattern("read-field", _rx(r"lies (?:das )?feld vor", r"was steht im feld", r"read (?:the )?field"), _simple("text.read")),
+    CommandPattern("delete-word", _rx(r"(?:letztes )?wort löschen", r"delete (?:the )?(?:last )?word"), _simple("text.delete_word")),
+    CommandPattern("clear-field", _rx(r"feld leeren", r"clear (?:the )?field"), _simple("text.clear", Risk.MEDIUM)),
+    # "Schreibe mir ein Gedicht" is a request to the agent, not dictation, so
+    # the dictation verbs stay unambiguous and an ambiguous "schreibe …" keeps
+    # falling through to Hermes.
+    CommandPattern(
+        "dictate",
+        _rx(
+            r"(?:diktiere|tippe) (?P<target>.+)",
+            r"schreib(?:e)? ins feld (?P<target>.+)",
+            r"(?:dictate|type) (?P<target>.+)",
+        ),
+        _dictation,
+    ),
     CommandPattern("launch", _rx(r"(?:öffne|starte) (?P<target>[\w.+@:-]+)", r"(?:open|launch) (?P<target>[\w.+@:-]+)"), _target("app.launch")),
     CommandPattern("close", _rx(r"schließe (?P<target>[\w.+@:-]+)", r"close (?P<target>[\w.+@:-]+)"), _target("app.close", Risk.MEDIUM)),
     CommandPattern("settings", _rx(r"öffne (?:die )?einstellungen", r"open settings"), _simple("desktop.settings.open")),
     CommandPattern("overview", _rx(r"zeige (?:die )?übersicht", r"show overview"), _simple("desktop.overview")),
+    CommandPattern("applications", _rx(r"zeige (?:die )?anwendungen", r"show applications"), _simple("desktop.applications")),
+    CommandPattern("quick-settings", _rx(r"(?:zeige (?:die )?)?schnelleinstellungen", r"(?:show )?quick settings"), _simple("desktop.quick_settings")),
+    CommandPattern("notifications", _rx(r"(?:zeige (?:die )?)?benachrichtigungen", r"(?:show )?notifications"), _simple("desktop.notifications")),
+    CommandPattern("minimize", _rx(r"fenster minimieren", r"minimize (?:the )?window"), _simple("desktop.window.minimize")),
+    CommandPattern("maximize", _rx(r"fenster maximieren", r"maximize (?:the )?window"), _simple("desktop.window.maximize")),
+    CommandPattern("unmaximize", _rx(r"fenster wiederherstellen", r"(?:restore|unmaximize) (?:the )?window"), _simple("desktop.window.unmaximize")),
+    CommandPattern(
+        "window-to-next-workspace",
+        _rx(r"fenster (?:auf|zur) nächste[nr]? arbeitsfläche", r"move (?:the )?window to (?:the )?next workspace"),
+        _simple("desktop.window.to_next_workspace"),
+    ),
+    CommandPattern(
+        "window-to-previous-workspace",
+        _rx(r"fenster (?:auf|zur) vorherige[nr]? arbeitsfläche", r"move (?:the )?window to (?:the )?previous workspace"),
+        _simple("desktop.window.to_previous_workspace"),
+    ),
+    CommandPattern("next-workspace", _rx(r"nächste arbeitsfläche", r"next workspace"), _simple("desktop.workspace.next")),
+    CommandPattern("previous-workspace", _rx(r"vorherige arbeitsfläche", r"previous workspace"), _simple("desktop.workspace.previous")),
     CommandPattern("next-window", _rx(r"nächstes fenster", r"next window"), _simple("desktop.window.next")),
     CommandPattern("previous-window", _rx(r"vorheriges fenster", r"previous window"), _simple("desktop.window.previous")),
     CommandPattern("volume-up", _rx(r"lauter", r"volume up"), _simple("audio.volume.up")),
@@ -107,6 +162,7 @@ COMMANDS: Sequence[CommandPattern] = (
     CommandPattern("network-status", _rx(r"netzwerkstatus", r"network status"), _simple("network.status")),
     CommandPattern("wifi-on", _rx(r"wlan an", r"wifi on"), _simple("network.wifi.enable", Risk.MEDIUM)),
     CommandPattern("wifi-off", _rx(r"wlan aus", r"wifi off"), _simple("network.wifi.disable", Risk.MEDIUM)),
+    CommandPattern("report", _rx(r"(?:erstelle |mach )?(?:einen )?fehlerbericht", r"diagnosebericht", r"create (?:a )?report"), _simple("system.report")),
     CommandPattern("system-status", _rx(r"systemstatus", r"system status"), _simple("system.status")),
     CommandPattern("lock", _rx(r"bildschirm sperren", r"lock (?:the )?screen"), _simple("system.lock")),
     CommandPattern("logout", _rx(r"abmelden", r"log ?out"), _simple("system.logout", Risk.HIGH)),

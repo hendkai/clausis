@@ -38,9 +38,13 @@ class BrokerTests(unittest.TestCase):
         self.assertEqual(self.broker.submit(approved).status, "denied")
 
     def test_unsupported_platform_adapter_fails_closed(self):
-        request = ActionRequest("app.close", "firefox", risk=Risk.MEDIUM)
+        # The bare SafeExecutor has no session adapters; a privileged action
+        # must fail instead of running an unprivileged fallback command.
+        request = ActionRequest("system.reboot", risk=Risk.CRITICAL, reversible=False)
         approved = replace(request, capability_token=self.authority.issue(request))
-        self.assertEqual(self.broker.submit(approved).status, "failed")
+        result = self.broker.submit(approved)
+        self.assertEqual(result.status, "failed")
+        self.assertIn("system.reboot", result.message)
 
     def test_audit_is_written_and_valid(self):
         with tempfile.TemporaryDirectory() as directory:

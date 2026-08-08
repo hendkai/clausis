@@ -2,9 +2,11 @@
 set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-iso="$project_dir/dist/clausis-0.4.1-amd64.iso"
+version=$("$project_dir/scripts/project_version.sh")
+iso_name="clausis-$version-amd64.iso"
+iso="$project_dir/dist/$iso_name"
 checksum="$iso.sha256"
-builder="clausis-iso-builder:0.4.1"
+builder="clausis-iso-builder:$version"
 
 test -s "$iso"
 test -s "$checksum"
@@ -13,17 +15,19 @@ actual=$(shasum -a 256 "$iso" | awk '{print $1}')
 test "$expected" = "$actual"
 
 docker run --rm --platform linux/amd64 --entrypoint sh \
+    -e CLAUSIS_ISO_NAME="$iso_name" \
     -v "$project_dir/dist:/artifacts:ro" "$builder" -exc '
-        xorriso -indev /artifacts/clausis-0.4.1-amd64.iso -check_media -- >/tmp/media-check 2>&1
-        xorriso -indev /artifacts/clausis-0.4.1-amd64.iso -report_el_torito plain >/tmp/boot-report 2>&1
-        xorriso -indev /artifacts/clausis-0.4.1-amd64.iso -find / -type f -exec echo -- >/tmp/file-list 2>&1
+        image="/artifacts/$CLAUSIS_ISO_NAME"
+        xorriso -indev "$image" -check_media -- >/tmp/media-check 2>&1
+        xorriso -indev "$image" -report_el_torito plain >/tmp/boot-report 2>&1
+        xorriso -indev "$image" -find / -type f -exec echo -- >/tmp/file-list 2>&1
         grep -Eq "El Torito|BIOS" /tmp/boot-report
         grep -Eq "UEFI|EFI" /tmp/boot-report
         grep -q "/live/filesystem.squashfs" /tmp/file-list
         grep -q "/live/vmlinuz" /tmp/file-list
         grep -q "/live/initrd" /tmp/file-list
 
-        xorriso -osirrox on -indev /artifacts/clausis-0.4.1-amd64.iso \
+        xorriso -osirrox on -indev "$image" \
             -extract /live/filesystem.squashfs /tmp/filesystem.squashfs \
             >/tmp/extract.log 2>&1
         unsquashfs -ll /tmp/filesystem.squashfs >/tmp/squashfs-tree
@@ -62,6 +66,14 @@ docker run --rm --platform linux/amd64 --entrypoint sh \
 
         unsquashfs -cat /tmp/filesystem.squashfs \
             etc/calamares/settings.conf | sed -n "/^- exec:/,\$p" >/tmp/calamares-exec
+        unsquashfs -cat /tmp/filesystem.squashfs \
+            etc/calamares/settings.conf >/tmp/calamares-settings
+        sed -n "/^instances:/,/^sequence:/p" /tmp/calamares-settings \
+            >/tmp/calamares-instances
+        grep -A1 -Fx "    id: clausis-guard" /tmp/calamares-instances \
+            | tail -n 1 | grep -Fxq "    config: shellprocess@clausis-guard.conf"
+        grep -A1 -Fx "    id: clausis" /tmp/calamares-instances \
+            | tail -n 1 | grep -Fxq "    config: shellprocess@clausis.conf"
         grep -A1 -Fx "  - users" /tmp/calamares-exec \
             | tail -n 1 | grep -Fxq "  - shellprocess@clausis"
         grep -B1 -Fx "  - partition" /tmp/calamares-exec \
@@ -72,11 +84,15 @@ docker run --rm --platform linux/amd64 --entrypoint sh \
         grep -Fxq "initialPartitioningChoice: none" /tmp/clausis-partition
         grep -Fxq "luksGeneration: luks2" /tmp/clausis-partition
         grep -Fxq "defaultFileSystemType: \"btrfs\"" /tmp/clausis-partition
+        # A flat Btrfs root would put the audit chain inside the rollback.
+        grep -q "btrfsSubvolumes:" /tmp/clausis-partition
+        grep -q 'mountPoint: "/var/log"' /tmp/clausis-partition
+        grep -q 'mountPoint: "/var/lib/clausis"' /tmp/clausis-partition
 
         unsquashfs -cat /tmp/filesystem.squashfs var/lib/dpkg/status \
             >/tmp/package-status
         sed -n "/^Package: calamares$/,/^$/p" /tmp/package-status \
-            | grep -Fxq "Version: 3.3.14-1+clausis11"
+            | grep -Fxq "Version: 3.3.14-1+clausis12"
         unsquashfs -f -d /tmp/calamares-module /tmp/filesystem.squashfs \
             usr/lib/x86_64-linux-gnu/calamares/modules/partition/libcalamares_viewmodule_partition.so \
             >/tmp/extract-calamares.log

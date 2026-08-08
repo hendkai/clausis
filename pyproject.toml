@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clausis-core"
-version = "0.4.1"
+version = "0.5.0"
 description = "Security-first voice control core for Debian and Hermes Agent"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -33,6 +33,7 @@ clausis-runtime = "clausis.runtime:main"
 clausis-assistant = "clausis.assistant:main"
 clausis-setup = "clausis.setup_app:main"
 clausis-finalize-hermes-install = "clausis.finalize_install:main"
+clausis-report = "clausis.report:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

@@ -19,6 +19,8 @@ from typing import Callable, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from .signing import SignatureError, verify_release
+
 
 LATEST_RELEASE_API = "https://api.github.com/repos/NousResearch/hermes-agent/releases/latest"
 UPSTREAM_GIT = "https://github.com/NousResearch/hermes-agent.git"
@@ -139,7 +141,15 @@ def record_fallback(root: Path, reason: str) -> None:
     )
 
 
-def install_latest_stable(root: Path) -> UpdateResult:
+def install_latest_stable(
+    root: Path, *, verifier: Callable[..., object] = verify_release
+) -> UpdateResult:
+    """Install the latest signed stable release, or keep the bundled one.
+
+    ``verifier`` is injectable for tests only; the default refuses every
+    release until a maintainer trust anchor is configured.
+    """
+
     root = _checked_root(root)
     release = latest_stable_release()
     relative_release = f"/opt/hermes-agent-releases/{release.tag}"
@@ -172,11 +182,14 @@ def install_latest_stable(root: Path) -> UpdateResult:
                 "--depth",
                 "1",
                 "origin",
-                f"refs/tags/{release.tag}",
+                # The tag object has to land in refs/tags locally, otherwise
+                # there is nothing whose signature could be verified.
+                f"refs/tags/{release.tag}:refs/tags/{release.tag}",
             ],
             timeout=300,
         )
-        _run(["git", "-C", str(staging), "checkout", "--detach", "FETCH_HEAD"])
+        verification = verifier(staging, release.tag)
+        _run(["git", "-C", str(staging), "checkout", "--detach", f"refs/tags/{release.tag}"])
         commit = _run(["git", "-C", str(staging), "rev-parse", "HEAD^{commit}"])
         if not re.fullmatch(r"[0-9a-f]{40}", commit):
             raise HermesUpdateError("fetched release commit is invalid")
@@ -216,26 +229,31 @@ def install_latest_stable(root: Path) -> UpdateResult:
             raise HermesUpdateError("updated Hermes executable is missing")
         _atomic_launcher(root, executable)
         result = UpdateResult(release, commit, True)
-        _record_success(root, result)
+        _record_success(root, result, verification)
         return result
     except Exception as exc:
         if installed_destination:
             shutil.rmtree(destination, ignore_errors=True)
         if isinstance(exc, HermesUpdateError):
             raise
+        if isinstance(exc, SignatureError):
+            raise HermesUpdateError(f"release signature rejected: {exc}") from exc
         raise HermesUpdateError("release installation failed safely") from exc
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 
 
-def _record_success(root: Path, result: UpdateResult) -> None:
-    write_install_record(
-        root,
-        {
-            "status": "updated" if result.changed else "already-current",
-            "release": result.release.tag,
-            "commit": result.commit,
-            "published_at": result.release.published_at,
-            "source": UPSTREAM_GIT,
-        },
-    )
+def _record_success(root: Path, result: UpdateResult, verification=None) -> None:
+    payload = {
+        "status": "updated" if result.changed else "already-current",
+        "release": result.release.tag,
+        "commit": result.commit,
+        "published_at": result.release.published_at,
+        "source": UPSTREAM_GIT,
+    }
+    if verification is not None:
+        payload["signature"] = {
+            "kind": verification.kind,
+            "fingerprint": verification.fingerprint,
+        }
+    write_install_record(root, payload)

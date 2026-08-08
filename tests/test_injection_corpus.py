@@ -70,12 +70,11 @@ class InjectionCorpusTests(unittest.TestCase):
         for payload in INJECTION_STRINGS:
             with self.subTest(payload=payload):
                 request = ActionRequest(
-                    "file.delete",
+                    "file.move_to_trash",
                     target="/home/user/important.txt",
                     arguments={"untrusted_text": payload},
                     origin=Origin.EXTERNAL_CONTENT,
-                    risk=Risk.CRITICAL,
-                    reversible=False,
+                    risk=Risk.HIGH,
                 )
                 result = broker.submit(request)
                 self.assertIn(result.status, {"confirmation_required", "denied"})

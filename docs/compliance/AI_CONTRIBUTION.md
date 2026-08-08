@@ -91,6 +91,29 @@ isolation. The test evidence is recorded in
 `docs/release/RECOVERY_KEY_TEST_REPORT.md`; it does not replace the published
 0.4.1 release asset.
 
+For the 0.5.0 preview, Codex replaced the previously hard-coded 0.4.1 artifact
+names with one authoritative version read from `pyproject.toml`. Package,
+builder, ISO, checksum, screenshot, split assets, release notes and the GitHub
+tag are now checked against that value; a mismatching tag fails before any
+release is created. The Debian package metadata, Python module version, legacy
+setup metadata and CycloneDX SBOM were updated to 0.5.0. The two-patch Calamares
+build is separately versioned `3.3.14-1+clausis12`. Windows reassembly and
+checksum instructions and explicit VirtualBox limitations are included in the
+0.5.0 release notes. This work was proposed and implemented with OpenAI Codex;
+168 automated tests passed locally. Full ISO and persistent-install results are
+recorded only after those builds actually finish.
+
+The AI Act scope check was refreshed on 2026-08-07 against the official
+consolidated Regulation (EU) 2024/1689 entry, the Commission AI Act framework
+page and the final Commission Article 50 transparency guidelines published in
+July 2026. Clausis directly exposes Hermes and optional GPT Live to natural
+persons, so the existing accessible disclosure that the user is interacting
+with an AI system remains relevant. Coding-assistant provenance is documented
+separately and is not by itself treated as an Article 50 product duty. No new
+model, provider, biometric inference or cloud data flow is introduced by the
+versioning change. Product, security, privacy, accessibility and legal approval
+remain blocked pending the release gates below.
+
 On 2026-08-06 Codex added the first local audio frontend, the accessible live
 session welcome, a Calamares-based installation image configuration and a
 containerised amd64 ISO build. The ISO includes the MIT-licensed converted
@@ -439,3 +462,55 @@ reassess no later than the date above.
 
 This record distinguishes voluntary development provenance from product-law
 obligations. It is not a legal opinion or a guarantee of compliance.
+
+## Clausis 0.5.0 build and release-tooling record — 2026-08-07
+
+Codex consolidated build, verification, Windows reassembly and GitHub release
+asset names around project version 0.5.0, prepared the matching technical
+preview notes, and built the complete amd64 ISO. The exact artifact has SHA-256
+`23dff45848f3b9905fb8f0bface19cc56855215f8fe0cf242f09a7e8d5cd3277`.
+Static media and SquashFS inspection passed, including BIOS/UEFI entries,
+Hermes and its MIT notice, the offline speech model, branded GNOME defaults,
+Calamares `3.3.14-1+clausis12`, the pre-write guard and the LUKS recovery-key
+module. QEMU/TCG reached GDM from the exact ISO. A second graphical run reached
+the authenticated live session, and Codex visually reviewed its captured
+Clausis setup, AI notice, optional GPT Live control, voice button and branded
+desktop.
+
+The official Hermes release API was checked on 2026-08-07 and reported stable
+release `v2026.8.3`, published 2026-08-03. Clausis resolves that endpoint again
+during an online installation, accepts only an exact stable tag and installs
+with the upstream frozen lockfile; otherwise the reviewed bundled fallback
+remains selected. Upstream `main` was newer than that stable tag, so it was not
+treated as a stable installer release.
+
+No new model category, biometric processing or cloud data flow was introduced
+by this release-tooling work. The consolidated AI Act, Commission overview and
+final Article 50 guidance were rechecked on 2026-08-07. The direct-interaction
+AI disclosure remains applicable to Hermes, Faster-Whisper and voluntary GPT
+Live. Persistent installation, spoken LUKS unlock, real audio hardware,
+VirtualBox-specific behavior and paid OpenAI Realtime use remain explicitly
+untested. This is a technical assessment, not legal advice.
+
+## Clausis 0.5.0 rejected-candidate correction — 2026-08-07
+
+Codex performed the first persistent-disk, virtual-audio installation test of
+the 0.5.0 candidate. The test showed that Calamares queued the trusted guard
+but loaded no commands because custom `shellprocess` instances were not mapped
+to their configuration files in `settings.conf`. The run was stopped, the
+candidate checksum was marked rejected, and publication remained blocked.
+
+Codex added explicit mappings for the guard and Hermes finalizer, changed the
+pre-write bridge to deny missing or non-erase modes, strengthened the ISO
+verifier and regression tests, and started a clean rebuild. This correction
+does not add an AI model, biometric use or cloud data flow. It materially
+improves the enforcement of the existing trusted-confirmation boundary. A new
+persistent-VM installation must still demonstrate that the guard executes;
+static validation does not by itself close the release gate.
+
+The clean rebuild subsequently completed with SHA-256
+`12475ee98859552ea6ab6917f69d4001cf1d569013218ad9aa07527cd0135cbd`.
+The strengthened final-image verifier found both explicit instance mappings,
+and QEMU/TCG booted that exact artifact through live root to GDM. Publication
+remains blocked until the corrected persistent installation and recovery path
+pass at runtime.

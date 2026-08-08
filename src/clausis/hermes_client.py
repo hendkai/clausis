@@ -9,6 +9,7 @@ import subprocess
 from typing import Mapping, Optional
 
 from .models import ActionResult
+from .recovery import Failure, recovery_for
 
 
 MAX_PROMPT_CHARACTERS = 4096
@@ -68,16 +69,20 @@ class HermesOneShot:
                 env=_child_environment(self.home),
             )
         except (OSError, subprocess.SubprocessError):
+            # Name the equal keyboard path instead of leaving the user with a
+            # dead end when network or agent is gone.
             return ActionResult(
                 "failed",
-                "Hermes ist gerade nicht erreichbar. Bitte prüfen Sie die Verbindung und Einrichtung.",
+                recovery_for(Failure.AGENT_UNAVAILABLE).message(),
                 "hermes.chat",
             )
         response = completed.stdout.strip()
         if completed.returncode != 0 or not response:
             return ActionResult(
                 "failed",
-                "Hermes konnte nicht antworten. Technische Fehlermeldungen werden aus Datenschutzgründen nicht vorgelesen.",
+                "Hermes konnte nicht antworten. Technische Fehlermeldungen werden aus "
+                "Datenschutzgründen nicht vorgelesen. "
+                + recovery_for(Failure.AGENT_UNAVAILABLE).keyboard,
                 "hermes.chat",
             )
         return ActionResult(

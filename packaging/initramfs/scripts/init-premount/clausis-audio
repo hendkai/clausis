@@ -1,0 +1,39 @@
+#!/bin/sh
+# Speak the disk-unlock prompt before cryptsetup asks for the passphrase.
+#
+# init-premount runs before local-top, where cryptroot lives, so the prompt is
+# heard before the cursor starts waiting. Everything here is best effort: a
+# missing player, card or file must never delay or block the boot.
+set -e
+
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case "${1:-}" in
+    prereqs) prereqs; exit 0 ;;
+esac
+
+CLAUSIS_AUDIO_DIR=/usr/share/clausis/boot-audio
+
+clausis_play() {
+    name="$1"
+    [ -x /usr/bin/aplay ] || return 0
+    # Prefer the spoken prompt; fall back to the tone when no synthesiser was
+    # available when the package was configured.
+    for candidate in "$CLAUSIS_AUDIO_DIR/$name.wav" "$CLAUSIS_AUDIO_DIR/$name-tone.wav"; do
+        if [ -r "$candidate" ]; then
+            /usr/bin/aplay -q "$candidate" >/dev/null 2>&1 || true
+            return 0
+        fi
+    done
+    return 0
+}
+
+# Give the sound modules a moment to settle; never wait longer than this.
+modprobe -q snd 2>/dev/null || true
+sleep 1
+
+if grep -qs 'cryptdevice\|cryptroot' /proc/cmdline || [ -e /conf/conf.d/cryptroot ]; then
+    clausis_play unlock
+fi
+
+exit 0

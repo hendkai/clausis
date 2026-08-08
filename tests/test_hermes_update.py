@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from clausis.signing import Verification
 from clausis.hermes_update import (
     HermesUpdateError,
     StableRelease,
@@ -14,6 +15,10 @@ from clausis.hermes_update import (
     latest_stable_release,
     record_fallback,
 )
+
+
+def _accepting_verifier(repository, tag):
+    return Verification(reference=tag, kind="tag", fingerprint="A" * 40)
 
 
 class FakeResponse(io.BytesIO):
@@ -101,7 +106,7 @@ class HermesUpdateTests(unittest.TestCase):
             with patch(
                 "clausis.hermes_update.latest_stable_release", return_value=release
             ), patch("clausis.hermes_update._run", side_effect=fake_run):
-                result = install_latest_stable(root)
+                result = install_latest_stable(root, verifier=_accepting_verifier)
 
             launcher = root / "usr/local/bin/hermes"
             self.assertTrue(launcher.is_symlink())
@@ -116,6 +121,10 @@ class HermesUpdateTests(unittest.TestCase):
             record = json.loads((root / "var/lib/clausis/hermes-install.json").read_text())
             self.assertEqual(record["release"], "v2026.8.3")
             self.assertEqual(record["status"], "updated")
+            self.assertEqual(record["signature"]["fingerprint"], "A" * 40)
+            fetch = next(c for c in calls if "fetch" in c)
+            # Without a local refs/tags entry there would be no object to verify.
+            self.assertIn("refs/tags/v2026.8.3:refs/tags/v2026.8.3", fetch)
 
     def test_failed_update_keeps_existing_bundled_launcher(self) -> None:
         release = StableRelease("v2026.8.3", "2026-08-03T16:57:52Z")

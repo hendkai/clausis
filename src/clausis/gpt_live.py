@@ -21,6 +21,7 @@ from typing import Mapping, Optional
 from urllib.parse import quote
 
 from .broker import ActionBroker
+from .executors import adapted_actions
 from .models import ActionRequest, ActionResult, Origin
 from .policy import ACTION_POLICIES
 
@@ -31,20 +32,11 @@ MAX_EVENT_BYTES = 4 * 1024 * 1024
 MAX_AUDIO_DELTA_BYTES = 1024 * 1024
 MODEL_RE = re.compile(r"^gpt-realtime-[A-Za-z0-9.]+$")
 SAFETY_ID_RE = re.compile(r"^[0-9a-f]{32}$")
-SUPPORTED_ACTIONS = tuple(
-    action
-    for action, policy in ACTION_POLICIES.items()
-    if policy.command is not None
-    or action
-    in {
-        "desktop.context.describe",
-        "desktop.controls.list",
-        "desktop.control.activate",
-        "desktop.navigate.back",
-        "desktop.window.next",
-        "desktop.window.previous",
-    }
-)
+#: Every action that an adapter can execute.  Breadth here is safe because it
+#: changes nothing about authorization: GPT Live never receives a capability
+#: token, and the broker still demands trusted confirmation for every medium or
+#: higher risk, irreversible or privileged action, whatever the model asks for.
+SUPPORTED_ACTIONS = tuple(sorted(adapted_actions()))
 
 
 @dataclass(frozen=True)

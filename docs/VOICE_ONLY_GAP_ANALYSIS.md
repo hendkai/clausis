@@ -1,6 +1,8 @@
 # Clausis: Weg zu vollständig sprach- und audiobedienbarem GNOME
 
-Status: fortgeschriebene Lückenanalyse für Clausis 0.4.x. „Nur mit Sprache“ darf
+Status: fortgeschriebene Lückenanalyse für Clausis 0.5.x. Diese Datei betrachtet
+die Sprachsteuerung als Technik; was einem blinden Menschen zum vollständigen
+Arbeiten fehlt, steht in [`BLIND_USE_GAP_ANALYSIS.md`](BLIND_USE_GAP_ANALYSIS.md). „Nur mit Sprache“ darf
 nicht bedeuten, dass Tastatur und Orca entfernt werden. Diese bleiben
 gleichwertige Rettungs- und Barrierefreiheitswege.
 
@@ -32,24 +34,61 @@ Boot-Fehler und die Datenträgeraufteilung noch nicht durchgängig abgedeckt.
 
 Der persistente lokale Prozess, die STT-basierte Aktivierung, das lokale
 Not-Aus, die Hardwareprobe und der ehrliche Halbduplex-Fallback sind umgesetzt.
-Noch fehlen ein dediziertes Wake-Word-Modell mit niedriger Dauerlast,
-Echounterdrückung, ein lokal garantierter Unterbrechungsdetektor für echtes
-Barge-in sowie eindeutige nichtsprachliche Hörsignale. Bis diese Kette auf
+Dazu kommen jetzt:
+
+- Eine zweistufige Wake-Kette: ein Energiegate verwirft Stille für 0,03 % eines
+  80-ms-Frames, erst danach läuft überhaupt ein Keyword-Modell. Solange es
+  aktiv ist, wird nichts transkribiert, bevor das Wake-Wort erkannt wurde.
+- Ein lokaler Unterbrechungsdetektor, der sich ohne zertifizierte
+  Echounterdrückung **weigert** scharf zu schalten, weil Clausis sich sonst
+  selbst unterbricht. `AudioMode.FULL_DUPLEX` ist erreichbar, aber nur wenn
+  zertifizierte Hardware, gemeinsamer Takt, Echounterdrückung und ein
+  gemessener Detektor zusammenkommen.
+- Eine PipeWire-Konfiguration für `module-echo-cancel`.
+- Nichtsprachliche Hörsignale für Aufwachen, Bestätigung, Fehler und Schlafen.
+
+Es fehlt weiterhin das Wake-Word-Modell selbst: die Gewichte haben eine eigene
+Lizenz, müssen zur tatsächlichen Aktivierungsphrase passen und ihre
+Fehlauslöserate muss auf echter Hardware gemessen werden. Bis dahin bleibt die
+Transkript-Erkennung aktiv, und das Flag `interrupt_detector` — das allein
+Vollduplex freischaltet — darf nicht gesetzt werden. Bis diese Kette auf
 zertifizierter Hardware geprüft ist, verspricht Clausis kein Vollduplex.
 
 ### 2. Semantische GNOME-Steuerung
 
-Der erste `Clausis GNOME Adapter` liest AT-SPI begrenzt und ohne
-Bildschirmkoordinaten. Aktives Fenster, Fokus und bis zu 30 semantische Ziele
-können vorgelesen werden; Fensterwechsel, Zurück und bestätigte nummerierte
-Aktivierung sind typisierte Aktionen. Noch ergänzt werden müssen:
+Der `Clausis GNOME Adapter` liest AT-SPI begrenzt und ohne
+Bildschirmkoordinaten. Umgesetzt sind:
 
-- aktives Fenster lesen, wechseln, minimieren, maximieren, schließen und auf
-  eine Arbeitsfläche verschieben;
-- Übersicht, Anwendungen, Schnelleinstellungen und Benachrichtigungen;
+- Orientierung: aktives Fenster, Fokus und bis zu 30 nummerierte Ziele;
+  Fensterwechsel, Zurück und bestätigte nummerierte Aktivierung.
+- Fenster schließen ausschließlich über die vom Programm selbst
+  veröffentlichte Schließen-Aktion; Clausis beendet keinen Prozess gewaltsam.
+- Diktat in fokussierte Textfelder über AT-SPI `EditableText`, inklusive
+  Rücklesen des Feldinhalts nach dem Schreiben und harter Verweigerung in
+  Passwortfeldern und Terminals.
+- Standarddialoge: Öffnen, Speichern, einfache Meldung sowie Berechtigungs- und
+  Anmeldeabfragen. Letztere bestätigt Clausis grundsätzlich nicht per Sprache —
+  genau das wäre das Ziel eines eingeschleusten oder mitgehörten Satzes;
+  Abbrechen bleibt sprachlich möglich, damit ein rein sprachlich bedienender
+  Mensch nicht feststeckt.
+- Zwischenablage (Vorlesen, Kopieren, Einfügen) mit denselben Verweigerungen
+  wie beim Diktat, sowie Bildschirmtastatur, Bildschirmlupe und Orca als
+  Schalter.
+- Fensterverwaltung und Shell-Oberflächen über eine minimale
+  GNOME-Shell-Erweiterung: Minimieren, Maximieren, Wiederherstellen,
+  Arbeitsflächenwechsel, Fenster verschieben, Anwendungsraster,
+  Schnelleinstellungen, Benachrichtigungen und Übersicht. Die Shell ist nicht
+  Teil des AT-SPI-Baums; jede exportierte Methode ist parameterlos, damit ein
+  kompromittierter Sitzungsprozess kein beliebiges Shell-Objekt benennen kann.
+
+Die Erweiterung und die AT-SPI-Pfade sind bisher nur strukturell und gegen
+einen nachgebildeten Baum getestet; ein Lauf in einer echten GNOME-Sitzung
+steht aus. Noch ergänzt werden müssen:
+
 - komplexe Fokusbewegung und weitere widget-spezifische Aktionen;
-- Datei-, Ordner-, Öffnen-, Speichern- und Berechtigungsdialoge;
-- Zwischenablage, Bildschirmtastatur, Vergrößerung und Orca-Funktionen.
+- Navigation in Dateilisten und Ordnerbäumen eines Dateidialogs;
+- Diktat mit Satzzeichen-Kommandos und Cursor-Navigation im Feld;
+- weitere Orca-Funktionen über die reine Ein- und Ausschaltung hinaus.
 
 Mauskoordinaten und Bildschirmerkennung dürfen nur ein gekennzeichneter
 Best-Effort-Fallback sein. Unter Wayland soll Clausis keine globale
@@ -113,8 +152,23 @@ notierten Schlüssels und der gleichwertige geschützte Tastaturweg fehlen
 weiterhin. Die Lösung verwendet kein Screen-Scraping; die Produktionsfreigabe
 bleibt blockiert.
 
-Zusätzlich fehlen durchgängiges Audio in Initramfs, LUKS-Entsperrung, GDM,
-Recovery, Btrfs-Subvolume-Layout und Rollback. Stimme allein ist keine sichere
+Audio bei der LUKS-Entsperrung und am Anmeldebildschirm ist umgesetzt: die
+Ansagen werden bei der Paketkonfiguration vorgerendert, weil es im Initramfs
+keinen Synthesizer gibt, und von einem minimalen ALSA-Player abgespielt, den
+der Initramfs-Hook zusammen mit den Sound-Modulen einbindet. Die Ansage sagt
+ausdrücklich, dass das Passwort über die Tastatur einzugeben ist und nicht
+vorgelesen wird. Am GDM-Greeter, wo noch nichts von Clausis läuft, ist Orca
+aktiviert. Jeder Schritt ist best effort und darf einen Start nie blockieren.
+
+Das Btrfs-Subvolume-Layout ist jetzt deklariert und passt zum Rollback: nur `/`
+liegt innerhalb der Rücknahmegrenze, `/home`, `/var/log`, `/var/lib/clausis`,
+`/.snapshots`, die Caches und die Auslagerungsdatei bewusst außerhalb. Eine
+zurückgenommene Aktualisierung darf die manipulationssichere Protokollkette
+nicht mit löschen — sonst verschwände genau der Nachweis dessen, was die
+Aktualisierung getan hat. Fehlt das Layout, läuft die Rücknahme trotzdem, sagt
+aber ausdrücklich, dass das Protokoll betroffen sein kann.
+
+Es fehlt weiterhin die Prüfung dieser Kette auf echter Hardware. Stimme allein ist keine sichere
 Festplattenentsperrung; FIDO2, TPM-PIN und Recovery-Key bleiben nötig.
 
 ### 6. Anwendungen und Erweiterbarkeit
@@ -128,9 +182,24 @@ KI darf sie nicht autonom erzeugen und sofort aktivieren.
 ### 7. Ausfall- und Qualitätssicherung
 
 Für kein Netz, defektes Mikrofon, fehlende Stimme, abgestürzten Broker,
-blockierten Dialog und fehlerhaftes Update braucht es jeweils gesprochene sowie
-Orca-/Tastatur-Recoverywege. Abnahmetests müssen echte GNOME-Sitzungen und
-physische Audiogeräte einbeziehen: Latenz, Fehlauslösungen, Barge-in,
+blockierten Dialog und fehlerhaftes Update gibt es jetzt je einen benannten
+Recoveryweg in `clausis.recovery`. Jeder Eintrag nennt zwingend den
+gleichwertigen Tastatur-/Orca-Weg; ein Test lässt keinen Fehlerfall ohne einen
+solchen zu. Fällt die Sprachausgabe selbst aus, wechselt der `Announcer` auf
+eine Desktop-Benachrichtigung — die Orca vorliest — und zuletzt auf das
+Terminal. Eine Ausnahme aus Broker oder Adapter beendet die Sprachschleife
+nicht mehr, sondern wird zu einer gesprochenen Meldung mit Tastaturweg; „Stopp"
+funktioniert danach weiter. Der Healthcheck trennt außerdem „ein Update hat
+etwas kaputtgemacht, das ein Rollback repariert" von „diesem Rechner fehlt eine
+Fähigkeit", damit ein fehlendes Mikrofon kein Rollback auslöst.
+
+Das Snapshot-Rollback ist inzwischen verdrahtet: Paket- und Sicherheits-
+aktualisierungen laufen zwischen einem `pre`- und einem `post`-Snapshot, danach
+prüft der Healthcheck, und eine fehlgeschlagene oder sprachbrechende
+Aktualisierung wird automatisch zurückgenommen. Noch offen: Recovery-Audio in
+Initramfs, LUKS-Entsperrung und GDM sowie ein Lauf auf echtem Btrfs mit
+snapper. Abnahmetests müssen echte GNOME-Sitzungen
+und physische Audiogeräte einbeziehen: Latenz, Fehlauslösungen, Barge-in,
 Hintergrundsprache, synthetische Stimmen, Prompt Injection und Stromausfall.
 
 ## Empfohlene Reihenfolge

@@ -1,12 +1,15 @@
 #!/bin/sh
 set -eu
 
+project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+version=$("$project_dir/scripts/project_version.sh")
+base="clausis-$version-amd64.iso"
 parts_dir=${1:-.}
-output=${2:-clausis-0.4.1-amd64.iso}
+output=${2:-$base}
 
-part_a="$parts_dir/clausis-0.4.1-amd64.iso.part-aa"
-part_b="$parts_dir/clausis-0.4.1-amd64.iso.part-ab"
-checksum="$parts_dir/clausis-0.4.1-amd64.iso.sha256"
+part_a="$parts_dir/$base.part-aa"
+part_b="$parts_dir/$base.part-ab"
+checksum="$parts_dir/$base.sha256"
 
 test -f "$part_a"
 test -f "$part_b"

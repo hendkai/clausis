@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+: "${CLAUSIS_VERSION:?CLAUSIS_VERSION must be supplied by build-in-container}"
+volume_version=$(printf '%s' "$CLAUSIS_VERSION" | tr -d .)
+
 lb config noauto \
   --mode debian \
   --architectures amd64 \
@@ -10,9 +13,9 @@ lb config noauto \
   --bootappend-live "boot=live components username=clausis hostname=clausis quiet splash clausis.audio_bootstrap=1" \
   --bootloaders "grub-efi,syslinux" \
   --debian-installer none \
-  --image-name clausis-0.4.1-amd64 \
-  --iso-application "Clausis 0.4.1" \
+  --image-name "clausis-$CLAUSIS_VERSION-amd64" \
+  --iso-application "Clausis $CLAUSIS_VERSION" \
   --iso-publisher "Clausis community prototype" \
-  --iso-volume "CLAUSIS_041" \
+  --iso-volume "CLAUSIS_$volume_version" \
   --memtest none \
   "${@}"

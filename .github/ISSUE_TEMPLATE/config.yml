@@ -1,0 +1,10 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Sicherheitslücke melden
+    url: https://github.com/hendkai/clausis/security/advisories/new
+    about: >-
+      Bitte nicht als öffentlichen Fehlerbericht. Siehe SECURITY.md. Hinweis:
+      der dauerhafte Sicherheitskontakt ist noch nicht eingerichtet.
+  - name: Anleitung für blinde Testpersonen
+    url: https://github.com/hendkai/clausis/blob/main/docs/TESTING_FOR_BLIND_USERS.md
+    about: Was zu testen ist, und was uns am meisten hilft.
