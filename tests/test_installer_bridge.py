@@ -63,7 +63,7 @@ class InstallerBridgeTests(unittest.TestCase):
                 str(BRIDGE),
                 "--guard-transaction",
                 "--install-mode",
-                "manual",
+                "other",
             ],
             text=True,
             capture_output=True,
@@ -80,6 +80,29 @@ class InstallerBridgeTests(unittest.TestCase):
         result = self.run_bridge(payload)
         self.assertEqual(result.returncode, 2)
         self.assertEqual(json.loads(result.stdout)["status"], "denied")
+
+    def test_missing_or_legacy_calamares_mode_is_denied(self):
+        environment = os.environ.copy()
+        environment["PYTHONPATH"] = str(ROOT / "src")
+        for mode in ("", "manual", "unexpected"):
+            with self.subTest(mode=mode):
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(BRIDGE),
+                        "--guard-transaction",
+                        "--install-mode",
+                        mode,
+                    ],
+                    text=True,
+                    capture_output=True,
+                    env=environment,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 2, result.stdout)
+                response = json.loads(result.stdout)
+                self.assertEqual(response["status"], "denied")
+                self.assertIn("install mode", response["message"])
 
 
 if __name__ == "__main__":

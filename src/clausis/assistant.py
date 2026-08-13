@@ -12,6 +12,7 @@ from typing import Sequence
 from .broker import ActionBroker, SafeExecutor
 from .audio import (
     AudioMode,
+    ListeningState,
     LocalActivationController,
     choose_audio_mode,
     probe_audio_capabilities,
@@ -31,6 +32,22 @@ AI_NOTICE_DE = (
     "Offline-Kernbefehle werden lokal verarbeitet. Sagen Sie jederzeit Stopp Hermes "
     "oder drücken Sie in einem geöffneten Terminal Steuerung C zum Beenden."
 )
+
+CORRECTION_EXPIRY_GRACE_SECONDS = 5.0
+
+
+def _synchronize_correction_gate(
+    runtime: VoiceRuntime, activation: LocalActivationController
+) -> None:
+    """Align local wake state with the bounded runtime correction dialog."""
+
+    if activation.state is ListeningState.SLEEPING:
+        runtime.cancel_correction()
+        return
+    if runtime.correction_pending:
+        activation.extend_awake_for(
+            runtime.correction_remaining_seconds + CORRECTION_EXPIRY_GRACE_SECONDS
+        )
 
 
 def _model_path(requested: str) -> str:
@@ -160,6 +177,7 @@ def main(argv: Sequence[str] = ()) -> int:
             if not transcript:
                 raise SpeechError("Ich habe nichts verstanden.")
             gated = activation.ingest(transcript, bypass_wake=args.text is not None)
+            _synchronize_correction_gate(runtime, activation)
             if gated.announcement:
                 print(gated.announcement, flush=True)
                 speaker.speak(gated.announcement, language=args.language)
@@ -169,6 +187,9 @@ def main(argv: Sequence[str] = ()) -> int:
                 continue
             print(f"Erkannt: {gated.command}", flush=True)
             result = runtime.handle_transcript(gated.command)
+            if result.status == "correction_expired":
+                activation.sleep()
+            _synchronize_correction_gate(runtime, activation)
             response = _localized_result(result.status, result.message)
             print(response, flush=True)
             speaker.speak(response, language=args.language)

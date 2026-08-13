@@ -33,6 +33,8 @@ clausis-runtime = "clausis.runtime:main"
 clausis-assistant = "clausis.assistant:main"
 clausis-setup = "clausis.setup_app:main"
 clausis-finalize-hermes-install = "clausis.finalize_install:main"
+clausis-magnifier-filter = "clausis.magnifier_filter:main"
+clausis-orca-control = "clausis.orca_control:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

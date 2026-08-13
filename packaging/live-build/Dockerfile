@@ -18,6 +18,7 @@ RUN chmod 0755 /usr/local/bin/build-clausis-iso
 COPY debian-src.sources /etc/apt/sources.list.d/clausis-src.sources
 COPY patches/calamares/0001-export-selected-device-metadata.patch /tmp/calamares.patch
 COPY patches/calamares/0002-install-clausis-recovery-key.patch /tmp/calamares-recovery.patch
+COPY patches/calamares/0003-bound-os-prober-timeout.patch /tmp/calamares-os-prober.patch
 RUN apt-get update && \
     apt-get build-dep -y calamares && \
     mkdir -p /usr/src/clausis-calamares /opt/clausis-calamares-debs && \
@@ -26,6 +27,7 @@ RUN apt-get update && \
     cd calamares-3.3.14 && \
     patch -p1 < /tmp/calamares.patch && \
     patch -p1 < /tmp/calamares-recovery.patch && \
+    patch -p1 < /tmp/calamares-os-prober.patch && \
     DEBEMAIL=maintainers@example.invalid DEBFULLNAME='Clausis contributors' \
         dch --local +clausis1 --distribution trixie \
         'Export non-secret selected-device metadata for the Clausis pre-write guard.' && \

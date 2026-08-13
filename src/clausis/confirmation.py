@@ -151,7 +151,112 @@ class TrustedConfirmer:
     def canonical_summary(self, pending: PendingConfirmation) -> str:
         request = pending.request
         irreversible = "nicht rückgängig" if not request.reversible else "rückgängig machbar"
-        target = request.target or "das System"
+        fixed_targets = {
+            "desktop.text.set": "das aktuell fokussierte Textfeld; der Inhalt wird nicht wiederholt",
+            "desktop.text.copy_focused": "den vollständigen Inhalt des aktuell fokussierten, nicht geschützten Textfelds in die Wayland-Zwischenablage kopieren; der Inhalt wird nicht wiederholt und der bisherige Zwischenablageinhalt wird überschrieben",
+            "desktop.text.copy_selection": "die aktuell eindeutig ausgewählte Textspanne aus dem fokussierten, nicht geschützten Textfeld in die Wayland-Zwischenablage kopieren; der Inhalt wird nicht wiederholt und der bisherige Zwischenablageinhalt wird überschrieben",
+            "desktop.text.read_selection": "die aktuell eindeutig ausgewählte Textspanne aus dem fokussierten, nicht geschützten Textfeld laut vorlesen; der Inhalt selbst wird weder in dieser Bestätigung noch im Audit gespeichert",
+            "desktop.text.delete_selection": "die aktuell eindeutig ausgewählte Textspanne aus dem fokussierten, nicht geschützten Textfeld löschen; der Inhalt wird nicht wiederholt und bei einer Abweichung wird der vorherige Feldzustand wiederhergestellt",
+            "desktop.text.delete_current_line": "die aktuelle begrenzte Zeile am Textcursor einschließlich genau eines zugehörigen Zeilenumbruchs aus dem fokussierten, nicht geschützten Textfeld löschen; der Inhalt wird nicht wiederholt und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.replace_current_line": "die aktuelle begrenzte Zeile am Textcursor im fokussierten, nicht geschützten Textfeld durch den diktierten Text ersetzen; alter und neuer Inhalt werden nicht wiederholt, der vorhandene Zeilenumbruch bleibt erhalten und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.insert_line_above": "eine neue einzeilige Textzeile direkt oberhalb der aktuellen begrenzten Zeile im fokussierten, nicht geschützten Textfeld einfügen; der diktierte Inhalt wird nicht wiederholt und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.insert_line_below": "eine neue einzeilige Textzeile direkt unterhalb der aktuellen begrenzten Zeile im fokussierten, nicht geschützten Textfeld einfügen; der diktierte Inhalt wird nicht wiederholt und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.duplicate_line_above": "die aktuelle begrenzte nicht leere Zeile im fokussierten, nicht geschützten Textfeld direkt oberhalb duplizieren; der Zeileninhalt wird weder wiederholt noch auditiert und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.duplicate_line_below": "die aktuelle begrenzte nicht leere Zeile im fokussierten, nicht geschützten Textfeld direkt unterhalb duplizieren; der Zeileninhalt wird weder wiederholt noch auditiert und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.move_line_up": "die aktuelle begrenzte Zeile im fokussierten, nicht geschützten Textfeld exakt mit der Zeile darüber vertauschen; beide Inhalte werden weder wiederholt noch auditiert, die relative Cursorposition bleibt erhalten und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.move_line_down": "die aktuelle begrenzte Zeile im fokussierten, nicht geschützten Textfeld exakt mit der Zeile darunter vertauschen; beide Inhalte werden weder wiederholt noch auditiert, die relative Cursorposition bleibt erhalten und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.join_previous_line": "genau den Zeilenumbruch zwischen der aktuellen begrenzten Zeile und der begrenzten Zeile davor im fokussierten, nicht geschützten Textfeld entfernen; beide Inhalte werden weder wiederholt noch auditiert und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.join_next_line": "genau den Zeilenumbruch zwischen der aktuellen begrenzten Zeile und der begrenzten Zeile danach im fokussierten, nicht geschützten Textfeld entfernen; beide Inhalte werden weder wiederholt noch auditiert und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.split_line_at_caret": "genau einen Zeilenumbruch an der aktuellen Textcursorposition in der begrenzten aktuellen Zeile des fokussierten, nicht geschützten Textfelds einfügen; der Zeileninhalt wird weder wiederholt noch auditiert und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.indent_current_line": "genau vier Leerzeichen vor der aktuellen begrenzten Zeile im fokussierten, nicht geschützten Textfeld einfügen; der Zeileninhalt wird weder wiederholt noch auditiert und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.outdent_current_line": "genau einen führenden Tabulator oder bis zu vier führende Leerzeichen aus der aktuellen begrenzten Zeile im fokussierten, nicht geschützten Textfeld entfernen; der Zeileninhalt wird weder wiederholt noch auditiert und bei einer Abweichung werden Text und Cursor wiederhergestellt",
+            "desktop.text.insert_at_caret": "den diktierten Text an der aktuellen Textcursorposition im fokussierten, nicht geschützten Textfeld einfügen; der Inhalt wird nicht wiederholt und bei einer Abweichung wird der vorherige Feldzustand wiederhergestellt",
+            "desktop.text.delete_previous_character": "genau ein vorhandenes Zeichen unmittelbar vor dem Textcursor im fokussierten, nicht geschützten Textfeld löschen; der Inhalt wird nicht wiederholt und bei einer Abweichung wird der vorherige Feldzustand wiederhergestellt",
+            "desktop.text.delete_next_character": "genau ein vorhandenes Zeichen unmittelbar nach dem Textcursor im fokussierten, nicht geschützten Textfeld löschen; der Inhalt wird nicht wiederholt und bei einer Abweichung wird der vorherige Feldzustand wiederhergestellt",
+            "desktop.text.delete_previous_word": "genau ein vorhandenes Wort vor dem Textcursor im fokussierten, nicht geschützten Textfeld löschen; der Inhalt wird nicht wiederholt und bei einer Abweichung wird der vorherige Feldzustand wiederhergestellt",
+            "desktop.text.delete_next_word": "genau ein vorhandenes Wort nach dem Textcursor im fokussierten, nicht geschützten Textfeld löschen; der Inhalt wird nicht wiederholt und bei einer Abweichung wird der vorherige Feldzustand wiederhergestellt",
+            "desktop.text.replace_previous_word": "genau ein vorhandenes Wort vor dem Textcursor im fokussierten, nicht geschützten Textfeld durch den diktierten Text ersetzen; alter und neuer Inhalt werden nicht wiederholt und bei einer Abweichung wird der vorherige Feldzustand wiederhergestellt",
+            "desktop.text.replace_next_word": "genau ein vorhandenes Wort nach dem Textcursor im fokussierten, nicht geschützten Textfeld durch den diktierten Text ersetzen; alter und neuer Inhalt werden nicht wiederholt und bei einer Abweichung wird der vorherige Feldzustand wiederhergestellt",
+            "desktop.text.replace_selection": "die aktuell eindeutig ausgewählte Textspanne im fokussierten, nicht geschützten Textfeld durch den diktierten Text ersetzen; Auswahl- und Ersatzinhalt werden nicht wiederholt und bei einer Abweichung wird der vorherige Feldzustand wiederhergestellt",
+            "desktop.text.read_previous_character": "genau ein vorhandenes Zeichen unmittelbar vor dem Textcursor im fokussierten, nicht geschützten Textfeld laut vorlesen; das Zeichen selbst wird weder in dieser Bestätigung noch im Audit gespeichert",
+            "desktop.text.read_next_character": "genau ein vorhandenes Zeichen unmittelbar nach dem Textcursor im fokussierten, nicht geschützten Textfeld laut vorlesen; das Zeichen selbst wird weder in dieser Bestätigung noch im Audit gespeichert",
+            "desktop.text.read_previous_word": "genau ein vorhandenes Wort vor dem Textcursor im fokussierten, nicht geschützten Textfeld innerhalb einer begrenzten Suche laut vorlesen; das Wort selbst wird weder in dieser Bestätigung noch im Audit gespeichert",
+            "desktop.text.read_next_word": "genau ein vorhandenes Wort nach dem Textcursor im fokussierten, nicht geschützten Textfeld innerhalb einer begrenzten Suche laut vorlesen; das Wort selbst wird weder in dieser Bestätigung noch im Audit gespeichert",
+            "desktop.text.read_current_line": "die aktuelle, auf höchstens 1.000 Zeichen begrenzte Zeile am Textcursor im fokussierten, nicht geschützten Textfeld laut vorlesen; der Zeileninhalt selbst wird weder in dieser Bestätigung noch im Audit gespeichert",
+            "desktop.text.paste_focused": "den begrenzten Textinhalt der Wayland-Zwischenablage in das aktuell fokussierte, nicht geschützte und editierbare Textfeld einfügen; der Inhalt wird nicht wiederholt und der bisherige Feldinhalt wird überschrieben",
+            "desktop.window.workspace_previous": "das aktive Fenster auf die vorherige Arbeitsfläche",
+            "desktop.window.workspace_next": "das aktive Fenster auf die nächste Arbeitsfläche",
+            "desktop.clipboard.clear": "den aktuellen Inhalt der Wayland-Zwischenablage dauerhaft löschen; die primäre Auswahl bleibt unverändert",
+            "desktop.clipboard.read_text": "den Textinhalt der Wayland-Zwischenablage nach der Bestätigung laut vorlesen; der Inhalt selbst wird weder in dieser Bestätigung noch im Audit gespeichert",
+            "desktop.clipboard.write_text": "den diktierten Text dauerhaft in die Wayland-Zwischenablage schreiben und deren bisherigen Inhalt überschreiben; der diktierte Inhalt wird weder wiederholt noch im Audit gespeichert",
+            "accessibility.screen_keyboard.enable": "die GNOME-Bildschirmtastatur dauerhaft einschalten",
+            "accessibility.screen_reader.enable": "den Orca-Screenreader dauerhaft einschalten",
+            "accessibility.screen_reader.restart_with_speech": "den Orca-Screenreader mit erzwungener Sprachausgabe neu starten",
+            "accessibility.screen_magnifier.enable": "die GNOME-Bildschirmvergrößerung dauerhaft einschalten",
+            "accessibility.screen_magnifier.disable": "die GNOME-Bildschirmvergrößerung ausschalten; Orca und Bildschirmtastatur bleiben eingeschaltet",
+            "accessibility.screen_magnifier.invert_lightness.enable": "die Farbinvertierung der GNOME-Bildschirmvergrößerung einschalten",
+            "accessibility.screen_magnifier.invert_lightness.disable": "die Farbinvertierung der GNOME-Bildschirmvergrößerung ausschalten",
+            "accessibility.screen_magnifier.cross_hairs.enable": "das Fadenkreuz der GNOME-Bildschirmvergrößerung einschalten",
+            "accessibility.screen_magnifier.cross_hairs.disable": "das Fadenkreuz der GNOME-Bildschirmvergrößerung ausschalten",
+            "accessibility.screen_magnifier.cross_hairs.clip.enable": "die Mitte des Lupen-Fadenkreuzes um den Zeiger aussparen",
+            "accessibility.screen_magnifier.cross_hairs.clip.disable": "die Aussparung in der Mitte des Lupen-Fadenkreuzes aufheben",
+            "accessibility.screen_magnifier.lens_mode.enable": "den Linsenmodus der GNOME-Bildschirmvergrößerung einschalten",
+            "accessibility.screen_magnifier.lens_mode.disable": "den Linsenmodus der GNOME-Bildschirmvergrößerung ausschalten",
+            "accessibility.screen_magnifier.scroll_at_edges.enable": "das Scrollen am Bildschirmrand für die GNOME-Bildschirmvergrößerung einschalten",
+            "accessibility.screen_magnifier.scroll_at_edges.disable": "das Scrollen am Bildschirmrand für die GNOME-Bildschirmvergrößerung ausschalten",
+        }
+        target = fixed_targets.get(request.action, request.target or "das System")
+        if request.action == "accessibility.screen_magnifier.set_percent":
+            target = f"die GNOME-Bildschirmvergrößerung auf {request.arguments['percent']} Prozent"
+        elif request.action == "accessibility.screen_magnifier.set_saturation":
+            target = f"die Farbsättigung der GNOME-Bildschirmvergrößerung auf {request.arguments['percent']} Prozent"
+        elif request.action in {
+            "accessibility.screen_magnifier.set_brightness",
+            "accessibility.screen_magnifier.set_contrast",
+        }:
+            feature = "Helligkeit" if request.action.endswith("brightness") else "Kontrast"
+            percent = request.arguments["percent"]
+            target = f"{feature} der GNOME-Bildschirmvergrößerung auf {percent:+d} Prozent setzen"
+        elif request.action == "accessibility.screen_magnifier.set_screen_position":
+            positions = {
+                "full-screen": "Vollbild",
+                "top-half": "die obere Bildschirmhälfte",
+                "bottom-half": "die untere Bildschirmhälfte",
+                "left-half": "die linke Bildschirmhälfte",
+                "right-half": "die rechte Bildschirmhälfte",
+            }
+            target = f"die GNOME-Bildschirmvergrößerung auf {positions[request.arguments['position']]} begrenzen"
+        elif request.action == "accessibility.screen_magnifier.cross_hairs.set_opacity":
+            target = f"die Deckkraft des Lupen-Fadenkreuzes auf {request.arguments['percent']} Prozent"
+        elif request.action == "accessibility.screen_magnifier.cross_hairs.set_length":
+            target = f"die Länge des Lupen-Fadenkreuzes auf {request.arguments['pixels']} Pixel"
+        elif request.action == "accessibility.screen_magnifier.cross_hairs.set_thickness":
+            target = f"die Dicke des Lupen-Fadenkreuzes auf {request.arguments['pixels']} Pixel"
+        elif request.action == "accessibility.screen_magnifier.cross_hairs.set_color":
+            red = request.arguments["red"]
+            green = request.arguments["green"]
+            blue = request.arguments["blue"]
+            target = f"die Farbe des Lupen-Fadenkreuzes auf RGB {red}, {green}, {blue} setzen"
+        elif request.action == "accessibility.screen_magnifier.set_focus_tracking":
+            modes = {
+                "none": "aus",
+                "centered": "zentriert",
+                "proportional": "proportional",
+                "push": "schiebend",
+            }
+            target = f"die Fokusverfolgung der GNOME-Bildschirmvergrößerung auf {modes[request.arguments['mode']]} setzen"
+        elif request.action in {
+            "accessibility.screen_magnifier.set_caret_tracking",
+            "accessibility.screen_magnifier.set_mouse_tracking",
+        }:
+            modes = {
+                "none": "aus",
+                "centered": "zentriert",
+                "proportional": "proportional",
+                "push": "schiebend",
+            }
+            kind = "Textcursorverfolgung" if request.action.endswith("caret_tracking") else "Mausverfolgung"
+            target = f"die {kind} der GNOME-Bildschirmvergrößerung auf {modes[request.arguments['mode']]} setzen"
         return (
             f"Geplante Aktion: {request.action}. Ziel: {target}. "
             f"Risiko: {request.risk.value}. Die Aktion ist {irreversible}. "

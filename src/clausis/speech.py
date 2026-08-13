@@ -103,9 +103,16 @@ class MicrophoneRecorder:
 class LocalWhisper:
     """Lazy Faster-Whisper transcription using a bundled or cached model."""
 
-    def __init__(self, model: str, *, language: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        model: str,
+        *,
+        language: Optional[str] = None,
+        initial_prompt: Optional[str] = None,
+    ) -> None:
         self.model_name = model
         self.language = language
+        self.initial_prompt = initial_prompt
         self._model = None
 
     def transcribe(self, audio_path: Path) -> str:
@@ -116,7 +123,11 @@ class LocalWhisper:
         if self._model is None:
             self._model = WhisperModel(self.model_name, device="cpu", compute_type="int8")
         segments, _ = self._model.transcribe(
-            str(audio_path), language=self.language, beam_size=3, vad_filter=True
+            str(audio_path),
+            language=self.language,
+            beam_size=3,
+            vad_filter=True,
+            initial_prompt=self.initial_prompt,
         )
         return " ".join(segment.text.strip() for segment in segments).strip()
 
@@ -137,6 +148,10 @@ class SystemSpeaker:
         for command in commands:
             try:
                 completed = subprocess.run(command, shell=False, check=False, timeout=120)
+            except subprocess.TimeoutExpired as exc:
+                # A timed-out backend may already have spoken part of a
+                # protected secret. Never replay it through another backend.
+                raise SpeechError("Lokale Sprachausgabe hat nicht rechtzeitig geantwortet.") from exc
             except (OSError, subprocess.SubprocessError):
                 continue
             if completed.returncode == 0:

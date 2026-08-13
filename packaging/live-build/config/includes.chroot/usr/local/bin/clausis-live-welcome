@@ -25,7 +25,10 @@ fi
 
 if [ "$live_system" -eq 1 ]; then
     notice='Willkommen bei Clausis. Hermes Agent ist vorinstalliert. Bei der Installation wird nach der neuesten offiziellen stabilen Version gesucht. Ohne Internet bleibt die geprüfte mitgelieferte Version erhalten. Die Einrichtung und der Installer können mit Sprache, Orca oder Tastatur verwendet werden. API-Schlüssel werden niemals vorgelesen.'
-    command -v spd-say >/dev/null 2>&1 && spd-say -w -l de "$notice" || true
+    # Queue the welcome without waiting for audio completion. A missing or
+    # stalled Speech Dispatcher output must never block the accessible setup
+    # window and, transitively, Calamares.
+    command -v spd-say >/dev/null 2>&1 && spd-say -l de "$notice" || true
     command -v notify-send >/dev/null 2>&1 && notify-send -u normal -t 20000 "Clausis – KI-Hinweis" "$notice" || true
 
     if command -v clausis-setup >/dev/null 2>&1; then
@@ -44,8 +47,19 @@ if [ "$live_system" -eq 1 ]; then
         clausis-live-assistant >/dev/null 2>&1 &
     fi
 
-    if command -v calamares-install-debian >/dev/null 2>&1; then
-        QT_ACCESSIBILITY=1 calamares-install-debian >/tmp/clausis-calamares.log 2>&1 &
+    if command -v calamares >/dev/null 2>&1; then
+        # Debian's pkexec wrapper drops the live user's accessibility session
+        # environment. Keep Calamares privileged, but preserve only the
+        # display and AT-SPI variables required by Orca/Clausis.
+        export QT_ACCESSIBILITY=1
+        export QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
+        export NO_AT_BRIDGE=0
+        AT_SPI_BUS_ADDRESS=$(gdbus call --session --dest org.a11y.Bus \
+            --object-path /org/a11y/bus --method org.a11y.Bus.GetAddress | \
+            cut -d "'" -f 2)
+        export AT_SPI_BUS_ADDRESS
+        sudo --preserve-env=DISPLAY,XAUTHORITY,XDG_RUNTIME_DIR,DBUS_SESSION_BUS_ADDRESS,AT_SPI_BUS_ADDRESS,QT_ACCESSIBILITY,QT_LINUX_ACCESSIBILITY_ALWAYS_ON,NO_AT_BRIDGE \
+            calamares >/tmp/clausis-calamares.log 2>&1 &
     fi
     exit 0
 fi

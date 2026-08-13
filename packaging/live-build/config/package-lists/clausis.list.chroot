@@ -35,8 +35,10 @@ libportaudio2
 ffmpeg
 gnome-terminal
 zenity
+wl-clipboard
 fonts-atkinson-hyperlegible
 btrfs-progs
 cryptsetup-initramfs
 snapper
 unattended-upgrades
+acpid

@@ -81,6 +81,26 @@ class LocalActivationTests(unittest.TestCase):
         result = self.controller.ingest("systemstatus", bypass_wake=True)
         self.assertEqual(result.command, "systemstatus")
 
+    def test_bounded_follow_up_extension_does_not_shorten_existing_window(self):
+        self.controller.ingest("Hallo Clausis")
+        self.controller.extend_awake_for(30)
+        self.now += 29
+        self.assertEqual(self.controller.ingest("lauter").command, "lauter")
+
+        # A shorter extension cannot pull an existing deadline backwards.
+        self.controller.extend_awake_for(1)
+        self.now += 1.5
+        self.assertEqual(self.controller.ingest("leiser").command, "leiser")
+
+    def test_follow_up_extension_is_finite_bounded_and_never_revives_stop(self):
+        for duration in (None, "bad", float("nan"), float("inf"), 0, 125.1):
+            with self.assertRaises(ValueError):
+                self.controller.extend_awake_for(duration)
+
+        self.controller.ingest("Stopp Clausis")
+        self.controller.extend_awake_for(30)
+        self.assertEqual(self.controller.state, ListeningState.STOPPED)
+
 
 class InstallerPlanTests(unittest.TestCase):
     def valid_plan(self, **changes):

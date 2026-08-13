@@ -7,14 +7,14 @@ device and encryption choice held in Calamares' in-memory partition model.
 Never expose the LUKS passphrase itself.
 
 ---
- src/modules/partition/gui/ChoicePage.cpp | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/modules/partition/gui/ChoicePage.cpp | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
 diff --git a/src/modules/partition/gui/ChoicePage.cpp b/src/modules/partition/gui/ChoicePage.cpp
 index 94db60b..5fb3617 100644
 --- a/src/modules/partition/gui/ChoicePage.cpp
 +++ b/src/modules/partition/gui/ChoicePage.cpp
-@@ -697,6 +697,15 @@ ChoicePage::onLeave()
+@@ -697,6 +697,18 @@ ChoicePage::onLeave()
      const QString storedLuksPassphrase
          = useLuksPassphrase ? Calamares::String::obscure( m_encryptWidget->passphrase() ) : QString();
      gs->insert( "luksPassphrase", storedLuksPassphrase );
@@ -24,6 +24,9 @@ index 94db60b..5fb3617 100644
 +    Device* clausisSelectedDevice = selectedDevice();
 +    gs->insert( "clausisSelectedDevice",
 +                clausisSelectedDevice ? clausisSelectedDevice->deviceNode() : QString() );
++    gs->insert( "clausisInstallMode",
++                m_config->installChoice() == InstallChoice::Erase ? QStringLiteral( "erase" )
++                                                                  : QStringLiteral( "other" ) );
 +    gs->insert( "clausisEncryptionEnabled", useLuksPassphrase ? QStringLiteral( "true" )
 +                                                               : QStringLiteral( "false" ) );
 +    gs->insert( "clausisFilesystem", m_config->eraseFsType() );

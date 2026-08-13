@@ -42,10 +42,63 @@ class AuditLog:
         self._previous = self._load_tail_hash()
 
     def append(self, request: ActionRequest, result: ActionResult) -> str:
+        request_data = request.to_dict()
+        if request.action in {
+            "desktop.text.set",
+            "desktop.text.insert_at_caret",
+            "desktop.text.replace_selection",
+            "desktop.text.replace_previous_word",
+            "desktop.text.replace_next_word",
+            "desktop.text.replace_current_line",
+            "desktop.text.insert_line_above",
+            "desktop.text.insert_line_below",
+            "desktop.clipboard.write_text",
+        }:
+            labels = {
+                "desktop.text.set": "dictated text",
+                "desktop.text.insert_at_caret": "inserted text",
+                "desktop.text.replace_selection": "selection replacement text",
+                "desktop.text.replace_previous_word": "previous word replacement text",
+                "desktop.text.replace_next_word": "next word replacement text",
+                "desktop.text.replace_current_line": "current line replacement text",
+                "desktop.text.insert_line_above": "inserted line above text",
+                "desktop.text.insert_line_below": "inserted line below text",
+                "desktop.clipboard.write_text": "clipboard write text",
+            }
+            label = labels[request.action]
+            request_data["target"] = f"[REDACTED: {label}]"
+        result_data = result.to_dict()
+        if request.action in {
+            "desktop.text.read_focused",
+            "desktop.text.read_selection",
+            "desktop.clipboard.read_text",
+            "desktop.text.read_previous_character",
+            "desktop.text.read_next_character",
+            "desktop.text.read_previous_word",
+            "desktop.text.read_next_word",
+            "desktop.text.read_current_line",
+            "desktop.standard_dialog.read",
+            "desktop.notifications.read",
+        }:
+            labels = {
+                "desktop.text.read_focused": "focused text",
+                "desktop.text.read_selection": "selected text",
+                "desktop.clipboard.read_text": "clipboard text",
+                "desktop.text.read_previous_character": "previous character",
+                "desktop.text.read_next_character": "next character",
+                "desktop.text.read_previous_word": "previous word",
+                "desktop.text.read_next_word": "next word",
+                "desktop.text.read_current_line": "current line",
+                "desktop.standard_dialog.read": "standard dialog text",
+                "desktop.notifications.read": "notification text",
+            }
+            label = labels[request.action]
+            result_data["message"] = f"[REDACTED: {label}]"
+            result_data["details"] = {}
         entry: Dict[str, Any] = {
             "timestamp": utc_now().isoformat(),
-            "request": redact(request.to_dict()),
-            "result": redact(result.to_dict()),
+            "request": redact(request_data),
+            "result": redact(result_data),
             "previous": self._previous,
         }
         body = json.dumps(entry, sort_keys=True, separators=(",", ":"), ensure_ascii=False)

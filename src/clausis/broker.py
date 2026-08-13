@@ -32,6 +32,35 @@ class SafeExecutor:
             command.append(request.target)
         elif request.action == "audio.volume.set":
             command.append(f"{float(request.arguments['percent']):g}%")
+        elif request.action in {
+            "accessibility.screen_magnifier.set_percent",
+            "accessibility.screen_magnifier.set_saturation",
+            "accessibility.screen_magnifier.cross_hairs.set_opacity",
+        }:
+            factor = request.arguments["percent"] / 100
+            command.append(f"{factor:.2f}")
+        elif request.action == "accessibility.screen_magnifier.set_screen_position":
+            command.append(request.arguments["position"])
+        elif request.action in {
+            "accessibility.screen_magnifier.cross_hairs.set_length",
+            "accessibility.screen_magnifier.cross_hairs.set_thickness",
+        }:
+            command.append(str(request.arguments["pixels"]))
+        elif request.action == "accessibility.screen_magnifier.cross_hairs.set_color":
+            command.append(
+                "#{red:02x}{green:02x}{blue:02x}".format(**request.arguments)
+            )
+        elif request.action in {
+            "accessibility.screen_magnifier.set_brightness",
+            "accessibility.screen_magnifier.set_contrast",
+        }:
+            command.append(f"{request.arguments['percent'] / 100:.2f}")
+        elif request.action in {
+            "accessibility.screen_magnifier.set_focus_tracking",
+            "accessibility.screen_magnifier.set_caret_tracking",
+            "accessibility.screen_magnifier.set_mouse_tracking",
+        }:
+            command.append(request.arguments["mode"])
         return command
 
     def execute(self, request: ActionRequest, policy: ActionPolicy) -> ActionResult:

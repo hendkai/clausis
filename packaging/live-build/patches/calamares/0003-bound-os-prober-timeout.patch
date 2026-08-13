@@ -1,0 +1,15 @@
+--- a/src/modules/partition/core/PartUtils.cpp
++++ b/src/modules/partition/core/PartUtils.cpp
+@@ -1320,9 +1320,11 @@ runOsprober( DeviceModel* dm )
+     {
+         cError() << "os-prober cannot start.";
+     }
+-    else if ( !osprober.waitForFinished( 60000 ) )
++    else if ( !osprober.waitForFinished( 15000 ) )
+     {
+         cError() << "os-prober timed out.";
++        osprober.kill();
++        osprober.waitForFinished( 2000 );
+     }
+     else
+     {

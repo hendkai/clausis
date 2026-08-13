@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 import json
+import math
 from pathlib import Path
 import re
 import time
@@ -166,7 +167,7 @@ class LocalActivationController:
         if self.state is ListeningState.AWAKE and self._clock() >= self._deadline:
             self.state = ListeningState.SLEEPING
         if normalized in self.SLEEP_PHRASES:
-            self.state = ListeningState.SLEEPING
+            self.sleep()
             return ActivationResult(None, "Clausis hört nur noch auf das Aktivierungswort.")
         if bypass_wake:
             self._activate()
@@ -186,6 +187,29 @@ class LocalActivationController:
     def _activate(self) -> None:
         self.state = ListeningState.AWAKE
         self._deadline = self._clock() + self.active_seconds
+
+    def extend_awake_for(self, seconds: float) -> None:
+        """Keep the local gate awake for one bounded trusted follow-up window."""
+
+        try:
+            duration = float(seconds)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("follow-up duration must be numeric") from exc
+        if not math.isfinite(duration) or not 0.0 < duration <= 125.0:
+            raise ValueError("follow-up duration must be between 0 and 125 seconds")
+        if self.state is ListeningState.STOPPED:
+            return
+        now = self._clock()
+        self.state = ListeningState.AWAKE
+        self._deadline = max(self._deadline, now + duration)
+
+    def sleep(self) -> None:
+        """Close the local gate without reviving a controller that already stopped."""
+
+        if self.state is ListeningState.STOPPED:
+            return
+        self.state = ListeningState.SLEEPING
+        self._deadline = 0.0
 
     def _after_wake_phrase(self, normalized: str) -> Optional[str]:
         for phrase in sorted(self.WAKE_PHRASES, key=len, reverse=True):

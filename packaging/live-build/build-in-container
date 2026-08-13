@@ -4,11 +4,48 @@ set -eu
 rm -rf /build/clausis
 mkdir -p /build/clausis /output
 rsync -a --delete --exclude .git --exclude .venv --exclude build --exclude dist /source/ /build/clausis/
+# Windows/WSL DrvFS can expose every source file as executable. Debhelper treats
+# executable config files as programs, so normalize modes inside the native
+# Linux build tree and then restore only the intentional entry points.
+find /build/clausis -type f -size -5M -print0 | xargs -0 grep -Il . | \
+    xargs -r sed -i 's/\r$//'
+find /build/clausis -type d -exec chmod 0755 {} +
+find /build/clausis -type f -exec chmod 0644 {} +
+for executable in \
+    debian/clausis-core.postinst debian/rules \
+    packaging/bin/clausis-session-runtime packaging/bin/clausis-trusted-confirm-runtime \
+    packaging/live-build/auto/config packaging/live-build/build-in-container \
+    packaging/live-build/config/hooks/normal/020-clausis-audio.hook.chroot \
+    packaging/live-build/config/hooks/normal/025-hermes-agent.hook.chroot \
+    packaging/live-build/config/hooks/normal/030-clausis-desktop.hook.chroot \
+    packaging/live-build/config/hooks/normal/035-clausis-calamares.hook.chroot \
+    packaging/live-build/config/includes.chroot/usr/lib/live/config/0035-clausis-live-user \
+    packaging/live-build/config/includes.chroot/usr/local/bin/clausis-live-assistant \
+    packaging/live-build/config/includes.chroot/usr/local/bin/clausis-live-welcome \
+    packaging/live-build/config/includes.chroot/usr/local/sbin/clausis-vm-power \
+    scripts/atspi_smoke.sh scripts/boot_smoke_iso.sh scripts/build_iso.sh \
+    scripts/calamares_clausis.py scripts/check_release.py scripts/dbus_smoke.sh \
+    scripts/graphical_smoke_iso.sh scripts/luks_recovery_smoke.sh \
+    scripts/reassemble_iso.sh scripts/verify_iso.sh \
+    tests/fixtures/dbus_smoke_client.py tests/fixtures/setup_probe.py
+do
+    chmod 0755 "/build/clausis/$executable"
+done
 cd /build/clausis
 dpkg-buildpackage -us -uc -b
 
 mkdir -p /build/iso
 cp -a packaging/live-build/auto packaging/live-build/config /build/iso/
+model_cache=/output/faster-whisper-base-cache
+model_destination=/build/iso/config/includes.chroot/usr/share/clausis/models/faster-whisper-base
+model_manifest=/build/iso/config/includes.chroot/usr/share/clausis/models/faster-whisper-base.sha256
+if [ -d "$model_cache" ]; then
+    (cd "$model_cache" && sha256sum -c "$model_manifest")
+    install -d -m 0755 "$model_destination"
+    while read -r _hash model_file; do
+        install -m 0644 "$model_cache/$model_file" "$model_destination/$model_file"
+    done < "$model_manifest"
+fi
 mkdir -p /build/iso/config/packages.chroot
 cp /build/clausis-core_*.deb /build/iso/config/packages.chroot/
 cp /opt/clausis-calamares-debs/calamares_*_amd64.deb /build/iso/config/packages.chroot/

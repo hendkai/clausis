@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+# GNOME owns logind's low-level power-key inhibitor.  On VirtualBox the GNOME
+# media-keys daemon can occasionally consume the ACPI event without requesting
+# shutdown.  Keep physical machines under normal desktop power management, but
+# provide virtual machines with an independent ACPI fallback.
+if systemd-detect-virt --vm --quiet
+then
+    logger --tag clausis-vm-power "virtual-machine ACPI power event: requesting poweroff"
+    # acpid executes event actions serially. Queue the systemd transaction and
+    # release the handler immediately instead of waiting inside acpid until S5.
+    exec systemctl --no-block poweroff
+fi

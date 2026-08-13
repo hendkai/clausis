@@ -8,8 +8,8 @@ add it to the encrypted root volume, and delete both temporary copies. Never
 place either key on a process command line.
 
 ---
- src/modules/luksbootkeyfile/LuksBootKeyFileJob.cpp | 137 +++++++++++++++++++--
- 1 file changed, 128 insertions(+), 9 deletions(-)
+ src/modules/luksbootkeyfile/LuksBootKeyFileJob.cpp | 143 +++++++++++++++++++--
+ 1 file changed, 134 insertions(+), 9 deletions(-)
 
 diff --git a/src/modules/luksbootkeyfile/LuksBootKeyFileJob.cpp b/src/modules/luksbootkeyfile/LuksBootKeyFileJob.cpp
 index 2c804d4..8940ec2 100644
@@ -154,13 +154,19 @@ index 2c804d4..8940ec2 100644
      if ( s.devices.first().passphrase.isEmpty() )
      {
          cDebug() << Logger::SubEntry << "No root passphrase.";
-@@ -296,6 +380,47 @@ LuksBootKeyFileJob::exec()
+@@ -296,6 +380,53 @@ LuksBootKeyFileJob::exec()
              tr( "Encrypted rootfs setup error" ),
              tr( "Root partition %1 is LUKS but no passphrase has been set." ).arg( s.devices.first().device ) );
      }
 +
 +    QByteArray recoveryKey;
 +    const auto recoveryState = loadStagedRecoveryKey( recoveryKey );
++    if ( recoveryState == RecoveryKeyState::Absent )
++    {
++        return Calamares::JobResult::error(
++            tr( "Encrypted rootfs setup error" ),
++            tr( "A confirmed Clausis recovery key is required for encrypted installation." ) );
++    }
 +    if ( recoveryState == RecoveryKeyState::Invalid )
 +    {
 +        removeStagedRecoveryKey();

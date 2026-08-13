@@ -1,0 +1,12 @@
+# Linux entry points must remain directly executable in Debian/WSL checkouts.
+*.sh text eol=lf
+*.hook.chroot text eol=lf
+debian/rules text eol=lf
+debian/*.postinst text eol=lf
+packaging/bin/* text eol=lf
+packaging/live-build/auto/* text eol=lf
+packaging/live-build/build-in-container text eol=lf
+packaging/live-build/config/includes.chroot/usr/lib/live/config/* text eol=lf
+packaging/live-build/config/includes.chroot/usr/local/bin/* text eol=lf
+scripts/*.py text eol=lf
+tests/fixtures/*.py text eol=lf

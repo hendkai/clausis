@@ -24,6 +24,8 @@ UV_PROJECT_ENVIRONMENT="${install_dir}/venv" \
 
 ln -s "${install_dir}/venv/bin/hermes" /usr/local/bin/hermes
 install -m 0644 "${install_dir}/LICENSE" /usr/share/doc/hermes-agent/LICENSE
+install -D -m 0644 "${install_dir}/apps/desktop/assets/icon.png" \
+    /usr/share/pixmaps/hermes-agent.png
 printf '%s\n' "${hermes_version} ${hermes_commit}" > /usr/share/doc/hermes-agent/UPSTREAM_VERSION
 
 # The pinned uv environment remains available to the Calamares updater.  It

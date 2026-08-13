@@ -7,5 +7,22 @@ python3 -m venv --system-site-packages /opt/clausis
     'sounddevice==0.5.5' \
     'websocket-client==1.9.0'
 install -d -m 0755 /usr/share/clausis/models/faster-whisper-base
-/opt/clausis/bin/python -c 'from faster_whisper.utils import download_model; download_model("Systran/faster-whisper-base", output_dir="/usr/share/clausis/models/faster-whisper-base", revision="ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66")'
+model_dir=/usr/share/clausis/models/faster-whisper-base
+model_manifest=/usr/share/clausis/models/faster-whisper-base.sha256
+export HF_HUB_DISABLE_XET=1
+export HF_HUB_DISABLE_TELEMETRY=1
+if ! (cd "$model_dir" && sha256sum -c "$model_manifest"); then
+    rm -f "$model_dir/config.json" "$model_dir/model.bin" \
+        "$model_dir/tokenizer.json" "$model_dir/vocabulary.txt"
+    attempt=1
+    until /opt/clausis/bin/python -c 'from faster_whisper.utils import download_model; download_model("Systran/faster-whisper-base", output_dir="/usr/share/clausis/models/faster-whisper-base", revision="ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66")'; do
+        if [ "$attempt" -ge 3 ]; then
+            echo "Failed to download the pinned Faster Whisper model after $attempt attempts" >&2
+            exit 1
+        fi
+        sleep $((attempt * 5))
+        attempt=$((attempt + 1))
+    done
+fi
+(cd "$model_dir" && sha256sum -c "$model_manifest")
 chmod 0755 /usr/local/bin/clausis-live-welcome /usr/local/bin/clausis-live-assistant

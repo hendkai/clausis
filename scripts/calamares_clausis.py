@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/opt/clausis/bin/python
 """Read-only Clausis validation bridge for the Calamares hand-off.
 
 The bridge never partitions.  It inventories disks or validates a secret-free
@@ -66,7 +66,9 @@ def main(argv: Sequence[str] = ()) -> int:
             # Remove a key left by a killed/aborted earlier guard before any
             # Calamares mode can continue into the LUKS module.
             discard_staged_recovery_key()
-            if args.install_mode != "erase":
+            if args.install_mode not in {"erase", "other"}:
+                raise ValueError("invalid or missing Calamares install mode")
+            if args.install_mode == "other":
                 print(
                     json.dumps(
                         {

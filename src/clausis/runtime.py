@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
+import time
 from enum import Enum
 from typing import Callable, Optional, Sequence
 
@@ -23,6 +25,7 @@ class RuntimeState(str, Enum):
     LISTENING = "listening"
     PROCESSING = "processing"
     SPEAKING = "speaking"
+    CORRECTING = "correcting"
     STOPPED = "stopped"
 
 
@@ -33,34 +36,97 @@ class VoiceRuntime:
         broker: ActionBroker,
         *,
         hermes_fallback: Optional[Callable[[str], ActionResult]] = None,
+        correction_ttl_seconds: float = 30.0,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
+        try:
+            ttl = float(correction_ttl_seconds)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("correction TTL must be numeric") from exc
+        if not math.isfinite(ttl) or not 5.0 <= ttl <= 120.0:
+            raise ValueError("correction TTL must be between 5 and 120 seconds")
         self.router = router
         self.broker = broker
         self.hermes_fallback = hermes_fallback
+        self._correction_ttl_seconds = ttl
+        self._clock = clock
         self.state = RuntimeState.IDLE
         self.last_result: Optional[ActionResult] = None
+        self._correction_pending = False
+        self._correction_deadline: Optional[float] = None
+
+    @property
+    def correction_pending(self) -> bool:
+        """Whether exactly one replacement transcript is currently expected."""
+
+        return self._correction_pending
+
+    @property
+    def correction_remaining_seconds(self) -> float:
+        """Monotonic remaining time without extending or consuming the slot."""
+
+        if not self._correction_pending or self._correction_deadline is None:
+            return 0.0
+        return max(0.0, self._correction_deadline - self._clock())
+
+    def cancel_correction(self) -> None:
+        """Clear a pending correction when the local wake gate is put to sleep."""
+
+        self._clear_correction()
+        if self.state is RuntimeState.CORRECTING:
+            self.state = RuntimeState.IDLE
+
+    def _clear_correction(self) -> None:
+        self._correction_pending = False
+        self._correction_deadline = None
 
     def handle_transcript(self, transcript: str) -> ActionResult:
         self.state = RuntimeState.PROCESSING
         request = self.router.route(transcript)
         if request is not None and request.action == "voice.stop":
+            self._clear_correction()
             self.state = RuntimeState.STOPPED
             return ActionResult("stopped", "Hermes wurde sofort gestoppt.", request.action)
-        if request is not None and request.action == "voice.repeat":
-            self.state = RuntimeState.IDLE
-            if self.last_result is None:
-                return ActionResult("completed", "Es gibt noch nichts zu wiederholen.", request.action)
-            return ActionResult("repeated", self.last_result.message, request.action)
         if request is not None and request.action == "voice.cancel":
+            self._clear_correction()
             self.state = RuntimeState.IDLE
             result = ActionResult("completed", "Der aktuelle Sprachdialog wurde abgebrochen.", request.action)
             self.last_result = result
             return result
         if request is not None and request.action == "voice.correct":
-            self.state = RuntimeState.IDLE
-            result = ActionResult("completed", "Bitte sagen Sie den korrigierten Befehl.", request.action)
+            self._correction_pending = True
+            self._correction_deadline = self._clock() + self._correction_ttl_seconds
+            self.state = RuntimeState.CORRECTING
+            result = ActionResult(
+                "correction_requested",
+                f"Bitte sagen Sie jetzt innerhalb von {self._correction_ttl_seconds:g} Sekunden genau einen korrigierten Befehl. Die vorherige Aktion wird nicht automatisch rückgängig gemacht. Sagen Sie Abbrechen, um die Korrektur zu beenden.",
+                request.action,
+            )
             self.last_result = result
             return result
+        if self._correction_pending and (
+            self._correction_deadline is None or self._clock() >= self._correction_deadline
+        ):
+            self._clear_correction()
+            self.state = RuntimeState.IDLE
+            result = ActionResult(
+                "correction_expired",
+                "Die Korrekturzeit ist abgelaufen. Die verspätete Äußerung wurde nicht ausgeführt. Sagen Sie Korrigieren, um neu zu beginnen.",
+                "voice.correct",
+            )
+            self.last_result = result
+            return result
+        if request is not None and request.action == "voice.repeat":
+            self.state = (
+                RuntimeState.CORRECTING if self._correction_pending else RuntimeState.IDLE
+            )
+            if self.last_result is None:
+                return ActionResult("completed", "Es gibt noch nichts zu wiederholen.", request.action)
+            return ActionResult("repeated", self.last_result.message, request.action)
+        # A correction slot is deliberately one-shot and stores no transcript.
+        # Its replacement follows the same router/broker/fallback path as a
+        # normal utterance; unmatched input therefore cannot leave a stale slot.
+        self._clear_correction()
         if request is not None:
             result = self.broker.submit(request)
             self.state = RuntimeState.IDLE
