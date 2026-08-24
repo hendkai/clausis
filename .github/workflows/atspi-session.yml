@@ -30,8 +30,14 @@ jobs:
             export DISPLAY=:99 NO_AT_BRIDGE=0 GTK_MODULES=gail:atk-bridge
             # A bare Xvfb has no window manager, so a GTK window never
             # receives real keyboard focus and STATE_FOCUSED stays unset.
-            # matchbox supplies the WM focus handshake the session needs.
+            # matchbox supplies the WM focus handshake the session needs;
+            # give Xvfb a second to create the display before starting it
+            # and fail loudly if the WM died.
+            sleep 1
             matchbox-window-manager >/tmp/wm.log 2>&1 &
+            wm_pid=$!
+            sleep 1
+            kill -0 "${wm_pid}"
             export PYTHONPATH="$PWD/src:/usr/lib/python3/dist-packages"
             /usr/libexec/at-spi-bus-launcher --launch-immediately >/tmp/atspi.log 2>&1 &
             sleep 2
@@ -41,7 +47,12 @@ jobs:
           '
       - name: Show session results
         if: always()
-        run: cat /tmp/clausis-session/session-result.txt || true
+        run: |
+          echo "--- wm.log ---"; cat /tmp/wm.log || true
+          echo "--- atspi.log ---"; cat /tmp/atspi.log || true
+          echo "--- app.log ---"; cat /tmp/app.log || true
+          echo "--- session result ---"
+          cat /tmp/clausis-session/session-result.txt || true
       - name: Fail on errors
         if: always()
         run: |
