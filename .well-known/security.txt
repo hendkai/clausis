@@ -1,7 +1,4 @@
-Canonical: https://example.invalid/.well-known/security.txt
-Policy: https://example.invalid/security
+Canonical: https://github.com/hendkai/clausis/blob/main/.well-known/security.txt
+Policy: https://github.com/hendkai/clausis/blob/main/SECURITY.md
 Preferred-Languages: de, en
-Expires: 2026-09-01T00:00:00Z
-# PLACEHOLDER ONLY: release is blocked until real HTTPS URLs and a monitored
-# security contact are configured.
-
+Expires: 2027-09-01T00:00:00Z

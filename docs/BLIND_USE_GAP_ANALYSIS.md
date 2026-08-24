@@ -215,9 +215,10 @@ Das Projekt geht den Weg über die Community: erst etwas Benutzbares, dann
 Rückmeldung von denen, die es betrifft. Das ist ein tragfähiger Weg, aber er
 steht und fällt mit zwei Dingen:
 
-- **Ein Kanal, der ankommt.** Solange Kontaktadresse und `security.txt` auf
-  `example.invalid` zeigen, läuft jeder Bericht ins Leere. Siehe
-  [`TESTING_FOR_BLIND_USERS.md`](TESTING_FOR_BLIND_USERS.md) und die
+- **Ein Kanal, der ankommt.** Kontakt läuft über das Projekt-Repository:
+  sicherheitsrelevante Funde über GitHub Private Vulnerability Reporting
+  (siehe `SECURITY.md`), Barrierefreiheits-Rückmeldung über die Vorlagen.
+  Siehe [`TESTING_FOR_BLIND_USERS.md`](TESTING_FOR_BLIND_USERS.md) und die
   Fehlerberichtsvorlagen.
 - **Eine Kennzeichnung, die nicht mehr verspricht als geprüft ist.** Wer das
   Abbild herunterlädt, muss vor dem Installieren wissen, dass noch niemand aus
@@ -257,10 +258,10 @@ niemanden in die Irre führt, solange nichts geprüft ist.
 1. **Rückmeldung möglich machen.** Testprotokoll
    ([`TESTING_FOR_BLIND_USERS.md`](TESTING_FOR_BLIND_USERS.md)),
    Fehlerberichtsvorlagen und der sprachbedienbare Diagnosebericht
-   (`clausis-report`, oder gesprochen „Fehlerbericht") sind umgesetzt. **Offen
-   bleibt der erreichbare Kontakt** — solange `security.txt` und `SECURITY.md`
-   auf `example.invalid` zeigen, ist der Fehlerbericht im Repository der einzige
-   Weg, der ankommt.
+   (`clausis-report`, oder gesprochen „Fehlerbericht") sind umgesetzt. **Der
+   Kontakt läuft jetzt über GitHub**: `security.txt` und `SECURITY.md` zeigen
+   auf Private Vulnerability Reporting im Projekt-Repository;
+   Barrierefreiheits-Rückmeldung läuft über die Fehlerberichte im Repository.
 2. **Textbearbeitung und Vorlesen mit Granularität** (Abschnitte 1 und 2) —
    ohne das ist der Rechner kein Arbeitsgerät.
 3. **Bessere Stimme und bessere Erkennung** (6 und 7) — sie begrenzen alles

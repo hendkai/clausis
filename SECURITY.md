@@ -1,17 +1,18 @@
 # Security policy
 
-Clausis Core 0.1.x is a pre-alpha prototype and is not supported for protecting
+Clausis Core is pre-release software and is not supported for protecting
 valuable or sensitive systems. Do not enable real action execution outside an
 isolated Debian test machine.
 
 ## Reporting a vulnerability
 
-Until a project security mailbox exists, open a private GitHub security
-advisory in the future canonical repository. Do not include real PINs, cloud
-tokens, voice recordings or personal data in a report.
+Report privately through GitHub's **Private Vulnerability Reporting** on
+[github.com/hendkai/clausis](https://github.com/hendkai/clausis):
+**Security → Report a vulnerability**. Reports reach the maintainers directly
+and are not public. Do not include real PINs, cloud tokens, voice recordings
+or personal data in a report.
 
-The release is blocked until a monitored security contact replaces this
-temporary channel. The intended coordinated disclosure process is:
+The coordinated disclosure process is:
 
 1. Acknowledge receipt within two business days.
 2. Assess affected versions, exploitability and severity.
@@ -21,4 +22,3 @@ temporary channel. The intended coordinated disclosure process is:
 
 See `docs/security/THREAT_MODEL.md` for supported security properties and known
 limitations.
-

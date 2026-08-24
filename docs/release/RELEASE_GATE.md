@@ -28,7 +28,8 @@ an explicitly labelled public technical test preview**.
   `scripts/wake_latency.py` measures the software path (energy gate at 0.03 %
   duty cycle). No keyword model ships and no hardware measurement has been
   made, so `interrupt_detector` must stay unset.
-- [ ] Real security contact and HTTPS `security.txt` configured.
+- [x] Real security contact: GitHub Private Vulnerability Reporting enabled on
+  github.com/hendkai/clausis; `security.txt` and `SECURITY.md` point to it.
 - [x] Public trusted-confirmation API no longer transports phrase, PIN or
   capability; the isolated service captures locally and submits directly.
 - [ ] Physical confirmation-audio isolation, replay handling and spoken abort

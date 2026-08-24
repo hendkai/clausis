@@ -124,11 +124,10 @@ fragt:
 Barrierefreiheits-Rückmeldungen liegen bereit und fragen genau die Punkte oben
 ab.
 
-Für sicherheitsrelevante Funde nutzen Sie bitte den Weg in `SECURITY.md`.
-
-**Stand heute ist der Sicherheitskontakt noch nicht eingerichtet** — solange
-dort `example.invalid` steht, ist der Fehlerbericht im Repository der einzige
-Weg, der ankommt. Das ist ein bekannter Mangel und steht auf der Liste.
+Für sicherheitsrelevante Funde nutzen Sie bitte den Weg in `SECURITY.md`:
+GitHub Private Vulnerability Reporting im Projekt-Repository
+(**Security → Report a vulnerability**) — dort erreicht Sie der Bericht direkt
+und vertraulich.
 
 ## Wenn Sie mehr tun möchten
 
