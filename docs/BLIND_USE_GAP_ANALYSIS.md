@@ -37,31 +37,29 @@ das Mikrofon funktioniert, ist kein Fortschritt.
 Clausis kann heute Text **einfügen**, das letzte Wort löschen, das Feld leeren
 und den Inhalt vorlesen. Für echtes Arbeiten reicht das bei weitem nicht.
 
-Teilweise umgesetzt (2026-08-24, nur gegen nachgebaute AT-SPI-Bäume getestet,
-kein Lauf in einer echten GNOME-Sitzung): Satzzeichen-Kommandos am Satzende,
-Cursor-Navigation (Anfang/Ende/Wort vor und zurück, Vorlesen ab Cursor),
-Auswahl (alles markieren, Wort, Satz), Ersetzen der Auswahl, Löschen der
-Auswahl, Rückgängig/Wiederholen über die widget-eigene Aktion, Vorlesen mit
-Granularität (Zeichen/Wort/Zeile/Satz/Absatz am Cursor) und der
-Buchstabiermodus („A wie Anton" → A, deutsch/englisch, mit Ziffern).
+Umgesetzt (2026-08-24; zuerst gegen nachgebaute AT-SPI-Bäume, danach gegen ein
+echtes GTK-Programm auf echtem AT-SPI-Bus verifiziert — Xvfb + dbus-run-session
++ at-spi-bus-launcher + GTK_MODULES=gail:atk-bridge + matchbox-WM, siehe
+`scripts/atspi_session_smoke.sh` und den GitHub-Workflow „AT-SPI session
+smoke"; das ist ein echter Bus und ein echtes Widget, aber noch kein vollständiger
+GNOME-Desktop): Satzzeichen-Kommandos am Satzende, Cursor-Navigation
+(Anfang/Ende/Wort vor und zurück, Vorlesen ab Cursor), Auswahl (alles markieren,
+Wort, Satz), Ersetzen der Auswahl, Löschen der Auswahl, Rückgängig/Wiederholen
+über die widget-eigene Aktion, Vorlesen mit Granularität (Zeichen/Wort/Zeile/
+Satz/Absatz am Cursor) und der Buchstabiermodus („A wie Anton" → A,
+deutsch/englisch, mit Ziffern). Der Sitzungstest deckt auch die
+Passwortfeld-Verweigerung auf dem echten Bus ab.
 
 Es fehlt weiterhin:
 
-- **Cursor-Navigation**: „an den Anfang", „drei Wörter zurück", „ans Zeilenende",
-  „nächster Absatz", „Zeile 12".
-- **Auswahl und Ersetzen**: „markiere den Satz", „ersetze *Meier* durch *Maier*",
-  „lösche die Auswahl", „alles markieren".
-- **Satzzeichen und Formatierung beim Diktat**: „Komma", „Punkt", „Fragezeichen",
-  „neue Zeile", „neuer Absatz", „Anführungszeichen auf/zu", „groß schreiben".
-  Ohne das entsteht nur ein Textblock ohne Interpunktion.
-- **Buchstabiermodus**: „A wie Anton, N wie Nordpol" — unverzichtbar für Namen,
-  Passwörter (soweit erlaubt), Dateinamen, Kennungen.
+- **Mehrstufige Navigation**: „drei Wörter zurück", „nächster Absatz",
+  „Zeile 12" — heute bewegt sich der Cursor nur um eine Einheit pro Befehl.
 - **Diktiermodi**: Zahlen, Datum, Uhrzeit, E-Mail-Adresse, URL, Dateipfad
   brauchen je eigene Umsetzung; „punkt de" muss zu `.de` werden, nicht zu
   „ punkt de".
-- **Rückgängig/Wiederholen** als Sprachbefehl, mit Ansage, was rückgängig wurde.
-- **Vorlesen mit Granularität**: Zeichen, Wort, Zeile, Satz, Absatz, ganzes
-  Dokument — mit Positionsmerker, Pause und Fortsetzen an derselben Stelle.
+- **Ganzes Dokument vorlesen**: mit Positionsmerker, Pause und Fortsetzen an
+  derselben Stelle — das granulare Lesen deckt heute nur die Einheit am Cursor
+  ab, nicht den fortlaufenden Text.
 - **Korrektur-Slots über den Dialog hinweg**: „nein, ich meinte …" muss die
   letzte Äußerung ersetzen, nicht eine neue anhängen.
 

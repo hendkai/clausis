@@ -546,3 +546,24 @@ pointed at GitHub Private Vulnerability Reporting, which is now enabled on
 the repository and verified. All work is deterministic local code tested
 against fake AT-SPI trees; a run in a real GNOME session remains outstanding.
 No new model category, biometric processing or cloud data flow was introduced.
+
+## Clausis real-session AT-SPI verification — 2026-08-24
+
+GLM 5.3 (via Hermes Agent) closed the four-documented-times gap "no run in a
+real GNOME session" for the text-editing adapters: a session-level smoke test
+runs a real GTK application (editable entry plus a hidden-visibility password
+entry) on a real accessibility bus (dbus-run-session, Xvfb, at-spi-bus-launcher,
+GTK_MODULES=gail:atk-bridge, matchbox window manager for the focus handshake),
+both locally via scripts/atspi_session_smoke.sh (Docker) and in the
+GitHub workflow "AT-SPI session smoke". The client drives the real
+PyAtSpiDesktop surface end to end — context, reading, caret navigation,
+selection, replacement, undo/redo, insertion, granular reading — and verifies
+the password-field refusal on the real bus; every step records OK/REFUSED/ERROR
+and any ERROR fails CI. The run surfaced and fixed a genuine adapter bug the
+fake-tree suite could never catch: pyatspi (AT-SPI2) defines no STATE_PROTECTED
+attribute, so every text command crashed with AttributeError once focus worked;
+password fields are now recognised solely by the "password text" role, and the
+test fakes no longer invent the nonexistent state. Xvfb plus a real bus and
+real widget is still not a full GNOME desktop, so widget coverage beyond GTK
+remains open. No new model category, biometric processing or cloud data flow
+was introduced.

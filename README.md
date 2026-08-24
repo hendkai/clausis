@@ -258,6 +258,15 @@ The source/developer runtime remains a dry-run unless `--execute` is selected.
 The live-image launcher enables validated low-risk platform actions. Privileged
 and medium-or-higher-risk actions without trusted confirmation fail closed.
 
+Beyond the offline suite, a session-level smoke test runs a real GTK
+application on a real accessibility bus and drives the text-editing adapter
+end to end, including the password-field refusal. In CI it is the
+“AT-SPI session smoke” workflow; locally:
+
+```sh
+scripts/atspi_session_smoke.sh   # needs Docker (linux/amd64)
+```
+
 ## Trust boundaries
 
 Hermes does not receive terminal, code-execution, file-write, skill-write or
