@@ -91,6 +91,18 @@ def _dictated_text(request: ActionRequest) -> None:
         raise ValueError("dictated text is too long")
 
 
+def _granularity(request: ActionRequest) -> None:
+    """The caller names the granularity, and nothing else."""
+
+    from .text_units import GRANULARITIES
+
+    if request.target:
+        raise ValueError("action does not accept a target")
+    value = request.arguments.get("granularity")
+    if value not in GRANULARITIES:
+        raise ValueError("granularity must be character, word, line, sentence or paragraph")
+
+
 ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     "app.launch": ActionPolicy(Risk.LOW, True, ("gtk-launch",), _safe_identifier),
     "app.close": ActionPolicy(Risk.MEDIUM, True, None, _safe_identifier),
@@ -133,6 +145,19 @@ ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     "text.read_from_caret": ActionPolicy(Risk.LOW, True, None, _no_target),
     "text.newline": ActionPolicy(Risk.LOW, True, None, _no_target),
     "text.paragraph": ActionPolicy(Risk.LOW, True, None, _no_target),
+    # Selection and granular reading: a selection is visible in the field,
+    # correctable and commits nothing by itself.  Replacing the selection is
+    # dictation with a visible anchor, so it keeps the dictation rules (and
+    # the password/terminal refusals of the adapter).  Undo and redo invoke
+    # only the widget's own history actions.  Everything here is immediate.
+    "text.select_word": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.select_sentence": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.select_all": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.replace_selection": ActionPolicy(Risk.LOW, True, None, _dictated_text),
+    "text.delete_selection": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.undo": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.redo": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.read_granular": ActionPolicy(Risk.LOW, True, None, _granularity),
     # File chooser navigation: listing is read-only, focusing an entry
     # commits nothing, and opening a provable folder changes only the
     # directory shown in the dialog. Confirming the dialog stays medium risk.

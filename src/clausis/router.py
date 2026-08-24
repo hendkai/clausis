@@ -96,6 +96,28 @@ def _file_number_command(action: str) -> Builder:
     return build
 
 
+_GRANULARITY_WORDS = {
+    "zeichen": "character",
+    "character": "character",
+    "wort": "word",
+    "word": "word",
+    "zeile": "line",
+    "line": "line",
+    "satz": "sentence",
+    "sentence": "sentence",
+    "absatz": "paragraph",
+    "paragraph": "paragraph",
+}
+
+
+def _read_granular(match: Match[str]) -> ActionRequest:
+    granularity = _GRANULARITY_WORDS[match.group("unit").casefold()]
+    return ActionRequest(
+        "text.read_granular",
+        arguments={"granularity": granularity},
+    )
+
+
 _file_select = _file_number_command("dialog.file.select")
 _folder_open = _file_number_command("dialog.folder.open")
 
@@ -151,6 +173,37 @@ COMMANDS: Sequence[CommandPattern] = (
     # spoken command becomes its own low-risk action.
     CommandPattern("newline", _rx(r"neue zeile", r"new line"), _simple("text.newline")),
     CommandPattern("paragraph", _rx(r"absatz", r"new paragraph"), _simple("text.paragraph")),
+    CommandPattern("select-word", _rx(r"markiere(?: das)? wort", r"select (?:the )?word"), _simple("text.select_word")),
+    CommandPattern(
+        "select-sentence",
+        _rx(r"markiere(?: den)? satz", r"select (?:the )?sentence"),
+        _simple("text.select_sentence"),
+    ),
+    CommandPattern(
+        "select-all",
+        _rx(r"alles markieren", r"markiere alles", r"select all"),
+        _simple("text.select_all"),
+    ),
+    CommandPattern(
+        "replace-selection",
+        _rx(r"ersetze (?:die )?auswahl (?:durch|mit) (?P<target>.+)", r"replace (?:the )?selection (?:with|by) (?P<target>.+)"),
+        _target("text.replace_selection"),
+    ),
+    CommandPattern(
+        "delete-selection",
+        _rx(r"lösche (?:die )?auswahl", r"delete (?:the )?selection"),
+        _simple("text.delete_selection"),
+    ),
+    CommandPattern("undo", _rx(r"rückgängig", r"mach rückgängig", r"undo"), _simple("text.undo")),
+    CommandPattern("redo", _rx(r"wiederherstellen", r"mach wiederherstellen", r"redo"), _simple("text.redo")),
+    CommandPattern(
+        "read-granular",
+        _rx(
+            r"lies (?:(?:das|den|die|der) )?(?:aktuelle[nr]? )?(?P<unit>zeichen|wort|zeile|satz|absatz)(?: ab dem cursor| am cursor)?(?: vor)?",
+            r"read (?:the )?(?:current )?(?P<unit>character|word|line|sentence|paragraph)(?: from (?:the )?caret)?(?: aloud)?",
+        ),
+        _read_granular,
+    ),
     CommandPattern(
         "file-list",
         _rx(

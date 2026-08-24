@@ -14,6 +14,12 @@ from typing import Any, Dict, Iterable, List, Optional, Protocol, Sequence, Tupl
 
 from .models import ActionRequest, ActionResult
 from .policy import ActionPolicy
+from .text_units import (
+    GRANULARITIES,
+    granular_chunk,
+    sentence_bounds,
+    word_bounds,
+)
 
 
 class GnomeAdapterError(RuntimeError):
@@ -130,6 +136,30 @@ class SemanticDesktop(Protocol):
         ...
 
     def insert_paragraph(self) -> str:
+        ...
+
+    def select_word(self) -> str:
+        ...
+
+    def select_sentence(self) -> str:
+        ...
+
+    def select_all(self) -> str:
+        ...
+
+    def replace_selection(self, replacement: str) -> str:
+        ...
+
+    def delete_selection(self) -> str:
+        ...
+
+    def edit_undo(self) -> str:
+        ...
+
+    def edit_redo(self) -> str:
+        ...
+
+    def read_granular(self, granularity: str) -> str:
         ...
 
     def list_files(self) -> str:
@@ -277,6 +307,14 @@ class PyAtSpiDesktop:
     )
     COPY_ACTIONS = frozenset({"copy", "kopieren"})
     PASTE_ACTIONS = frozenset({"paste", "einfügen"})
+    #: Named actions for whole-field selection.  The published English names
+    #: cover GTK and Qt; a widget exposing none of them still gets an honest
+    #: text-interface selection instead of a key event.
+    SELECT_ALL_ACTIONS = frozenset({"select all", "select-all", "selectall"})
+    #: Named actions for the widget's own undo/redo, so no synthetic
+    #: keyboard shortcut is ever needed for editing history.
+    UNDO_ACTIONS = frozenset({"undo", "rückgängig"})
+    REDO_ACTIONS = frozenset({"redo", "wiederherstellen"})
     SAVE_WORDS = ("speichern", "save", "export", "sichern")
     OPEN_WORDS = ("öffnen", "open", "datei aus", "file chooser", "import", "auswähl", "select")
 
@@ -566,6 +604,171 @@ class PyAtSpiDesktop:
 
         return self.insert_text("\n\n")
 
+    # ------------------------------------------------------------------
+    # Selection, replacement, undo/redo and granular reading.
+    # ------------------------------------------------------------------
+
+    def _selection(self, node: Any) -> Tuple[int, int]:
+        """Current selection of a text interface, as ``(start, end)``.
+
+        pyatspi returns a plain sequence ``(start, end)``; a missing or empty
+        selection reads as the caret position itself.
+        """
+
+        try:
+            selection = node.queryText().getSelection(0)
+            start, end = int(selection[0]), int(selection[1])
+        except Exception as exc:
+            raise GnomeAdapterError("Die Auswahl ist nicht lesbar.") from exc
+        if start > end:
+            start, end = end, start
+        return start, end
+
+    def _apply_selection(self, node: Any, start: int, end: int) -> Tuple[int, int]:
+        """Set the selection through the AT-SPI text interface and verify it."""
+
+        try:
+            text = node.queryText()
+            count = int(text.characterCount)
+            if not 0 <= start <= end <= count:
+                raise GnomeAdapterError("Die Auswahl liegt außerhalb des Feldes.")
+            if not text.addSelection(start, end):
+                raise GnomeAdapterError("Das Feld hat die Auswahl abgelehnt.")
+        except GnomeAdapterError:
+            raise
+        except Exception as exc:
+            raise GnomeAdapterError("Das Feld hat die Auswahl abgelehnt.") from exc
+        applied_start, applied_end = self._selection(node)
+        if (applied_start, applied_end) != (start, end):
+            raise GnomeAdapterError("Die Auswahl ist nicht an der gemeldeten Stelle.")
+        return applied_start, applied_end
+
+    def select_word(self) -> str:
+        """Select the word at the caret and report it."""
+
+        node = self._focused_editable()
+        content = self._field_text(node)
+        caret = self._caret_offset(node)
+        start, end = word_bounds(content, caret)
+        if start >= end:
+            raise GnomeAdapterError("Hier gibt es kein Wort zum Auswählen.")
+        self._apply_selection(node, start, end)
+        return content[start:end]
+
+    def select_sentence(self) -> str:
+        """Select the sentence at the caret and report it."""
+
+        node = self._focused_editable()
+        content = self._field_text(node)
+        caret = self._caret_offset(node)
+        start, end = sentence_bounds(content, caret)
+        if start >= end:
+            raise GnomeAdapterError("Hier gibt es keinen Satz zum Auswählen.")
+        self._apply_selection(node, start, end)
+        return content[start:end]
+
+    def select_all(self) -> str:
+        """Select the whole field through the widget's own select-all action."""
+
+        node = self._focused_editable()
+        content = self._field_text(node)
+        if not content:
+            raise GnomeAdapterError("Das Feld ist leer.")
+        if not self._invoke_named_action(node, self.SELECT_ALL_ACTIONS):
+            # Widgets without a published select-all action still get the
+            # selection through the text interface, which is equally honest
+            # because the result is verified afterwards.
+            self._apply_selection(node, 0, len(content))
+        else:
+            start, end = self._selection(node)
+            if (start, end) != (0, len(content)):
+                raise GnomeAdapterError("Die Auswahl ist nicht an der gemeldeten Stelle.")
+        return content[: self.MAX_FIELD_CHARS]
+
+    def replace_selection(self, replacement: str) -> str:
+        """Replace the current selection with dictated text, verified.
+
+        The replacement is visible in the field, spoken back and correctable,
+        and the same password/terminal refusals as dictation apply because the
+        focused editable is re-resolved — which keeps the risk low.
+        """
+
+        node = self._focused_editable()
+        start, end = self._selection(node)
+        if start >= end:
+            # "Ersetzen" without a selection refuses instead of silently
+            # degrading into an insertion: a voice-only user must be able to
+            # trust that the command did what its name says, or hear why not.
+            raise GnomeAdapterError("Es ist nichts ausgewählt.")
+        try:
+            editable = node.queryEditableText()
+            removed = editable.deleteText(start, end)
+            inserted = editable.insertText(start, replacement, len(replacement))
+        except Exception as exc:
+            raise GnomeAdapterError("Das Feld erlaubt das Ersetzen nicht.") from exc
+        if not removed or not inserted:
+            raise GnomeAdapterError("Das Feld hat die Ersetzung abgelehnt.")
+        content = self._field_text(node)
+        if replacement not in content:
+            raise GnomeAdapterError("Die Ersetzung steht nicht im Feld.")
+        return content[: self.MAX_FIELD_CHARS]
+
+    def delete_selection(self) -> str:
+        """Delete the current selection through the editable-text interface."""
+
+        node = self._focused_editable()
+        start, end = self._selection(node)
+        if start >= end:
+            raise GnomeAdapterError("Es ist nichts ausgewählt.")
+        try:
+            if not node.queryEditableText().deleteText(start, end):
+                raise GnomeAdapterError("Das Feld hat das Löschen abgelehnt.")
+        except GnomeAdapterError:
+            raise
+        except Exception as exc:
+            raise GnomeAdapterError("Das Feld hat das Löschen abgelehnt.") from exc
+        remaining = self._field_text(node)
+        return remaining[: self.MAX_FIELD_CHARS]
+
+    def edit_undo(self) -> str:
+        """Undo the last field edit through the widget's own undo action."""
+
+        return self._edit_history_action(self.UNDO_ACTIONS, "rückgängig")
+
+    def edit_redo(self) -> str:
+        """Redo the last undone field edit through the widget's redo action."""
+
+        return self._edit_history_action(self.REDO_ACTIONS, "wiederhergestellt")
+
+    def _edit_history_action(self, names: Any, participle: str) -> str:
+        node = self._focused_editable()
+        if not self._invoke_named_action(node, names):
+            raise GnomeAdapterError(
+                "Dieses Feld bietet keine eigene Rückgängig-Aktion an."
+            )
+        return participle
+
+    def _caret_offset(self, node: Any) -> int:
+        try:
+            caret = int(node.queryText().caretOffset)
+        except Exception as exc:
+            raise GnomeAdapterError("Die Cursorposition ist nicht lesbar.") from exc
+        return max(0, caret)
+
+    def read_granular(self, granularity: str) -> str:
+        """Speak the unit (character/word/line/sentence/paragraph) at the caret.
+
+        Reading stops at the chunk limit so an overlong unit cannot turn into
+        an endless monologue; the caller hears the truncation in the result.
+        """
+
+        if granularity not in GRANULARITIES:
+            raise GnomeAdapterError(f"Unbekannte Granularität {granularity}.")
+        node = self._focused_editable()
+        content = self._field_text(node)
+        caret = self._caret_offset(node)
+        text, _next = granular_chunk(content, granularity, caret)
+        return text[: self.MAX_FIELD_CHARS]
 
     @staticmethod
     def _next_word_offset(content: str, caret: int) -> int:
@@ -994,6 +1197,14 @@ SEMANTIC_ACTIONS = frozenset(
         "text.caret.word_previous",
         "text.newline",
         "text.paragraph",
+        "text.select_word",
+        "text.select_sentence",
+        "text.select_all",
+        "text.replace_selection",
+        "text.delete_selection",
+        "text.undo",
+        "text.redo",
+        "text.read_granular",
         "dialog.file.list",
         "dialog.file.select",
         "dialog.folder.open",
@@ -1022,6 +1233,13 @@ SEMANTIC_MUTATIONS = frozenset(
         "text.caret.word_previous",
         "text.newline",
         "text.paragraph",
+        "text.select_word",
+        "text.select_sentence",
+        "text.select_all",
+        "text.replace_selection",
+        "text.delete_selection",
+        "text.undo",
+        "text.redo",
         "dialog.file.select",
         "dialog.folder.open",
         "dialog.accept",
@@ -1104,6 +1322,37 @@ class GnomeSemanticExecutor:
                 return ActionResult(
                     "completed", f"Absatz. Im Feld steht jetzt: {content}", request.action
                 )
+            if request.action == "text.select_word":
+                selected = desktop.select_word()
+                return ActionResult("completed", f"Ausgewählt: {selected}", request.action)
+            if request.action == "text.select_sentence":
+                selected = desktop.select_sentence()
+                return ActionResult("completed", f"Ausgewählt: {selected}", request.action)
+            if request.action == "text.select_all":
+                content = desktop.select_all()
+                return ActionResult(
+                    "completed", f"Alles ausgewählt. Im Feld steht: {content}", request.action
+                )
+            if request.action == "text.replace_selection":
+                content = desktop.replace_selection(request.target)
+                return ActionResult(
+                    "completed", f"Ersetzt. Im Feld steht jetzt: {content}", request.action
+                )
+            if request.action == "text.delete_selection":
+                content = desktop.delete_selection()
+                spoken = f"Im Feld steht jetzt: {content}" if content else "Das Feld ist jetzt leer."
+                return ActionResult("completed", spoken, request.action)
+            if request.action == "text.undo":
+                desktop.edit_undo()
+                return ActionResult("completed", "Wurde rückgängig gemacht.", request.action)
+            if request.action == "text.redo":
+                desktop.edit_redo()
+                return ActionResult("completed", "Wurde wiederhergestellt.", request.action)
+            if request.action == "text.read_granular":
+                unit = request.arguments["granularity"]
+                content = desktop.read_granular(unit)
+                spoken = f"{unit.capitalize()}: {content}" if content else "Hier ist nichts zu lesen."
+                return ActionResult("completed", spoken, request.action)
             if request.action == "dialog.file.list":
                 spoken = desktop.list_files()
                 return ActionResult("completed", spoken, request.action)
