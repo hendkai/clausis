@@ -100,6 +100,7 @@ STATE_FOCUSED = "focused"
 STATE_SHOWING = "showing"
 STATE_ACTIVE = "active"
 STATE_EDITABLE = "editable"
+STATE_PROTECTED = "protected"
 
 
 def fake_pyatspi(desktop):
@@ -108,6 +109,7 @@ def fake_pyatspi(desktop):
         STATE_SHOWING=STATE_SHOWING,
         STATE_ACTIVE=STATE_ACTIVE,
         STATE_EDITABLE=STATE_EDITABLE,
+        STATE_PROTECTED=STATE_PROTECTED,
         Registry=types.SimpleNamespace(getDesktop=lambda index: desktop),
     )
     return module
