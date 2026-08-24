@@ -1,0 +1,46 @@
+name: AT-SPI session smoke
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  atspi-session:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install GTK and accessibility stack
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            dbus-x11 xvfb at-spi2-core libatk-adaptor python3-gi \
+            gir1.2-gtk-3.0 >/dev/null
+      - name: Run the session-level AT-SPI smoke test
+        run: |
+          mkdir -p /tmp/clausis-session
+          dbus-run-session -- sh -eu -c '
+            Xvfb :99 -screen 0 1280x720x24 >/tmp/xvfb.log 2>&1 &
+            export DISPLAY=:99 NO_AT_BRIDGE=0 GTK_MODULES=gail:atk-bridge
+            /usr/libexec/at-spi-bus-launcher --launch-immediately >/tmp/atspi.log 2>&1 &
+            sleep 2
+            PYTHONPATH=src python3 tests/fixtures/atspi_session_probe_app.py /tmp/clausis-session/app-marker.txt >/tmp/app.log 2>&1 &
+            sleep 3
+            PYTHONPATH=src python3 tests/fixtures/atspi_session_client.py /tmp/clausis-session/session-result.txt
+          '
+      - name: Show session results
+        if: always()
+        run: cat /tmp/clausis-session/session-result.txt || true
+      - name: Fail on errors
+        run: |
+          if grep -q $'\tERROR\t' /tmp/clausis-session/session-result.txt; then
+            echo "Session test reported ERROR lines"
+            exit 1
+          fi
