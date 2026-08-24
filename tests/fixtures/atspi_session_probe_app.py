@@ -1,9 +1,11 @@
 """Real GTK text-editing application used by the session-level AT-SPI smoke test.
 
 It shows one window with one editable entry pre-filled with ``hallo welt hier``
-and grabs the focus for it, so the Clausis text-editing adapter can exercise
-caret movement, selection, replacement, undo/redo and granular reading against
-a live GTK widget on a real accessibility bus.
+plus a hidden-visibility entry that GTK exposes with the ``password text``
+role, and grabs the focus for the plain entry, so the Clausis text-editing
+adapter can exercise caret movement, selection, replacement, undo/redo,
+granular reading — and the password-field refusal — against live GTK widgets
+on a real accessibility bus.
 """
 
 import sys
@@ -19,6 +21,13 @@ entry = Gtk.Entry()
 entry.set_text("hallo welt hier")
 entry.set_can_focus(True)
 box.pack_start(entry, expand=True, fill=True, padding=6)
+
+# An entry with visibility off is what GTK exposes with the "password text"
+# role — the widget class the dictation refusals must recognise on a real bus.
+password = Gtk.Entry()
+password.set_visibility(False)
+password.set_can_focus(True)
+box.pack_start(password, expand=True, fill=True, padding=6)
 
 label = Gtk.Label(label="Textbearbeitung")
 box.pack_start(label, expand=False, fill=False, padding=6)

@@ -240,6 +240,55 @@ def main() -> int:
         lambda value: require(value == expected_line, f"line={value!r}"),
     )
 
+    # --- password-field protection on the real bus ---------------------------
+    # A smoke test that only drives the happy path would be dishonest: the
+    # refusals are the security property.  The probe app shows a second entry
+    # with visibility off, which GTK exposes with the "password text" role.
+    try:
+        ctx = desktop.context()
+        password_controls = [
+            control
+            for control in ctx.controls
+            if control.role.casefold() == "password text"
+        ]
+        if not password_controls:
+            record(
+                "REFUSED",
+                "password-field",
+                "probe exposes no password field on the bus",
+            )
+        else:
+            desktop.activate(password_controls[0].number)
+            if desktop.context().focused_role.casefold() != "password text":
+                record(
+                    "REFUSED",
+                    "password-field",
+                    "activate() did not focus the password field",
+                )
+            else:
+                try:
+                    desktop.insert_text("geheim123")
+                    record(
+                        "ERROR",
+                        "password-field",
+                        "dictation into a password field was NOT refused",
+                    )
+                except GnomeAdapterError as exc:
+                    if "Passwortfeld" in str(exc):
+                        record("OK", "password-field", str(exc))
+                    else:
+                        record(
+                            "ERROR",
+                            "password-field",
+                            f"refused for the wrong reason: {exc}",
+                        )
+    except Exception:
+        record(
+            "ERROR",
+            "password-field",
+            traceback.format_exc(limit=3).replace("\n", " | "),
+        )
+
     errors = sum(1 for line in lines if line.startswith("ERROR"))
     refusals = sum(1 for line in lines if line.startswith("REFUSED"))
     oks = sum(1 for line in lines if line.startswith("OK"))

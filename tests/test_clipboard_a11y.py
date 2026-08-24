@@ -24,7 +24,6 @@ from clausis.router import OfflineRouter
 from tests.test_dictation import (
     STATE_EDITABLE,
     STATE_FOCUSED,
-    STATE_PROTECTED,
     STATE_SHOWING,
     DesktopHarness,
     FakeNode,
@@ -72,15 +71,6 @@ class ClipboardAdapterTests(DesktopHarness):
         )
         desktop = self.desktop_for(build_desktop(field))
         with self.assertRaisesRegex(GnomeAdapterError, "Passwortfeld"):
-            desktop.copy_selection()
-        self.assertEqual(field.performed, [])
-
-    def test_copy_from_a_protected_widget_is_refused(self):
-        field = ActionNode(
-            "PIN", "text", {STATE_SHOWING, STATE_FOCUSED, STATE_EDITABLE, STATE_PROTECTED}, ("copy",)
-        )
-        desktop = self.desktop_for(build_desktop(field))
-        with self.assertRaises(GnomeAdapterError):
             desktop.copy_selection()
         self.assertEqual(field.performed, [])
 

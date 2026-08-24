@@ -26,7 +26,6 @@ from tests.test_dictation import (
     STATE_ACTIVE,
     STATE_EDITABLE,
     STATE_FOCUSED,
-    STATE_PROTECTED,
     STATE_SHOWING,
     DesktopHarness,
     FakeNode,
@@ -118,7 +117,7 @@ class DialogClassificationTests(DesktopHarness):
             dialog_tree(
                 "Weiter",
                 [
-                    FakeNode("Eingabe", "text", {STATE_SHOWING, STATE_PROTECTED}),
+                    FakeNode("Eingabe", "password text", {STATE_SHOWING}),
                     FakeButton("OK"),
                 ],
             )

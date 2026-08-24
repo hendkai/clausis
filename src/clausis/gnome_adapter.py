@@ -407,13 +407,11 @@ class PyAtSpiDesktop:
         node = self._find_state(window, self._atspi.STATE_FOCUSED)
         if node is None:
             raise GnomeAdapterError("Es ist gerade kein Eingabefeld ausgewählt.")
+        # AT-SPI2 has no "protected" state (that was ATK-only); a password
+        # field is recognised purely by its "password text" role here.
         if self._role(node).casefold() in self.PROTECTED_ROLES:
             raise GnomeAdapterError(
                 "Das ist ein Passwortfeld. Bitte tippen Sie es selbst über die Tastatur."
-            )
-        if self._has_state(node, self._atspi.STATE_PROTECTED):
-            raise GnomeAdapterError(
-                "Das Feld ist als geschützt markiert. Bitte tippen Sie es selbst."
             )
         if self._is_terminal(node) or self._has_terminal_ancestor(node):
             raise GnomeAdapterError(
@@ -517,9 +515,9 @@ class PyAtSpiDesktop:
         node = self._find_state(window, self._atspi.STATE_FOCUSED)
         if node is None:
             raise GnomeAdapterError("Es ist gerade kein Element ausgewählt.")
-        if self._role(node).casefold() in self.PROTECTED_ROLES or self._has_state(
-            node, self._atspi.STATE_PROTECTED
-        ):
+        # Password fields are recognised by role only — AT-SPI2 defines no
+        # "protected" state, so the role check is the entire protection.
+        if self._role(node).casefold() in self.PROTECTED_ROLES:
             raise GnomeAdapterError("Aus einem Passwortfeld kopiert Clausis nicht.")
         if not self._invoke_named_action(node, self.COPY_ACTIONS):
             raise GnomeAdapterError("Dieses Element bietet keine Kopieren-Aktion an.")
@@ -838,9 +836,9 @@ class PyAtSpiDesktop:
         if any(word in haystack for word in self.PERMISSION_WORDS):
             return DialogKind.PERMISSION
         for node in self._walk(window):
-            if self._role(node).casefold() in self.PROTECTED_ROLES or self._has_state(
-                node, self._atspi.STATE_PROTECTED
-            ):
+            # Password widgets are recognised by their "password text" role;
+            # AT-SPI2 has no separate "protected" state to consult.
+            if self._role(node).casefold() in self.PROTECTED_ROLES:
                 return DialogKind.PERMISSION
         if any(word in haystack for word in self.SAVE_WORDS):
             return DialogKind.FILE_SAVE

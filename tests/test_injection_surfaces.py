@@ -27,7 +27,6 @@ from tests.test_dialogs import FakeButton, dialog_tree
 from tests.test_dictation import (
     STATE_EDITABLE,
     STATE_FOCUSED,
-    STATE_PROTECTED,
     STATE_SHOWING,
     DesktopHarness,
     FakeNode,
@@ -105,7 +104,7 @@ class DictationInjectionTests(DesktopHarness):
                 field = FakeNode(
                     "Passwort",
                     "password text",
-                    {STATE_SHOWING, STATE_FOCUSED, STATE_EDITABLE, STATE_PROTECTED},
+                    {STATE_SHOWING, STATE_FOCUSED, STATE_EDITABLE},
                 )
                 desktop = self.desktop_for(build_desktop(field))
                 with self.assertRaises(GnomeAdapterError):
@@ -156,14 +155,14 @@ class PermissionSpoofTests(DesktopHarness):
                 self.assertEqual(allow.pressed, 0)
 
     def test_an_innocuous_title_hiding_a_password_field_is_still_refused(self):
-        # The wording heuristic can be evaded; a protected widget in the tree
-        # is the check that does not depend on wording at all.
+        # The wording heuristic can be evaded; a password-role widget in the
+        # tree is the check that does not depend on wording at all.
         allow = FakeButton("Weiter")
         desktop = self.desktop_for(
             dialog_tree(
                 "Einrichtung abschließen",
                 [
-                    FakeNode("Eingabe", "text", {STATE_SHOWING, STATE_PROTECTED}),
+                    FakeNode("Eingabe", "password text", {STATE_SHOWING}),
                     allow,
                 ],
             )

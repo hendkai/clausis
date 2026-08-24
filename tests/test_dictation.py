@@ -24,7 +24,6 @@ STATE_FOCUSED = "focused"
 STATE_SHOWING = "showing"
 STATE_ACTIVE = "active"
 STATE_EDITABLE = "editable"
-STATE_PROTECTED = "protected"
 
 
 class FakeState:
@@ -149,7 +148,6 @@ def fake_pyatspi(desktop):
         STATE_SHOWING=STATE_SHOWING,
         STATE_ACTIVE=STATE_ACTIVE,
         STATE_EDITABLE=STATE_EDITABLE,
-        STATE_PROTECTED=STATE_PROTECTED,
         Registry=types.SimpleNamespace(getDesktop=lambda index: desktop),
     )
     return module
@@ -191,12 +189,14 @@ class DictationRefusalTests(DesktopHarness):
             desktop.insert_text("geheim")
         self.assertEqual(field.content, "")
 
-    def test_protected_state_is_refused_even_without_the_password_role(self):
+    def test_password_role_without_the_password_name_is_refused(self):
+        # AT-SPI2 has no "protected" state: password fields are recognised
+        # purely by the "password text" role, whatever their label says.
         field = FakeNode(
-            "PIN", "text", {STATE_SHOWING, STATE_FOCUSED, STATE_EDITABLE, STATE_PROTECTED}
+            "PIN", "password text", {STATE_SHOWING, STATE_FOCUSED, STATE_EDITABLE}
         )
         desktop = self.desktop_for(build_desktop(field))
-        with self.assertRaisesRegex(GnomeAdapterError, "geschützt"):
+        with self.assertRaisesRegex(GnomeAdapterError, "Passwortfeld"):
             desktop.insert_text("123456")
         self.assertEqual(field.content, "")
 
