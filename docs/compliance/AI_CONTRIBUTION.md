@@ -607,3 +607,20 @@ the documented inherent tradeoff that a word colliding with a command
 token ("dot", "slash") is transformed with the wörtlich/literal escape as
 the documented way out. No new model category, biometric processing or
 cloud data flow was introduced.
+
+## 2026-08-24 — Schema/shaper alignment: TARGET_RE refuses DEL and C1 (GLM 5.3 via Hermes)
+
+Follow-up to the cross-model review entry above: the review's pre-existing
+schema gap is closed. `models.TARGET_RE` now refuses DEL (`\x7f`) and the
+C1 range (`\x80`–`\x9f`) in every action target, matching exactly the set
+the dictation shaper layer (`dictation_modes.contains_control_characters`,
+introduced with the router-crash fix) already refused — schema validation
+and dictation shaping can no longer disagree about which characters are
+acceptable. NBSP (`\xa0`) and other printable/space Unicode characters
+remain allowed (Unicode whitespace is not a C1 control). Boundary tests
+cover `\x1f` (refused), `\x7f`/`\x80`/`\x85`/`\x9f` (refused) and `\xa0`
+(allowed). The remaining review findings (first-token false positives like
+"dot"/"slash") stay documented as a known V1 limit with the
+wörtlich/literal escape, consistent with the sentence-end punctuation
+rule; not re-implemented in this pass. No new model category, biometric
+processing or cloud data flow was introduced.

@@ -18,6 +18,22 @@ class ActionRequestTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ActionRequest("file.open", "/tmp/a\ncommand")
 
+    def test_del_and_c1_control_characters_rejected(self):
+        # TARGET_RE gap (cross-model review): DEL (\x7f) and C1 (\x80-\x9f)
+        # used to pass schema validation while every dictation shaper
+        # already refused them — schema and shaper layers must agree.
+        for ch in ("\x7f", "\x80", "\x85", "\x9f"):
+            with self.subTest(control=hex(ord(ch))):
+                with self.assertRaises(ValueError):
+                    ActionRequest("file.open", f"/tmp/a{ch}b")
+
+    def test_nbsp_stays_allowed(self):
+        # NBSP (\xa0) is Unicode whitespace, not a C1 control — it is a
+        # legitimate (if odd) character in prose and stays allowed. Only
+        # \x7f-\x9f are refused.
+        request = ActionRequest("file.open", "/tmp/e\xa0mail")
+        self.assertEqual(request.target, "/tmp/e\xa0mail")
+
     def test_non_json_argument_rejected(self):
         with self.assertRaises(ValueError):
             ActionRequest("system.status", arguments={"bad": object()})

@@ -16,7 +16,12 @@ from typing import Any, Dict, Mapping, Optional
 
 
 ACTION_RE = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$")
-TARGET_RE = re.compile(r"^[^\x00-\x1f]{0,512}$")
+#: Control characters refused in targets: C0 (\x00-\x1f, including \n),
+#: DEL (\x7f) and the C1 range (\x80-\x9f). NBSP (\xa0) and every other
+#: printable/space Unicode character stay allowed — the shaper layer
+#: (dictation_modes.contains_control_characters) refuses the same set, so
+#: schema validation and dictation shaping cannot disagree.
+TARGET_RE = re.compile(r"^[^\x00-\x1f\x7f-\x9f]{0,512}$")
 
 
 class Origin(str, Enum):
