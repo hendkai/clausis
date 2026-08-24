@@ -64,8 +64,25 @@ class FakeText:
     def caretOffset(self):
         return len(self.node.content) if self.node.caret is None else self.node.caret
 
+    def setCaretOffset(self, offset):
+        if not self.node.caret_accepts:
+            return False
+        self.node.caret = offset
+        return True
+
     def getText(self, start, end):
         return self.node.content[start:end]
+
+
+class FakeComponent:
+    def __init__(self, node):
+        self.node = node
+
+    def grabFocus(self):
+        if not self.node.focus_accepts:
+            return False
+        self.node.focused = True
+        return True
 
 
 class FakeNode:
@@ -80,6 +97,8 @@ class FakeNode:
         editable=True,
         accept=True,
         caret=None,
+        caret_accepts=True,
+        focus_accepts=True,
     ):
         self.name = name
         self.role = role
@@ -87,6 +106,9 @@ class FakeNode:
         self.children = list(children)
         self.content = content
         self.caret = caret
+        self.caret_accepts = caret_accepts
+        self.focus_accepts = focus_accepts
+        self.focused = False
         self._editable = editable
         self._accept = accept
         self.parent = None
@@ -108,6 +130,9 @@ class FakeNode:
 
     def queryText(self):
         return FakeText(self)
+
+    def queryComponent(self):
+        return FakeComponent(self)
 
     def queryEditableText(self):
         if not self._editable:

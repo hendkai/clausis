@@ -120,6 +120,27 @@ class SemanticDesktop(Protocol):
     def paste(self) -> str:
         ...
 
+    def move_caret(self, direction: str) -> str:
+        ...
+
+    def read_from_caret(self) -> str:
+        ...
+
+    def insert_newline(self) -> str:
+        ...
+
+    def insert_paragraph(self) -> str:
+        ...
+
+    def list_files(self) -> str:
+        ...
+
+    def select_file(self, number: int) -> str:
+        ...
+
+    def open_folder(self, number: int) -> str:
+        ...
+
     def describe_dialog(self) -> DialogContext:
         ...
 
@@ -479,6 +500,116 @@ class PyAtSpiDesktop:
             raise GnomeAdapterError("Dieses Feld bietet keine Einfügen-Aktion an.")
         return self._field_text(node)[: self.MAX_FIELD_CHARS]
 
+    # ------------------------------------------------------------------
+    # Cursor navigation inside the focused field (voice-only editing).
+    # ------------------------------------------------------------------
+
+    def move_caret(self, direction: str) -> str:
+        """Move the caret in the focused field and report the new position.
+
+        Uses only the AT-SPI component/text interfaces — no key events, no
+        pointer, no screen coordinates.  A caret move that the field rejected
+        or silently ignored is reported honestly instead of being assumed,
+        which is why the offset is read back after the move.
+        """
+
+        node = self._focused_editable()
+        try:
+            text = node.queryText()
+            count = int(text.characterCount)
+            current = int(text.caretOffset)
+        except Exception as exc:
+            raise GnomeAdapterError("Die Cursorposition ist nicht lesbar.") from exc
+        if direction == "start":
+            target = 0
+        elif direction == "end":
+            target = count
+        elif direction == "word_next":
+            target = self._next_word_offset(self._field_text(node), current)
+        elif direction == "word_previous":
+            target = self._previous_word_offset(self._field_text(node), current)
+        else:
+            raise GnomeAdapterError(f"Unbekannte Cursorrichtung {direction}.")
+        target = max(0, min(target, count))
+        self._focus_node(node, "Das Feld lässt sich nicht fokussieren.")
+        try:
+            moved = node.queryText().setCaretOffset(target)
+        except Exception as exc:
+            raise GnomeAdapterError("Das Feld hat die Cursorbewegung abgelehnt.") from exc
+        if moved is False:
+            raise GnomeAdapterError("Das Feld hat die Cursorbewegung abgelehnt.")
+        try:
+            after = int(node.queryText().caretOffset)
+        except Exception as exc:
+            raise GnomeAdapterError("Die neue Cursorposition ist nicht lesbar.") from exc
+        if after != target:
+            raise GnomeAdapterError(
+                "Der Cursor ist nicht an der gemeldeten Position gelandet."
+            )
+        return self._spoken_caret_position(after, count)
+
+    def insert_newline(self) -> str:
+        """Insert one line break at the caret and report the field content.
+
+        "Neue Zeile" is its own typed action because a line break can never
+        ride inside a dictated target: the request schema forbids control
+        characters on every trust boundary.  The same read-back check as for
+        dictation applies, so a field that swallowed the break is not reported
+        as written.
+        """
+
+        content = self.insert_text("\n")
+        return content
+
+    def insert_paragraph(self) -> str:
+        """Insert a paragraph break (one blank line) at the caret."""
+
+        return self.insert_text("\n\n")
+
+
+    @staticmethod
+    def _next_word_offset(content: str, caret: int) -> int:
+        if not content:
+            return caret
+        pos = min(caret, len(content))
+        # If the caret sits inside a separator run, skip it first; otherwise
+        # skip the rest of the current word, then the separator run.
+        if pos < len(content) and content[pos].isspace():
+            while pos < len(content) and content[pos].isspace():
+                pos += 1
+            return pos
+        while pos < len(content) and not content[pos].isspace():
+            pos += 1
+        while pos < len(content) and content[pos].isspace():
+            pos += 1
+        return pos
+
+    @staticmethod
+    def _previous_word_offset(content: str, caret: int) -> int:
+        if not content:
+            return 0
+        pos = min(caret, len(content))
+        # Skip separators to the left, then walk back over the word.
+        while pos > 0 and content[pos - 1].isspace():
+            pos -= 1
+        while pos > 0 and not content[pos - 1].isspace():
+            pos -= 1
+        return pos
+
+    def read_from_caret(self) -> str:
+        """Speak the field content from the caret to the end of the field."""
+
+        node = self._focused_editable()
+        try:
+            text = node.queryText().getText(node.queryText().caretOffset, node.queryText().characterCount)
+        except Exception as exc:
+            raise GnomeAdapterError("Der Feldinhalt ist nicht lesbar.") from exc
+        return str(text or "")[: self.MAX_FIELD_CHARS]
+
+    @staticmethod
+    def _spoken_caret_position(offset: int, total: int) -> str:
+        return f"Der Cursor steht auf Position {offset} von {total}."
+
     def _dialog_window(self) -> Any:
         _, window = self._active_window()
         if self._role(window).casefold() not in self.DIALOG_ROLES:
@@ -549,6 +680,144 @@ class PyAtSpiDesktop:
     def cancel_dialog(self) -> str:
         window = self._dialog_window()
         return self._press(self._dialog_buttons(window), self.NEGATIVE_LABELS, "Abbrechen")
+
+    # ------------------------------------------------------------------
+    # File chooser navigation (voice-only file selection).
+    # ------------------------------------------------------------------
+
+    #: Roles of individual, nameable rows in a file chooser: the sidebar's
+    #: tree/list items and the file grid's cells.  Containers are not entries.
+    FILE_ENTRY_ROLES = frozenset(
+        {"tree item", "list item", "table cell", "table row", "grid item", "grid child"}
+    )
+    #: Containers of the file grid.  AT-SPI cannot prove that a row inside
+    #: them is a folder rather than a file, so nothing under them is ever
+    #: activated by :meth:`open_folder`; they are listed and focusable only.
+    GRID_CONTAINER_ROLES = frozenset({"tree table", "table", "grid"})
+    #: Roles that count as a provable folder when they are not a grid row:
+    #: the sidebar's tree items (bookmarked places such as Home, Documents).
+    #: A bare "list item" deliberately does not count: GTK file lists in list
+    #: mode expose plain files as list items too, and refusing is safer than
+    #: opening a file that merely looked like a folder.
+    FOLDER_ROLES = frozenset({"tree item"})
+    MAX_FILE_ENTRIES = 20
+
+    def _file_dialog(self) -> Any:
+        window = self._dialog_window()
+        if self._role(window).casefold() != "file chooser":
+            raise GnomeAdapterError("Es ist gerade kein Dateidialog offen.")
+        return window
+
+    def list_files(self) -> str:
+        """Speak the visible file chooser entries, numbered.
+
+        Read-only: this only walks the accessibility tree and names what is
+        showing.  Nothing is activated, so no entry can be opened or run by
+        asking what is in the dialog.
+        """
+
+        entries = self._file_entries(self._file_dialog())
+        if not entries:
+            raise GnomeAdapterError(
+                "Der Dateidialog zeigt keine zugänglichen Einträge an."
+            )
+        spoken = ". ".join(
+            f"Nummer {index}: {name}"
+            for index, (name, _node, _role) in enumerate(entries, start=1)
+        )
+        return f"In diesem Dialog. {spoken}."
+
+    def select_file(self, number: int) -> str:
+        """Focus a numbered entry without opening it.
+
+        Selection commits nothing: it only moves focus, which the application
+        then shows.  Confirming stays a separate, medium-risk step
+        (``dialog.accept``), exactly as with any other dialog, so a misheard
+        number can select but never open or run anything.
+        """
+
+        node = self._numbered_file_entry(number)
+        self._focus_node(node, "Der Eintrag lässt sich nicht fokussieren.")
+        return self._name(node) or "Eintrag"
+
+    def open_folder(self, number: int) -> str:
+        """Open a provable folder from the file chooser's sidebar.
+
+        Only sidebar tree items count as provable folders: activating a file
+        grid row could open or run a file, and AT-SPI cannot prove that a grid
+        row is a folder, so grid rows are never activated here — not even when
+        the numbered entry happens to sit inside the grid.  Committing the
+        dialog stays a separate medium-risk confirmation.
+        """
+
+        node = self._numbered_file_entry(number)
+        if self._role(node).casefold() not in self.FOLDER_ROLES or self._has_grid_ancestor(node):
+            raise GnomeAdapterError(
+                f"Nummer {number} ist kein nachweisbarer Ordner. "
+                "Bitte wählen Sie einen Ordner aus der Seitenleiste."
+            )
+        if not self._invoke_named_action(
+            node, {"activate", "open", "click", "press", "expand or contract"}
+        ):
+            raise GnomeAdapterError("Der Ordner lässt sich nicht öffnen.")
+        return self._name(node) or "Ordner"
+
+    def _numbered_file_entry(self, number: int) -> Any:
+        if number < 1 or number > self.MAX_FILE_ENTRIES:
+            raise GnomeAdapterError("Die Zielnummer liegt außerhalb des erlaubten Bereichs.")
+        entries = self._file_entries(self._file_dialog())
+        if number > len(entries):
+            raise GnomeAdapterError("Diese Zielnummer ist im aktuellen Dialog nicht vorhanden.")
+        return entries[number - 1][1]
+
+    def _has_grid_ancestor(self, node: Any) -> bool:
+        current = node
+        for _ in range(self.MAX_ANCESTORS):
+            try:
+                current = current.parent
+            except Exception:
+                return False
+            if current is None:
+                return False
+            if self._role(current).casefold() in self.GRID_CONTAINER_ROLES:
+                return True
+        return False
+
+    def _file_entries(self, window: Any) -> List[Tuple[str, Any, str]]:
+        """Numberable entries in walk order: (name, node, role).
+
+        A row inside the grid and its container are both showing, and nested
+        rows can repeat a name, so an entry is only counted when it is the
+        outermost node with that name at that point of the walk: names equal
+        to the previous entry's name are skipped.  That keeps each visible
+        row exactly once without guessing the toolkit's nesting.
+        """
+
+        entries: List[Tuple[str, Any, str]] = []
+        for node in self._walk(window):
+            if not self._has_state(node, self._atspi.STATE_SHOWING):
+                continue
+            role = self._role(node).casefold()
+            if role not in self.FILE_ENTRY_ROLES:
+                continue
+            name = self._name(node).strip()
+            if not name or (entries and name == entries[-1][0]):
+                continue
+            entries.append((name, node, role))
+            if len(entries) >= self.MAX_FILE_ENTRIES:
+                break
+        return entries
+
+    def _focus_node(self, node: Any, refusal: str) -> None:
+        """Give a node the keyboard focus through AT-SPI, honestly."""
+
+        try:
+            focused = node.queryComponent().grabFocus()
+        except Exception as exc:
+            raise GnomeAdapterError(refusal) from exc
+        if focused is False:
+            raise GnomeAdapterError(refusal)
+
 
     @staticmethod
     def _match_label(labels: Sequence[str], wanted: Any) -> str:
@@ -718,6 +987,16 @@ SEMANTIC_ACTIONS = frozenset(
         "text.insert",
         "text.delete_word",
         "text.clear",
+        "text.read_from_caret",
+        "text.caret.start",
+        "text.caret.end",
+        "text.caret.word_next",
+        "text.caret.word_previous",
+        "text.newline",
+        "text.paragraph",
+        "dialog.file.list",
+        "dialog.file.select",
+        "dialog.folder.open",
         "dialog.describe",
         "dialog.accept",
         "dialog.cancel",
@@ -737,6 +1016,14 @@ SEMANTIC_MUTATIONS = frozenset(
         "text.insert",
         "text.delete_word",
         "text.clear",
+        "text.caret.start",
+        "text.caret.end",
+        "text.caret.word_next",
+        "text.caret.word_previous",
+        "text.newline",
+        "text.paragraph",
+        "dialog.file.select",
+        "dialog.folder.open",
         "dialog.accept",
         "dialog.cancel",
         "clipboard.copy",
@@ -746,6 +1033,14 @@ SEMANTIC_MUTATIONS = frozenset(
 
 
 class GnomeSemanticExecutor:
+    #: Caret actions mapped to their adapter direction.
+    _CARET_ACTION_DIRECTIONS = {
+        "text.caret.start": "start",
+        "text.caret.end": "end",
+        "text.caret.word_next": "word_next",
+        "text.caret.word_previous": "word_previous",
+    }
+
     def __init__(
         self,
         desktop: Optional[SemanticDesktop] = None,
@@ -789,6 +1084,35 @@ class GnomeSemanticExecutor:
             if request.action == "text.clear":
                 desktop.clear_text()
                 return ActionResult("completed", "Das Feld wurde geleert.", request.action)
+            if request.action == "text.read_from_caret":
+                content = desktop.read_from_caret()
+                spoken = (
+                    f"Ab dem Cursor steht: {content}" if content else "Ab dem Cursor ist das Feld leer."
+                )
+                return ActionResult("completed", spoken, request.action)
+            if request.action in self._CARET_ACTION_DIRECTIONS:
+                direction = self._CARET_ACTION_DIRECTIONS[request.action]
+                spoken = desktop.move_caret(direction)
+                return ActionResult("completed", spoken, request.action)
+            if request.action == "text.newline":
+                content = desktop.insert_newline()
+                return ActionResult(
+                    "completed", f"Neue Zeile. Im Feld steht jetzt: {content}", request.action
+                )
+            if request.action == "text.paragraph":
+                content = desktop.insert_paragraph()
+                return ActionResult(
+                    "completed", f"Absatz. Im Feld steht jetzt: {content}", request.action
+                )
+            if request.action == "dialog.file.list":
+                spoken = desktop.list_files()
+                return ActionResult("completed", spoken, request.action)
+            if request.action == "dialog.file.select":
+                name = desktop.select_file(int(request.target))
+                return ActionResult("completed", f"{name} ist ausgewählt.", request.action)
+            if request.action == "dialog.folder.open":
+                name = desktop.open_folder(int(request.target))
+                return ActionResult("completed", f"Ordner {name} ist geöffnet.", request.action)
             if request.action == "clipboard.copy":
                 name = desktop.copy_selection()
                 return ActionResult("completed", f"{name} wurde kopiert.", request.action)

@@ -514,3 +514,20 @@ The strengthened final-image verifier found both explicit instance mappings,
 and QEMU/TCG booted that exact artifact through live root to GDM. Publication
 remains blocked until the corrected persistent installation and recovery path
 pass at runtime.
+
+## Clausis voice-editing stage 2 — 2026-08-24
+
+GLM 5.3 via Hermes implemented the second voice-only gap-analysis stage:
+deterministic spoken punctuation expansion for dictation (`punctuation.py`,
+router-side, before policy validation), caret navigation inside the focused
+field via the AT-SPI text interface with an explicit read-back check, line and
+paragraph breaks as adapter-side actions, and file-chooser navigation that
+lists entries read-only, focuses an entry without committing, and opens only
+provable sidebar tree-item folders — file grid rows are never activated. All
+paths are structural, tested against simulated accessibility trees only; no
+real GNOME session was involved.
+
+No new model category, biometric processing or cloud data flow was introduced.
+The work is deterministic local code; the existing direct-interaction AI
+disclosure remains applicable. A run in a real GNOME session is still
+outstanding.

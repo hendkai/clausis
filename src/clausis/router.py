@@ -7,6 +7,7 @@ import re
 from typing import Callable, List, Match, Optional, Pattern, Sequence
 
 from .models import ActionRequest, Origin, Risk
+from .punctuation import expand_punctuation
 
 
 Builder = Callable[[Match[str]], ActionRequest]
@@ -33,9 +34,16 @@ def _target(action: str, risk: Risk = Risk.LOW, reversible: bool = True) -> Buil
 
 
 def _dictation(match: Match[str]) -> ActionRequest:
-    """Keep dictated prose exactly as spoken, including case and punctuation."""
+    """Keep dictated prose exactly as spoken, including case and punctuation.
 
-    return ActionRequest("text.insert", target=match.group("target").strip())
+    Spoken punctuation commands at the end of the utterance are rewritten into
+    real characters first (deterministic table, see ``punctuation.py``); mid-
+    utterance words always stay exactly as spoken.
+    """
+
+    return ActionRequest(
+        "text.insert", target=expand_punctuation(match.group("target").strip())
+    )
 
 
 def _volume(match: Match[str]) -> ActionRequest:
@@ -79,6 +87,19 @@ def _control_number(match: Match[str]) -> ActionRequest:
     )
 
 
+def _file_number_command(action: str) -> Builder:
+    def build(match: Match[str]) -> ActionRequest:
+        value = match.group("number").casefold()
+        number = int(value) if value.isdigit() else _SPOKEN_NUMBERS[value]
+        return ActionRequest(action, target=str(number))
+
+    return build
+
+
+_file_select = _file_number_command("dialog.file.select")
+_folder_open = _file_number_command("dialog.folder.open")
+
+
 def _rx(*values: str) -> Sequence[Pattern[str]]:
     return tuple(re.compile(rf"^(?:{value})[.!?]*$", re.IGNORECASE) for value in values)
 
@@ -119,6 +140,39 @@ COMMANDS: Sequence[CommandPattern] = (
     CommandPattern("read-field", _rx(r"lies (?:das )?feld vor", r"was steht im feld", r"read (?:the )?field"), _simple("text.read")),
     CommandPattern("delete-word", _rx(r"(?:letztes )?wort löschen", r"delete (?:the )?(?:last )?word"), _simple("text.delete_word")),
     CommandPattern("clear-field", _rx(r"feld leeren", r"clear (?:the )?field"), _simple("text.clear", Risk.MEDIUM)),
+    CommandPattern("caret-start", _rx(r"cursor an den anfang", r"caret to (?:the )?start", r"(?:move )?cursor to (?:the )?beginning"), _simple("text.caret.start")),
+    CommandPattern("caret-end", _rx(r"cursor ans ende", r"caret to (?:the )?end", r"(?:move )?cursor to (?:the )?end"), _simple("text.caret.end")),
+    CommandPattern("caret-next-word", _rx(r"cursor (?:ein )?wort weiter", r"next word"), _simple("text.caret.word_next")),
+    CommandPattern("caret-previous-word", _rx(r"cursor (?:ein )?wort zurück", r"previous word"), _simple("text.caret.word_previous")),
+    CommandPattern("read-from-caret", _rx(r"lies ab dem cursor(?: vor)?", r"read from (?:the )?caret"), _simple("text.read_from_caret")),
+    # A line break cannot ride inside a dictated target: the request schema
+    # forbids control characters so nothing smuggles one across a trust
+    # boundary.  The adapter therefore synthesizes the newline itself and the
+    # spoken command becomes its own low-risk action.
+    CommandPattern("newline", _rx(r"neue zeile", r"new line"), _simple("text.newline")),
+    CommandPattern("paragraph", _rx(r"absatz", r"new paragraph"), _simple("text.paragraph")),
+    CommandPattern(
+        "file-list",
+        _rx(
+            r"liste dateien auf",
+            r"was (?:ist |steht )?im dateidialog",
+            r"welche dateien gibt es",
+            r"zeige die dateien",
+            r"list files",
+            r"what(?:'s| is) in the file dialog",
+        ),
+        _simple("dialog.file.list"),
+    ),
+    CommandPattern(
+        "file-select",
+        _rx(r"wähle datei (?P<number>\d{1,2}|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)", r"select file (?P<number>\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)"),
+        _file_select,
+    ),
+    CommandPattern(
+        "folder-open",
+        _rx(r"öffne ordner (?P<number>\d{1,2}|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)", r"open folder (?P<number>\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)"),
+        _folder_open,
+    ),
     # "Schreibe mir ein Gedicht" is a request to the agent, not dictation, so
     # the dictation verbs stay unambiguous and an ambiguous "schreibe …" keeps
     # falling through to Hermes.

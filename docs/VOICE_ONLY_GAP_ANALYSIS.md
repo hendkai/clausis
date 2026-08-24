@@ -80,14 +80,31 @@ Bildschirmkoordinaten. Umgesetzt sind:
   Schnelleinstellungen, Benachrichtigungen und Übersicht. Die Shell ist nicht
   Teil des AT-SPI-Baums; jede exportierte Methode ist parameterlos, damit ein
   kompromittierter Sitzungsprozess kein beliebiges Shell-Objekt benennen kann.
+- Diktat mit gesprochenen Satzzeichen-Kommandos (Deutsch und Englisch):
+  Eine deterministische Tabelle im Router ersetzt das Kommandowort erst am
+  Ende der Äußerung durch das Zeichen — „daten punkt csv“ bleibt wörtlich.
+  Artikel und Zahlwörter davor schützen das Kommandowort als Prosa
+  („der Punkt“, „drei Komma vier“), und „wörtlich“/„literal“ hebt den Schutz
+  gezielt auf.
+- Cursor-Navigation im fokussierten Feld über AT-SPI `setCaretOffset`:
+  Anfang, Ende, Wort weiter und Wort zurück, jeweils mit gelesener
+  Nachzustandsprüfung — landet der Cursor nicht an der gemeldeten Position,
+  wird das ehrlich gemeldet statt angenommen. „Lies ab dem Cursor“ liest vom
+  Cursor bis zum Feldende. „Neue Zeile“ und „Absatz“ sind eigene
+  Adapter-Aktionen, weil das Anfrage-Schema Steuerzeichen im Diktatziel
+  grundsätzlich verbietet.
+- Navigation im Dateidialog: Die sichtbaren Einträge werden nummeriert
+  vorgelesen, ein Eintrag lässt sich fokussieren, ohne etwas zu bestätigen,
+  und Ordner lassen sich ausschließlich über nachweisbare Seitenleisten-
+  Baumeinträge öffnen. Dateigitter-Zeilen werden nie aktiviert, weil AT-SPI
+  nicht beweisen kann, dass eine Zeile kein Programm ist; das Bestätigen des
+  Dialogs bleibt die weiterhin bestätigungspflichtige `dialog.accept`-Aktion.
 
 Die Erweiterung und die AT-SPI-Pfade sind bisher nur strukturell und gegen
 einen nachgebildeten Baum getestet; ein Lauf in einer echten GNOME-Sitzung
 steht aus. Noch ergänzt werden müssen:
 
 - komplexe Fokusbewegung und weitere widget-spezifische Aktionen;
-- Navigation in Dateilisten und Ordnerbäumen eines Dateidialogs;
-- Diktat mit Satzzeichen-Kommandos und Cursor-Navigation im Feld;
 - weitere Orca-Funktionen über die reine Ein- und Ausschaltung hinaus.
 
 Mauskoordinaten und Bildschirmerkennung dürfen nur ein gekennzeichneter

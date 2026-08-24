@@ -59,6 +59,11 @@ def _control_number(request: ActionRequest) -> None:
         raise ValueError("control number must be between 1 and 30")
 
 
+def _file_number(request: ActionRequest) -> None:
+    if not request.target.isdigit() or not 1 <= int(request.target) <= 20:
+        raise ValueError("file number must be between 1 and 20")
+
+
 def _package_name(request: ActionRequest) -> None:
     """Reject anything that could be read as an ``apt-get`` option."""
 
@@ -117,6 +122,23 @@ ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     "text.delete_word": ActionPolicy(Risk.LOW, True, None, _no_target),
     # Discarding a whole field is not a correction; it needs confirmation.
     "text.clear": ActionPolicy(Risk.MEDIUM, True, None, _no_target),
+    # Caret movement is visible, correctable and touches no data; reading from
+    # the caret is a read-only query. All stay low risk and immediate.  The
+    # line and paragraph breaks are typed actions of their own because the
+    # request schema forbids control characters inside a dictated target.
+    "text.caret.start": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.caret.end": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.caret.word_next": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.caret.word_previous": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.read_from_caret": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.newline": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.paragraph": ActionPolicy(Risk.LOW, True, None, _no_target),
+    # File chooser navigation: listing is read-only, focusing an entry
+    # commits nothing, and opening a provable folder changes only the
+    # directory shown in the dialog. Confirming the dialog stays medium risk.
+    "dialog.file.list": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "dialog.file.select": ActionPolicy(Risk.LOW, True, None, _file_number),
+    "dialog.folder.open": ActionPolicy(Risk.LOW, True, None, _file_number),
     "dialog.describe": ActionPolicy(Risk.LOW, True, None, _no_target),
     # Declining is always safe; committing to an unknown dialog is not, so
     # accepting stays medium risk, exactly like activating a numbered control.
