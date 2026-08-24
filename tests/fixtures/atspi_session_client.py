@@ -94,6 +94,40 @@ def text_of(value: Any, fallback: str) -> str:
     return value if isinstance(value, str) else fallback
 
 
+def find_password_node() -> Any:
+    """Return the first ``password text`` node on the bus, or ``None``.
+
+    A GTK entry publishes an ``activate`` action (the Enter signal), not a
+    focus grab, so the client moves focus itself through the same AT-SPI
+    component interface the adapter uses internally — the refusal under test
+    is then purely the adapter's own password check.
+    """
+
+    try:
+        import pyatspi
+    except ImportError:
+        return None
+    try:
+        root = pyatspi.Registry.getDesktop(0)
+    except Exception:
+        return None
+    stack = [root]
+    while stack:
+        node = stack.pop(0)
+        try:
+            if node.getRoleName().casefold() == "password text":
+                return node
+            count = node.childCount
+        except Exception:
+            continue
+        for index in range(count):
+            try:
+                stack.append(node.getChildAtIndex(index))
+            except Exception:
+                continue
+    return None
+
+
 def main() -> int:
     try:
         desktop = PyAtSpiDesktop()
@@ -245,25 +279,25 @@ def main() -> int:
     # refusals are the security property.  The probe app shows a second entry
     # with visibility off, which GTK exposes with the "password text" role.
     try:
-        ctx = desktop.context()
-        password_controls = [
-            control
-            for control in ctx.controls
-            if control.role.casefold() == "password text"
-        ]
-        if not password_controls:
+        password_node = find_password_node()
+        if password_node is None:
             record(
                 "REFUSED",
                 "password-field",
                 "probe exposes no password field on the bus",
             )
         else:
-            desktop.activate(password_controls[0].number)
-            if desktop.context().focused_role.casefold() != "password text":
+            try:
+                grabbed = password_node.queryComponent().grabFocus()
+            except Exception:
+                grabbed = False
+            focused_role = desktop.context().focused_role.casefold()
+            if not grabbed or focused_role != "password text":
                 record(
                     "REFUSED",
                     "password-field",
-                    "activate() did not focus the password field",
+                    f"could not focus the password field (grabbed={grabbed}, "
+                    f"focused_role={focused_role!r})",
                 )
             else:
                 try:
