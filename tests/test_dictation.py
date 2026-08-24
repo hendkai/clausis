@@ -307,9 +307,14 @@ class DictationPolicyTests(unittest.TestCase):
         self.assertTrue(decision.confirmation_required)
 
 
-class DictationRoutingTests(unittest.TestCase):
+class DictationRoutingTests(DesktopHarness):
     def setUp(self):
         self.authority = CapabilityAuthority(b"d" * 32)
+
+    def _field(self):
+        return FakeNode(
+            "Empfänger", "text", {STATE_SHOWING, STATE_FOCUSED, STATE_EDITABLE}
+        )
 
     def _broker(self, desktop):
         return ActionBroker(
@@ -335,6 +340,51 @@ class DictationRoutingTests(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertEqual(recorder.written, ["Milch und Brot kaufen"])
         self.assertIn("Milch und Brot kaufen", result.message)
+
+    def test_email_mode_e2e_router_to_field(self):
+        from clausis.router import OfflineRouter
+
+        field = FakeNode(
+            "Empfänger", "text", {STATE_SHOWING, STATE_FOCUSED, STATE_EDITABLE}
+        )
+        desktop = self.desktop_for(build_desktop(field))
+        broker = self._broker(desktop)
+
+        request = OfflineRouter().route("diktiere e-mail hendrik at kaiser-mail punkt de")
+        self.assertIsNotNone(request)
+        self.assertEqual(request.action, "text.insert")
+        result = broker.submit(request)
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(field.content, "hendrik@kaiser-mail.de")
+
+    def test_url_mode_e2e_router_to_field(self):
+        from clausis.router import OfflineRouter
+
+        field = FakeNode(
+            "Adresse", "text", {STATE_SHOWING, STATE_FOCUSED, STATE_EDITABLE}
+        )
+        desktop = self.desktop_for(build_desktop(field))
+        broker = self._broker(desktop)
+
+        request = OfflineRouter().route(
+            "diktiere url https doppelpunkt schrägstrich schrägstrich example punkt de"
+        )
+        self.assertIsNotNone(request)
+        self.assertEqual(request.action, "text.insert")
+        result = broker.submit(request)
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(field.content, "https://example.de")
+
+    def test_refused_number_mode_inserts_nothing(self):
+        from clausis.router import OfflineRouter
+
+        # "diktiere zahl drei Bananen" is not a number: the mode refuses,
+        # the router declines the utterance, and nothing reaches a field.
+        self.assertIsNone(OfflineRouter().route("diktiere zahl drei Bananen"))
+        self.assertEqual(
+            OfflineRouter().route("diktiere zahl drei Komma eins vier").target,
+            "3,14",
+        )
 
     def test_ambiguous_write_request_still_falls_through_to_the_agent(self):
         from clausis.router import OfflineRouter

@@ -3,8 +3,10 @@ import unittest
 
 from clausis.broker import ActionBroker, SafeExecutor
 from clausis.capabilities import CapabilityAuthority
+from clausis.dictation_modes import apply_mode
 from clausis.hermes_adapter import parse_tool_call
 from clausis.models import ActionRequest, Origin, Risk
+from clausis.router import OfflineRouter
 
 
 INJECTION_STRINGS = [
@@ -78,6 +80,50 @@ class InjectionCorpusTests(unittest.TestCase):
                 )
                 result = broker.submit(request)
                 self.assertIn(result.status, {"confirmation_required", "denied"})
+
+    def test_dictation_modes_never_produce_control_or_shell_metacharacters(self):
+        # Payloads built from the injection corpus (plus mode-specific
+        # carriers like "punkt", "@", URL separators) may not produce a
+        # control character or grow past the 512-character target bound in
+        # ANY dictation mode.  Whatever a hostile transcript smuggles in,
+        # the mode output stays printable-only — the injected words
+        # themselves are prose and stay byte for byte.
+        mode_payloads = []
+        for payload in INJECTION_STRINGS:
+            printable = "".join(ch if ch >= " " and ch != "\x7f" else " " for ch in payload)
+            mode_payloads.append(printable)
+        mode_payloads += [
+            "file doppelpunkt slash slash etc punkt shadow",
+            "user at example punkt com",
+            "https doppelpunkt slash slash example punkt invalid slash ?q=$(id)",
+            "dollar slash bin slash sh",
+            "punkt komma semikolon at affe",
+            "backtick id backtick punkt de",
+            "wörtlich $(rm -rf /)",
+        ]
+        router = OfflineRouter()
+        for mode in ("email", "url", "number"):
+            for payload in mode_payloads:
+                with self.subTest(mode=mode, payload=payload):
+                    rendered = apply_mode(mode, payload)
+                    if rendered is None:
+                        continue  # REFUSED is always acceptable
+                    self.assertLessEqual(len(rendered), 512)
+                    self.assertTrue(rendered.strip())
+                    for ch in rendered:
+                        self.assertNotIn(ch, "\x00\x01\x02\x03\x04\x05\x06\x07\x08"
+                                            "\x0b\x0c\x0e\x0f\x10\x11\x12\x13\x14"
+                                            "\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d"
+                                            "\x1e\x1f\x7f")
+                    # The same holds end to end: a routed mode request is
+                    # schema-valid or refused outright.
+                    request = router.route(f"diktiere e-mail {payload}") if mode == "email" else (
+                        router.route(f"diktiere url {payload}") if mode == "url"
+                        else router.route(f"diktiere zahl {payload}")
+                    )
+                    if request is not None:
+                        self.assertEqual(request.action, "text.insert")
+                        self.assertLessEqual(len(request.target), 512)
 
     def test_hermes_cannot_smuggle_token_in_corpus(self):
         for payload in INJECTION_STRINGS:

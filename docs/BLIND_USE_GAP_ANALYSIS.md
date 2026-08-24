@@ -50,13 +50,29 @@ Satz/Absatz am Cursor) und der Buchstabiermodus („A wie Anton" → A,
 deutsch/englisch, mit Ziffern). Der Sitzungstest deckt auch die
 Passwortfeld-Verweigerung auf dem echten Bus ab.
 
+Teilweise umgesetzt (2026-08-24, Diktiermodi): E-Mail-Adressen, URLs/Dateipfade
+und Zahlen haben je einen eigenen Diktiermodus mit explizitem Trigger —
+„diktiere e-mail hendrik at kaiser-mail punkt de" → `hendrik@kaiser-mail.de`,
+„diktiere url https doppelpunkt schrägstrich schrägstrich example punkt de" →
+`https://example.de`, „diktiere zahl drei Komma eins vier" → `3,14`,
+„diktiere zahl zweiundzwanzig" → `22`. Die Umwandlung feuert nur beim
+expliziten Modus-Trigger, nie mitten in einer Äußerung (konsistent mit der
+Satz-Ende-Regel für Satzzeichen); nicht parsembare Zahlen werden ehrlich
+abgelehnt statt geraten, und der Modus-Ausgang bleibt schema-valide
+(printable-only, ≤ 512 Zeichen, Injection-Korpus-Regression grün).
+
 Es fehlt weiterhin:
 
 - **Mehrstufige Navigation**: „drei Wörter zurück", „nächster Absatz",
   „Zeile 12" — heute bewegt sich der Cursor nur um eine Einheit pro Befehl.
-- **Diktiermodi**: Zahlen, Datum, Uhrzeit, E-Mail-Adresse, URL, Dateipfad
-  brauchen je eigene Umsetzung; „punkt de" muss zu `.de` werden, nicht zu
-  „ punkt de".
+- **Diktiermodi (Reste)**: Datum und Uhrzeit haben noch keinen Modus
+  (Trigger sind dokumentiert, Umsetzung folgt demnächst); Zahlwörter gehen
+  nur 0–99 („hundert", „tausend", „dreihundertfünfundzwanzig" werden
+  abgelehnt, nicht falsch geraten); in URLs wird ein gesprochenes
+  „Doppelpunkt" nur nach einem Schema (https etc.) umgesetzt, nicht mitten
+  in Host/Port; Dateipfade verlieren Wortabstände („schrägstrich home
+  hendrik" → `/homehendrik`) — für echte Pfade fehlt noch eine
+  Trenner-Konvention. „punkt de" wird zu `.de`.
 - **Ganzes Dokument vorlesen**: mit Positionsmerker, Pause und Fortsetzen an
   derselben Stelle — das granulare Lesen deckt heute nur die Einheit am Cursor
   ab, nicht den fortlaufenden Text.

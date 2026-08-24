@@ -6,12 +6,16 @@ from dataclasses import dataclass
 import re
 from typing import Callable, List, Match, Optional, Pattern, Sequence
 
+from .dictation_modes import apply_mode
 from .models import ActionRequest, Origin, Risk
 from .punctuation import expand_punctuation
 from .spelling import normalise_spelling
 
 
-Builder = Callable[[Match[str]], ActionRequest]
+#: A builder turns a match into a request, or returns ``None`` to decline
+#: the utterance (dictation modes do this when their payload is refused);
+#: the router then returns ``None`` so the utterance falls to the agent.
+Builder = Callable[[Match[str]], Optional[ActionRequest]]
 
 
 @dataclass(frozen=True)
@@ -60,6 +64,28 @@ def _spelling(match: Match[str]) -> ActionRequest:
     return ActionRequest(
         "text.insert", target=normalise_spelling(match.group("target").strip())
     )
+
+
+def _dictation_mode(mode: str) -> Builder:
+    """Builder factory for a named dictation mode (e-mail, URL, number).
+
+    The mode parser runs here, before the ``ActionRequest`` is built — the
+    same place ``expand_punctuation`` runs for plain dictation.  An
+    unparseable payload (REFUSED) must not surface as an exception, so the
+    builder returns ``None`` and :meth:`OfflineRouter.route` declines the
+    whole utterance (it falls through to the agent); the mode
+    transformation only ever fires on its explicit trigger phrase, never
+    mid-utterance, consistent with the sentence-end rule in
+    ``punctuation.py``.
+    """
+
+    def build(match: Match[str]) -> Optional[ActionRequest]:
+        rendered = apply_mode(mode, match.group("target").strip())
+        if rendered is None:
+            return None
+        return ActionRequest("text.insert", target=rendered)
+
+    return build
 
 
 def _volume(match: Match[str]) -> ActionRequest:
@@ -242,6 +268,36 @@ COMMANDS: Sequence[CommandPattern] = (
         _rx(r"öffne ordner (?P<number>\d{1,2}|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)", r"open folder (?P<number>\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)"),
         _folder_open,
     ),
+    # Dictation modes: the user names the mode, and only then do "punkt",
+    # "at", "slash" etc. become characters.  The transformation never runs
+    # mid-utterance — consistent with the sentence-end rule of plain
+    # dictation — and the mode patterns must sit BEFORE the plain
+    # "diktiere/tippe …" family so the trigger phrase wins.
+    CommandPattern(
+        "dictate-email",
+        _rx(
+            r"diktiere e-?mail (?P<target>.+)",
+            r"dictate e-?mail (?P<target>.+)",
+        ),
+        _dictation_mode("email"),
+    ),
+    CommandPattern(
+        "dictate-url",
+        _rx(
+            r"diktiere (?:url|adresse) (?P<target>.+)",
+            r"dictate (?:url|address) (?P<target>.+)",
+        ),
+        _dictation_mode("url"),
+    ),
+    CommandPattern(
+        "dictate-number",
+        _rx(
+            r"diktiere zahl (?P<target>.+)",
+            r"diktiere nummer (?P<target>.+)",
+            r"dictate (?:number|num) (?P<target>.+)",
+        ),
+        _dictation_mode("number"),
+    ),
     # "Schreibe mir ein Gedicht" is a request to the agent, not dictation, so
     # the dictation verbs stay unambiguous and an ambiguous "schreibe …" keeps
     # falling through to Hermes.
@@ -329,6 +385,15 @@ class OfflineRouter:
                 match = pattern.fullmatch(normalized)
                 if match:
                     request = command.builder(match)
+                    if request is None:
+                        # A dictation mode refused its payload (unparsable,
+                        # empty or oversized).  Honest refusal: no local
+                        # action at all — the utterance falls through to the
+                        # agent, which can explain what was not parseable.
+                        # (Falling through to the plain dictation pattern
+                        # would insert the mode words as prose, which is
+                        # exactly what the user did NOT say.)
+                        return None
                     if request.action == "voice.stop":
                         return request
                     return ActionRequest(

@@ -567,3 +567,22 @@ test fakes no longer invent the nonexistent state. Xvfb plus a real bus and
 real widget is still not a full GNOME desktop, so widget coverage beyond GTK
 remains open. No new model category, biometric processing or cloud data flow
 was introduced.
+
+## Clausis dictation modes — 2026-08-24
+
+GLM 5.3 (via Hermes Agent) implemented the first three dictation modes from
+the blind-use gap analysis §1: e-mail addresses ("diktiere e-mail hendrik at
+kaiser-mail punkt de" → hendrik@kaiser-mail.de), URLs and file paths
+("diktiere url …", scheme-guarded colon conversion) and numbers ("diktiere
+zahl drei Komma eins vier" → 3,14; German compound number words 0–99). The
+modes are deterministic, purely functional token transforms in a new module
+(dictation_modes.py) that fire only on their explicit trigger phrase — never
+mid-utterance, consistent with the sentence-end punctuation rule — and unparseable
+number payloads are honestly refused (the router declines the utterance, the
+agent can explain) instead of guessed. The output keeps every schema guarantee:
+printable-only, ≤ 512 characters, TARGET_RE-valid; the injection corpus gained
+a regression test that runs mode-specific payloads (carriers like "punkt",
+"at", URL separators, escapes) through all three modes and the router. Honest
+gaps documented in BLIND_USE_GAP_ANALYSIS §1: date/time modes absent, number
+words only 0–99, URL colons only after a scheme, file paths lose word spacing.
+No new model category, biometric processing or cloud data flow was introduced.
