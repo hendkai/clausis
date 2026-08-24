@@ -88,6 +88,22 @@ _ESCAPES = frozenset({"wörtlich", "literal"})
 MAX_MODE_CHARS = 512
 
 
+def contains_control_characters(text: str) -> bool:
+    """True when a control character rides anywhere in the payload.
+
+    C0 controls (``\\x00``-``\\x1f``), DEL (``\\x7f``) and the C1 range
+    (``\\x80``-``\\x9f``) have no place in spoken prose.  Whitespace-class
+    controls never reach this check: the router normalises the transcript
+    with ``str.split()`` first, which drops them.  What survives mid-word is
+    exactly the injection surface, so every dictation payload shaper —
+    plain dictation, spelling and the modes — refuses a payload that
+    contains one instead of letting the request constructor raise later
+    (a voice loop must never crash on a malformed transcript).
+    """
+
+    return any(ch < "\x20" or "\x7f" <= ch <= "\x9f" for ch in text)
+
+
 def word_number(word: str) -> Optional[int]:
     """Value of a single spoken number word (0–99), else ``None``.
 
@@ -248,6 +264,8 @@ def apply_mode(mode: str, text: str) -> Optional[str]:
     renderer = MODE_RENDERERS.get(mode)
     if renderer is None:
         raise ValueError(f"unknown dictation mode: {mode}")
+    if contains_control_characters(text):
+        return None
     result = renderer(_tokens(text))
     if result is None or not result.strip() or len(result) > MAX_MODE_CHARS:
         return None

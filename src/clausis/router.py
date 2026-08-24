@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import re
 from typing import Callable, List, Match, Optional, Pattern, Sequence
 
-from .dictation_modes import apply_mode
+from .dictation_modes import apply_mode, contains_control_characters
 from .models import ActionRequest, Origin, Risk
 from .punctuation import expand_punctuation
 from .spelling import normalise_spelling
@@ -38,31 +38,41 @@ def _target(action: str, risk: Risk = Risk.LOW, reversible: bool = True) -> Buil
     )
 
 
-def _dictation(match: Match[str]) -> ActionRequest:
+def _dictation(match: Match[str]) -> Optional[ActionRequest]:
     """Keep dictated prose exactly as spoken, including case and punctuation.
 
     Spoken punctuation commands at the end of the utterance are rewritten into
     real characters first (deterministic table, see ``punctuation.py``); mid-
-    utterance words always stay exactly as spoken.
+    utterance words always stay exactly as spoken.  A payload with control
+    characters riding inside it is refused (builder returns ``None``): the
+    request schema would reject it anyway, and a routing crash inside the
+    voice loop is the one outcome a blind user cannot afford.
     """
 
+    payload = match.group("target").strip()
+    if contains_control_characters(payload):
+        return None
     return ActionRequest(
-        "text.insert", target=expand_punctuation(match.group("target").strip())
+        "text.insert", target=expand_punctuation(payload)
     )
 
 
-def _spelling(match: Match[str]) -> ActionRequest:
+def _spelling(match: Match[str]) -> Optional[ActionRequest]:
     """Turn a spelled utterance into the characters it names.
 
     ``"Buchstabiere A wie Anton, N wie Nordpol"`` becomes the dictation
     ``"AN"``: names, identifiers and digits dictated letter by letter reach
     the field as characters, not as the spoken helper words (deterministic
     table, see ``spelling.py``).  Unknown words stay prose, so nothing the
-    user really said is ever mangled.
+    user really said is ever mangled.  Control characters inside the
+    payload refuse the utterance (same contract as plain dictation).
     """
 
+    payload = match.group("target").strip()
+    if contains_control_characters(payload):
+        return None
     return ActionRequest(
-        "text.insert", target=normalise_spelling(match.group("target").strip())
+        "text.insert", target=normalise_spelling(payload)
     )
 
 

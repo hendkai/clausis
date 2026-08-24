@@ -125,6 +125,43 @@ class InjectionCorpusTests(unittest.TestCase):
                         self.assertEqual(request.action, "text.insert")
                         self.assertLessEqual(len(request.target), 512)
 
+    def test_raw_control_bytes_are_refused_never_crash_the_router(self):
+        # Cross-model review finding: a control byte embedded mid-word
+        # (str.split() drops only the whitespace-class ones) used to reach
+        # the ActionRequest constructor and raise ValueError inside
+        # route(), crashing the voice loop.  Every dictation path — plain,
+        # spelling and all three modes — must refuse it instead: apply_mode
+        # returns None and the router returns None, never raises.
+        router = OfflineRouter()
+        raw_controls = ["\x00", "\x01", "\x08", "\x0b", "\x0e", "\x1b", "\x7f", "\x85", "\x9b"]
+        for control in raw_controls:
+            with self.subTest(control=hex(ord(control))):
+                if not control.isspace():
+                    # Non-whitespace controls survive splitting mid-word and
+                    # must be refused outright by every mode.
+                    for mode in ("email", "url", "number"):
+                        self.assertIsNone(apply_mode(mode, f"hendrik{control}x at y punkt de"))
+                utterances = (
+                    f"diktiere hendrik{control}mustermann",
+                    f"buchstabier a{control}b",
+                    f"diktiere e-mail hendrik{control}x at y punkt de",
+                    f"diktiere url x{control}y punkt de",
+                    f"diktiere zahl 1{control}2",
+                )
+                for utterance in utterances:
+                    try:
+                        request = router.route(utterance)
+                    except Exception as exc:  # noqa: BLE001 - the crash IS the bug
+                        self.fail(f"route() raised {type(exc).__name__}: {utterance!r}")
+                    # Either the utterance is refused, or its target is
+                    # clean: whitespace-class controls (\x0b, \x85) are
+                    # dropped by the router's own normalisation and the
+                    # dictation proceeds as ordinary prose — which is also
+                    # control-free.
+                    if request is not None:
+                        for ch in request.target:
+                            self.assertFalse(ch < "\x20" or "\x7f" <= ch <= "\x9f", utterance)
+
     def test_hermes_cannot_smuggle_token_in_corpus(self):
         for payload in INJECTION_STRINGS:
             with self.subTest(payload=payload):

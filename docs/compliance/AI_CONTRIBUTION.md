@@ -586,3 +586,24 @@ a regression test that runs mode-specific payloads (carriers like "punkt",
 gaps documented in BLIND_USE_GAP_ANALYSIS §1: date/time modes absent, number
 words only 0–99, URL colons only after a scheme, file paths lose word spacing.
 No new model category, biometric processing or cloud data flow was introduced.
+
+## Clausis dictation modes — cross-model review fixes — 2026-08-24
+
+A cross-model security review (Claude Sonnet 5 via Hermes Agent, read-only,
+adversarial probing with live python against apply_mode() and the router)
+reviewed the dictation modes commit and found two real bugs, both fixed in
+the same session by GLM 5.3 (via Hermes Agent): (1) control bytes embedded
+mid-word (0x00-0x08, 0x0e-0x1b, DEL, C1) reached the ActionRequest
+constructor and raised an uncaught ValueError inside route(), crashing the
+voice loop end to end — every dictation payload shaper (plain dictation,
+spelling, all three modes) now refuses such payloads before request
+construction, and a corpus regression drives raw control bytes through
+apply_mode()/route() unsanitized, asserting never-raises plus
+control-free-or-refused; (2) the corpus test had pre-sanitized payloads,
+structurally blinding it to exactly that bug — the new regression closes
+the gap. The review also confirmed the escape-word contract holds under
+dangling escapes, chains and scheme interaction (no findings), and flagged
+the documented inherent tradeoff that a word colliding with a command
+token ("dot", "slash") is transformed with the wörtlich/literal escape as
+the documented way out. No new model category, biometric processing or
+cloud data flow was introduced.

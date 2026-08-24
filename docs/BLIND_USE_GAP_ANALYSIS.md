@@ -72,7 +72,11 @@ Es fehlt weiterhin:
   „Doppelpunkt" nur nach einem Schema (https etc.) umgesetzt, nicht mitten
   in Host/Port; Dateipfade verlieren Wortabstände („schrägstrich home
   hendrik" → `/homehendrik`) — für echte Pfade fehlt noch eine
-  Trenner-Konvention. „punkt de" wird zu `.de`.
+  Trenner-Konvention. „punkt de" wird zu `.de`. Grenze: Ein Wort, das
+  zufällig ein Kommando-Token ist („dot", „slash", „punkt" als Name), wird
+  umgeformt — Ausweg ist das Escape „wörtlich"/„literal" vor dem Wort,
+  ohne Vorwissen aber nicht auffindbar (gleiche Grundspannung wie beim
+  Satzzeichen-Befehl am Satzende).
 - **Ganzes Dokument vorlesen**: mit Positionsmerker, Pause und Fortsetzen an
   derselben Stelle — das granulare Lesen deckt heute nur die Einheit am Cursor
   ab, nicht den fortlaufenden Text.
