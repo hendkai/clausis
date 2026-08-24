@@ -531,3 +531,18 @@ No new model category, biometric processing or cloud data flow was introduced.
 The work is deterministic local code; the existing direct-interaction AI
 disclosure remains applicable. A run in a real GNOME session is still
 outstanding.
+
+## Clausis text-editing, spelling and speech-control stage — 2026-08-24
+
+GLM 5.3 (via Hermes Agent) implemented the remaining software-only items from
+the blind-use gap analysis: voice text editing (select all/word/sentence,
+replace and delete the selection, undo/redo through the widget's own action,
+granular reading by character/word/line/sentence/paragraph), the spelling mode
+("A wie Anton" becomes A; German and English alphabets plus digits, applied
+before the request schema validates anything), and speech-output control
+(rate faster/slower/normal, language German/English) as fixed spd-say
+argument vectors with no caller-supplied value. The security contact was
+pointed at GitHub Private Vulnerability Reporting, which is now enabled on
+the repository and verified. All work is deterministic local code tested
+against fake AT-SPI trees; a run in a real GNOME session remains outstanding.
+No new model category, biometric processing or cloud data flow was introduced.

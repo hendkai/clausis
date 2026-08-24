@@ -37,7 +37,15 @@ das Mikrofon funktioniert, ist kein Fortschritt.
 Clausis kann heute Text **einfügen**, das letzte Wort löschen, das Feld leeren
 und den Inhalt vorlesen. Für echtes Arbeiten reicht das bei weitem nicht.
 
-Es fehlt:
+Teilweise umgesetzt (2026-08-24, nur gegen nachgebaute AT-SPI-Bäume getestet,
+kein Lauf in einer echten GNOME-Sitzung): Satzzeichen-Kommandos am Satzende,
+Cursor-Navigation (Anfang/Ende/Wort vor und zurück, Vorlesen ab Cursor),
+Auswahl (alles markieren, Wort, Satz), Ersetzen der Auswahl, Löschen der
+Auswahl, Rückgängig/Wiederholen über die widget-eigene Aktion, Vorlesen mit
+Granularität (Zeichen/Wort/Zeile/Satz/Absatz am Cursor) und der
+Buchstabiermodus („A wie Anton" → A, deutsch/englisch, mit Ziffern).
+
+Es fehlt weiterhin:
 
 - **Cursor-Navigation**: „an den Anfang", „drei Wörter zurück", „ans Zeilenende",
   „nächster Absatz", „Zeile 12".
@@ -127,6 +135,12 @@ Dazu fehlt das Fundament dafür:
 ## 6. Qualität der Sprachausgabe
 
 espeak-ng ist verständlich, aber über Stunden anstrengend. Es fehlt:
+
+Teilweise umgesetzt (2026-08-24): Geschwindigkeit (schneller/langsamer/normal)
+und Synthesesprache (deutsch/englisch) als feste Sprachbefehle über
+speech-dispatcher — bewusst als feste Argumentevektoren ohne freie Werte.
+
+Es fehlt weiterhin:
 
 - eine **bessere Offline-Stimme** (etwa Piper) mit geklärter Lizenz,
 - **Geschwindigkeit, Stimme, Tonhöhe und Sprache per Sprachbefehl** änderbar,

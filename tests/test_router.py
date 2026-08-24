@@ -51,6 +51,48 @@ class RouterTests(unittest.TestCase):
     def test_twenty_or_more_commands_exist(self):
         self.assertGreaterEqual(len(self.router._commands), 20)
 
+    def test_speech_control_commands_route_locally(self):
+        # Speech output control must stay deterministic and offline: the
+        # phrases are exact fixed vectors, so they can never fall through
+        # to Hermes.
+        cases = [
+            ("sprich schneller", "speech.rate.faster"),
+            ("sprich langsamer", "speech.rate.slower"),
+            ("sprechgeschwindigkeit normal", "speech.rate.normal"),
+            ("antworte auf deutsch", "speech.language.german"),
+            ("antworte auf englisch", "speech.language.english"),
+            ("speak faster", "speech.rate.faster"),
+            ("speak slower", "speech.rate.slower"),
+            ("speak german", "speech.language.german"),
+            ("speak english", "speech.language.english"),
+        ]
+        for phrase, action in cases:
+            with self.subTest(phrase=phrase):
+                request = self.router.route(phrase)
+                self.assertIsNotNone(request)
+                self.assertEqual(request.action, action)
+                self.assertEqual(request.origin.value, "local_voice")
+
+    def test_speech_actions_are_fixed_vectors_without_target(self):
+        from clausis.policy import ACTION_POLICIES
+
+        for action in (
+            "speech.rate.faster",
+            "speech.rate.slower",
+            "speech.rate.normal",
+            "speech.language.german",
+            "speech.language.english",
+        ):
+            with self.subTest(action=action):
+                policy = ACTION_POLICIES[action]
+                self.assertIsNotNone(policy.command)
+                self.assertEqual(policy.command[0], "spd-say")
+                # No caller-supplied value ever reaches the vector.
+                with self.assertRaises(ValueError):
+                    ACTION_POLICIES[action].validator and ACTION_POLICIES[action].validator(
+                        type("R", (), {"target": "400"})()
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()

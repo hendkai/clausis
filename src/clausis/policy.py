@@ -169,6 +169,35 @@ ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     # accepting stays medium risk, exactly like activating a numbered control.
     "dialog.cancel": ActionPolicy(Risk.LOW, True, None, _no_target),
     "dialog.accept": ActionPolicy(Risk.MEDIUM, True, None, _no_target),
+    # Speech output control through speech-dispatcher: fixed vectors, the
+    # caller never names the option or the value.  Rate steps are the
+    # spd-say default-scale (-100..100 in steps of 25); language switches
+    # the synthesis language for subsequent spoken output.
+    "speech.rate.faster": ActionPolicy(
+        Risk.LOW, True,
+        ("spd-say", "--ssml", "-r", "+25", "-e", "Sprechgeschwindigkeit erhöht."),
+        _no_target,
+    ),
+    "speech.rate.slower": ActionPolicy(
+        Risk.LOW, True,
+        ("spd-say", "--ssml", "-r", "-25", "-e", "Sprechgeschwindigkeit verringert."),
+        _no_target,
+    ),
+    "speech.rate.normal": ActionPolicy(
+        Risk.LOW, True,
+        ("spd-say", "--ssml", "-r", "0", "-e", "Sprechgeschwindigkeit zurückgesetzt."),
+        _no_target,
+    ),
+    "speech.language.german": ActionPolicy(
+        Risk.LOW, True,
+        ("spd-say", "--ssml", "-l", "de", "-e", "Sprachausgabe ist auf Deutsch gestellt."),
+        _no_target,
+    ),
+    "speech.language.english": ActionPolicy(
+        Risk.LOW, True,
+        ("spd-say", "--ssml", "-l", "en", "-e", "Speech output is now set to English."),
+        _no_target,
+    ),
     # Accessibility switches are fully specified fixed vectors: the caller
     # names the action, never the schema key or the value.
     "a11y.keyboard.enable": ActionPolicy(
