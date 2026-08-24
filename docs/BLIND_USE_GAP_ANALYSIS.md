@@ -50,6 +50,18 @@ Satz/Absatz am Cursor) und der Buchstabiermodus („A wie Anton" → A,
 deutsch/englisch, mit Ziffern). Der Sitzungstest deckt auch die
 Passwortfeld-Verweigerung auf dem echten Bus ab.
 
+Umgesetzt (2026-08-24, mehrstufige Navigation): „drei Wörter zurück", „nächster
+Absatz", „Zeile 12" und „Zeile zwölf" bewegen den Cursor in einem Befehl — der
+Adapter loopt intern über die Einheit (Wort/Zeile/Satz/Absatz), clampt ehrlich
+an den Grenzen („Anfang erreicht, Wort-Navigation stoppt hier. Der Cursor steht
+auf Position 0 von 47") und meldet die erreichte Position; Zeilennummern über
+das Dokumentende hinaus werden abgefangen und auf die letzte Zeile gesetzt („Das
+Dokument hat nur 7 Zeilen, ich stehe jetzt in Zeile 7"). Leerzeilen sind keine
+Navigationseinheiten. Ziffern (1–3-stellig) und gesprochene Zahlwörter (0–99,
+inkl. „dreiundzwanzig") teilen sich das Zahlvokabular des Zahl-Diktiermodus.
+Verifiziert gegen den Fake-Baum und im GTK-Sitzungstest gegen eine echte
+mehrzeilige `Gtk.TextView` (3 Absätze, 7 Zeilen).
+
 Teilweise umgesetzt (2026-08-24, Diktiermodi): E-Mail-Adressen, URLs/Dateipfade
 und Zahlen haben je einen eigenen Diktiermodus mit explizitem Trigger —
 „diktiere e-mail hendrik at kaiser-mail punkt de" → `hendrik@kaiser-mail.de`,
@@ -63,8 +75,6 @@ abgelehnt statt geraten, und der Modus-Ausgang bleibt schema-valide
 
 Es fehlt weiterhin:
 
-- **Mehrstufige Navigation**: „drei Wörter zurück", „nächster Absatz",
-  „Zeile 12" — heute bewegt sich der Cursor nur um eine Einheit pro Befehl.
 - **Diktiermodi (Reste)**: Datum und Uhrzeit haben noch keinen Modus
   (Trigger sind dokumentiert, Umsetzung folgt demnächst); Zahlwörter gehen
   nur 0–99 („hundert", „tausend", „dreihundertfünfundzwanzig" werden
@@ -77,9 +87,6 @@ Es fehlt weiterhin:
   umgeformt — Ausweg ist das Escape „wörtlich"/„literal" vor dem Wort,
   ohne Vorwissen aber nicht auffindbar (gleiche Grundspannung wie beim
   Satzzeichen-Befehl am Satzende).
-- **Ganzes Dokument vorlesen**: mit Positionsmerker, Pause und Fortsetzen an
-  derselben Stelle — das granulare Lesen deckt heute nur die Einheit am Cursor
-  ab, nicht den fortlaufenden Text.
 - **Korrektur-Slots über den Dialog hinweg**: „nein, ich meinte …" muss die
   letzte Äußerung ersetzen, nicht eine neue anhängen.
 
@@ -90,10 +97,23 @@ Ohne diesen Block ist jede Textarbeit jenseits eines Einzeilers unmöglich.
 Orientierung heißt heute: aktives Fenster, Fokus, bis zu 30 nummerierte Ziele.
 Für Inhalte reicht das nicht.
 
+Umgesetzt (2026-08-24, Say-All): „lies alles vor" liest das fokussierte Feld
+satzweise über speech-dispatcher vor (Chunk-für-Chunk im Hintergrund-Thread,
+die Kommando-Schleife bleibt frei), „stopp" bricht ab (speech-dispatcher-Cancel
+`spd-say -C`), „lies weiter" setzt am Merker fort („Weiter in Zeile 2. Sagen
+Sie Stopp zum Pausieren."). Der Merker ist ein Zeichen-Offset nach dem letzten
+komplett gesprochenen Satz, gilt pro Feld und wird bei Fokuswechsel oder
+bewusster Navigation ehrlich verworfen; nach dem vollständigen Vorlesen steht
+der Cursor einmalig am Feldende. Der unterbrochene Satz wird bei der
+Fortsetzung ab seinem Anfang wiederholt. Verifiziert im Sitzungstest gegen
+eine echte `Gtk.TextView` inklusive Stopp mitten im Satz und Fortsetzen am
+Merker. Bekannte Grenzen, bewusst offen: keine Geschwindigkeitsänderung
+während des Vorlesens, kein Highlighting, „stopp" wird (Halbduplex-Mikrofon)
+zuverlässig frühestens an der Satzgrenze erkannt, und der Merker gilt nicht
+dokumentübergreifend.
+
 Es fehlt:
 
-- **Durchgehendes Vorlesen** („Say-All") mit Positionsverfolgung, Unterbrechen
-  und Fortsetzen.
 - **Strukturnavigation**: von Überschrift zu Überschrift, Liste zu Liste,
   Landmarke zu Landmarke, Link zu Link. Orca kann das; Clausis kennt es nicht.
 - **Tabellen**: Zeile/Spalte wechseln, Kopfzeilen mitsprechen, „Zelle B3",

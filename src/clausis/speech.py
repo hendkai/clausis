@@ -122,7 +122,13 @@ class LocalWhisper:
 
 
 class SystemSpeaker:
-    """Speak with the local accessibility speech service; never use a shell."""
+    """Speak with the local speech service; never use a shell.
+
+    ``speak`` blocks until the utterance is done (``spd-say -w``), which is
+    right for short confirmations.  ``speak_async`` returns a handle whose
+    ``wait`` blocks; long-running speech (say-all) uses it together with
+    ``cancel`` so a spoken "Stopp" can end the audio at a chunk boundary.
+    """
 
     def speak(self, text: str, *, language: str = "de") -> None:
         if not text.strip():
@@ -142,6 +148,80 @@ class SystemSpeaker:
             if completed.returncode == 0:
                 return
         raise SpeechError("Keine lokale Sprachausgabe verfügbar.")
+
+    def speak_async(self, text: str, *, language: str = "de"):
+        """Speak without blocking the caller; return an utterance handle.
+
+        The handle's ``wait()`` blocks until the utterance finished (or was
+        cancelled); ``is_done`` reports the same without blocking.  Only the
+        speech-dispatcher path supports cancellation, so it is the only one
+        offered asynchronously: falling back to a blocking engine for a
+        say-all would mute the stop command for minutes.
+        """
+
+        if not text.strip():
+            return _CompletedUtterance()
+        if not shutil.which("spd-say"):
+            raise SpeechError("Keine lokale Sprachausgabe verfügbar.")
+        try:
+            # -w makes spd-say block until speech-dispatcher finished (or the
+            # output was cancelled), so process exit is the utterance signal.
+            process = subprocess.Popen(
+                ["spd-say", "-w", "-l", language, text],
+                shell=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError as exc:
+            raise SpeechError("Keine lokale Sprachausgabe verfügbar.") from exc
+        return _AsyncUtterance(process)
+
+    def cancel(self) -> None:
+        """Stop the current speech output (speech-dispatcher cancel).
+
+        Fixed vector, no shell.  Silently a no-op when speech-dispatcher is
+        not installed; on the live image it always is.
+        """
+
+        if not shutil.which("spd-say"):
+            return
+        try:
+            subprocess.run(
+                ["spd-say", "-C"],
+                shell=False,
+                check=False,
+                timeout=15,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return
+
+
+class _CompletedUtterance:
+    """Handle of an empty utterance: already finished."""
+
+    is_done = True
+
+    def wait(self, timeout: Optional[float] = None) -> None:
+        del timeout
+
+
+class _AsyncUtterance:
+    """Handle of a running ``spd-say -w`` process."""
+
+    def __init__(self, process: subprocess.Popen) -> None:
+        self._process = process
+
+    @property
+    def is_done(self) -> bool:
+        return self._process.poll() is not None
+
+    def wait(self, timeout: Optional[float] = None) -> None:
+        try:
+            self._process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            pass
 
 
 def record_temporary(recorder: MicrophoneRecorder) -> Path:

@@ -103,6 +103,23 @@ def _granularity(request: ActionRequest) -> None:
         raise ValueError("granularity must be character, word, line, sentence or paragraph")
 
 
+def _step_count(request: ActionRequest) -> None:
+    """A counted caret move repeats a unit step a bounded number of times."""
+
+    if request.target:
+        raise ValueError("action does not accept a target")
+    value = request.arguments.get("count", 1)
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 99:
+        raise ValueError("count must be between 1 and 99")
+
+
+def _line_number(request: ActionRequest) -> None:
+    """A direct line jump names a bounded one-based line number."""
+
+    if not request.target.isdigit() or not 1 <= int(request.target) <= 999:
+        raise ValueError("line number must be between 1 and 999")
+
+
 ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     "app.launch": ActionPolicy(Risk.LOW, True, ("gtk-launch",), _safe_identifier),
     "app.close": ActionPolicy(Risk.MEDIUM, True, None, _safe_identifier),
@@ -140,9 +157,23 @@ ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     # request schema forbids control characters inside a dictated target.
     "text.caret.start": ActionPolicy(Risk.LOW, True, None, _no_target),
     "text.caret.end": ActionPolicy(Risk.LOW, True, None, _no_target),
-    "text.caret.word_next": ActionPolicy(Risk.LOW, True, None, _no_target),
-    "text.caret.word_previous": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.caret.word_next": ActionPolicy(Risk.LOW, True, None, _step_count),
+    "text.caret.word_previous": ActionPolicy(Risk.LOW, True, None, _step_count),
+    "text.caret.line_next": ActionPolicy(Risk.LOW, True, None, _step_count),
+    "text.caret.line_previous": ActionPolicy(Risk.LOW, True, None, _step_count),
+    "text.caret.sentence_next": ActionPolicy(Risk.LOW, True, None, _step_count),
+    "text.caret.sentence_previous": ActionPolicy(Risk.LOW, True, None, _step_count),
+    "text.caret.paragraph_next": ActionPolicy(Risk.LOW, True, None, _step_count),
+    "text.caret.paragraph_previous": ActionPolicy(Risk.LOW, True, None, _step_count),
+    "text.caret.line": ActionPolicy(Risk.LOW, True, None, _line_number),
     "text.read_from_caret": ActionPolicy(Risk.LOW, True, None, _no_target),
+    # Say-all: pure reads.  "lies alles vor" starts a chunked background
+    # read and returns immediately; "stopp" cancels the speech output;
+    # "lies weiter" resumes at the saved chunk boundary.  Nothing is ever
+    # written, so no confirmation is needed anywhere in this family.
+    "text.read_all": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.read_all.stop": ActionPolicy(Risk.LOW, True, None, _no_target),
+    "text.read_all.resume": ActionPolicy(Risk.LOW, True, None, _no_target),
     "text.newline": ActionPolicy(Risk.LOW, True, None, _no_target),
     "text.paragraph": ActionPolicy(Risk.LOW, True, None, _no_target),
     # Selection and granular reading: a selection is visible in the field,

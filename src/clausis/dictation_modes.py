@@ -98,7 +98,9 @@ def contains_control_characters(text: str) -> bool:
     exactly the injection surface, so every dictation payload shaper —
     plain dictation, spelling and the modes — refuses a payload that
     contains one instead of letting the request constructor raise later
-    (a voice loop must never crash on a malformed transcript).
+    (a voice loop must never crash on a malformed transcript).  The
+    refused set matches ``models.TARGET_RE`` exactly; NBSP (``\\xa0``) and
+    all other printable Unicode stay allowed on both layers.
     """
 
     return any(ch < "\x20" or "\x7f" <= ch <= "\x9f" for ch in text)

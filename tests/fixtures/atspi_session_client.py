@@ -16,17 +16,32 @@ invalidates the expectation of a later one.
 
 import re
 import sys
+import threading
 import time
 import traceback
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from clausis.gnome_adapter import GnomeAdapterError, PyAtSpiDesktop
-from clausis.text_units import granular_chunk, word_bounds
+from clausis.text_units import granular_chunk, sentence_bounds, word_bounds
 
 WINDOW_TITLE = "ClausisSessionProbe"
 INITIAL_TEXT = "hallo welt hier"
 INSERTION = " jetzt"
 POSITION_REPORT = re.compile(r"Position (\d+) von (\d+)")
+
+#: Multi-line TextView content of the probe app (must match
+#: ``atspi_session_probe_app.MULTILINE_TEXT``; the equality is asserted in
+#: the session itself so a drift fails loudly instead of silently).
+MULTILINE_TEXT = (
+    "Erste Zeile des Dokuments.\n"
+    "Zweite Zeile folgt.\n"
+    "\n"
+    "Neuer Absatz beginnt hier.\n"
+    "Noch eine Zeile mit Inhalt.\n"
+    "\n"
+    "Letzter Absatz."
+)
+MULTILINE_NAME = "MehrzeiligesFeld"
 
 lines = []
 
@@ -94,6 +109,64 @@ def text_of(value: Any, fallback: str) -> str:
     return value if isinstance(value, str) else fallback
 
 
+class StubUtterance:
+    """Waitable like ``SystemSpeaker``'s async handle.
+
+    Completing pops the pending chunk into ``spoken``; a chunk cancelled
+    while blocked never reaches ``spoken`` — exactly the distinction the
+    bookmark is built on.
+    """
+
+    def __init__(self, speaker: "StubSpeaker") -> None:
+        self._speaker = speaker
+
+    def wait(self, timeout: Optional[float] = None) -> None:
+        del timeout  # instant by design: the session has no audio pipeline
+        if self._speaker.pending:
+            self._speaker.spoken.append(self._speaker.pending.pop())
+
+
+class StubSpeaker:
+    """Stand-in for ``SystemSpeaker`` where the session has no audio stack.
+
+    The say-all loop needs a cancelable, waitable speech handle; CI has no
+    speech-dispatcher, so the stub completes each chunk instantly and records
+    it.  ``block_after`` simulates playback the user interrupts: every chunk
+    beyond that one-based count blocks on an internal gate until
+    :meth:`cancel` (the ``spd-say -C`` of the session) opens it — a one-shot,
+    because after the interruption the resumed run may play to the end.
+    """
+
+    def __init__(self, block_after: Optional[int] = None) -> None:
+        self.spoken: List[str] = []
+        self.pending: List[str] = []
+        self.cancelled = 0
+        self._lock = threading.Lock()
+        self._block_after = block_after
+        self._gate = threading.Event()
+        self._gate.set()
+
+    def speak_async(self, text: str, language: str = "de") -> StubUtterance:
+        del language
+        with self._lock:
+            self.pending.append(text)
+            in_flight = len(self.spoken) + len(self.pending)
+            if self._block_after is not None and in_flight > self._block_after:
+                self._gate.clear()
+            else:
+                self._gate.set()
+        self._gate.wait()
+        return StubUtterance(self)
+
+    def cancel(self) -> None:
+        self.cancelled += 1
+        with self._lock:
+            self._block_after = None  # one-shot interruption
+            if self.pending:
+                self.pending.pop()
+        self._gate.set()
+
+
 def find_password_node() -> Any:
     """Return the first ``password text`` node on the bus, or ``None``.
 
@@ -126,6 +199,215 @@ def find_password_node() -> Any:
             except Exception:
                 continue
     return None
+
+
+def find_node_by_name(name: str) -> Any:
+    """Return the first node on the bus whose accessible name matches."""
+
+    try:
+        import pyatspi
+    except ImportError:
+        return None
+    try:
+        root = pyatspi.Registry.getDesktop(0)
+    except Exception:
+        return None
+    stack = [root]
+    while stack:
+        node = stack.pop(0)
+        try:
+            if node.name == name:
+                return node
+            count = node.childCount
+        except Exception:
+            continue
+        for index in range(count):
+            try:
+                stack.append(node.getChildAtIndex(index))
+            except Exception:
+                continue
+    return None
+
+
+def wait_until(predicate: Callable[[], bool], timeout: float = 10.0) -> bool:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if predicate():
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def multiline_steps(desktop: PyAtSpiDesktop) -> None:
+    """Counted navigation, line jumps and say-all against the Gtk.TextView.
+
+    Say-all runs with a stub speech handle (CI has no speech-dispatcher):
+    the stub completes chunks instantly but blocks the third one, so the
+    session stops the run exactly where a user would interrupt playback,
+    then resumes at the bookmark and verifies the field-end caret.
+    """
+
+    node = find_node_by_name(MULTILINE_NAME)
+    if node is None:
+        record("REFUSED", "multiline", "probe exposes no multi-line text view")
+        return
+    try:
+        grabbed = bool(node.queryComponent().grabFocus())
+    except Exception:
+        grabbed = False
+    focused = lambda: desktop.context().focused_name  # noqa: E731
+    if not grabbed or not wait_until(lambda: focused() == MULTILINE_NAME, 5):
+        record("REFUSED", "multiline-focus", f"grabbed={grabbed}, focused={focused()!r}")
+        return
+    record("OK", "multiline-focus", f"focused={focused()}")
+
+    run(
+        "multiline-content",
+        desktop.read_text_field,
+        lambda value: require(value == MULTILINE_TEXT, f"content={value!r}"),
+    )
+    total = len(MULTILINE_TEXT)
+
+    # --- counted word navigation: one command, one position report --------
+    run("multiline-caret-start", lambda: desktop.move_caret("start"))
+    counted_ok, counted_spoken = run(
+        "caret-word-counted",
+        lambda: desktop.move_caret("word_next", 3),
+    )
+    counted_position = parse_position(counted_spoken)
+    if counted_ok and counted_position:
+        run(
+            "caret-word-counted-check",
+            lambda: None,
+            lambda _: require(
+                counted_position == (16, total),  # 4th word "Dokuments."
+                f"position={counted_position}",
+            ),
+        )
+
+    # --- line jumps: exact and clamped -------------------------------------
+    line_ok, line_spoken = run("caret-line-5", lambda: desktop.move_caret_to_line(5))
+    if line_ok:
+        run(
+            "caret-line-5-check",
+            lambda: None,
+            lambda _: require(
+                "Zeile 5" in line_spoken
+                and parse_position(line_spoken) == (75, total),
+                f"spoken={line_spoken!r}",
+            ),
+        )
+    clamp_ok, clamp_spoken = run("caret-line-99-clamps", lambda: desktop.move_caret_to_line(99))
+    if clamp_ok:
+        run(
+            "caret-line-99-check",
+            lambda: None,
+            lambda _: require(
+                "nur 7" in clamp_spoken
+                and "Zeile 7" in clamp_spoken
+                and parse_position(clamp_spoken) == (104, total),
+                f"spoken={clamp_spoken!r}",
+            ),
+        )
+
+    # --- counted line navigation back from the end --------------------------
+    back_ok, back_spoken = run(
+        "caret-lines-counted-back",
+        lambda: desktop.move_caret("line_previous", 3),
+    )
+    back_position = parse_position(back_spoken)
+    if back_ok and back_position:
+        run(
+            "caret-lines-counted-check",
+            lambda: None,
+            lambda _: require(
+                # Empty lines are not units: 7 -> 5 -> 4 -> 2
+                back_position == (27, total),
+                f"position={back_position}",
+            ),
+        )
+
+    # --- say-all: start, stop mid-chunk, resume, field-end caret ------------
+    speaker = StubSpeaker(block_after=2)
+    start_ok, start_spoken = run(
+        "say-all-start", lambda: desktop.read_all_start(speaker)
+    )
+    if start_ok:
+        run(
+            "say-all-start-check",
+            lambda: None,
+            lambda _: require("Stopp" in start_spoken, f"spoken={start_spoken!r}"),
+        )
+        # Wait until chunks 1-2 completed and chunk 3 is blocked mid-playback.
+        blocked = wait_until(
+            lambda: len(speaker.spoken) == 2 and len(speaker.pending) == 1, 10
+        )
+        if not blocked:
+            record("ERROR", "say-all-block", "reader never reached the third chunk")
+            return
+        stop_ok, stop_spoken = run(
+            "say-all-stop", lambda: desktop.read_all_stop(speaker)
+        )
+        if stop_ok:
+            run(
+                "say-all-stop-check",
+                lambda: None,
+                lambda _: require(
+                    "Zeile 2" in stop_spoken  # bookmark: end of sentence 2
+                    and speaker.cancelled == 1,
+                    f"spoken={stop_spoken!r}, cancelled={speaker.cancelled}",
+                ),
+            )
+        resume_ok, resume_spoken = run(
+            "say-all-resume", lambda: desktop.read_all_resume(speaker)
+        )
+        if resume_ok:
+            run(
+                "say-all-resume-check",
+                lambda: None,
+                lambda _: require(
+                    "Zeile 2" in resume_spoken,  # bookmark offset sits at line 2's end
+                    f"spoken={resume_spoken!r}",
+                ),
+            )
+        # The resumed reader plays the remaining three sentences to the end.
+        finished = wait_until(
+            lambda: desktop._say_all_reader is None
+            or desktop._say_all_reader.thread is None
+            or not desktop._say_all_reader.thread.is_alive(),
+            10,
+        )
+        if not finished:
+            record("ERROR", "say-all-finish", "resumed reader never finished")
+            return
+        run(
+            "say-all-all-five-sentences",
+            lambda: None,
+            lambda _: require(
+                len(speaker.spoken) == 5,
+                f"spoken={speaker.spoken!r}",
+            ),
+        )
+        # Field completely read: the caret sits at the field end once, so
+        # navigation continues from there (read-from-caret is empty).
+        run(
+            "say-all-caret-at-end",
+            desktop.read_from_caret,
+            lambda value: require(value == "", f"remaining={value!r}"),
+        )
+        nav_ok, nav_spoken = run(
+            "say-all-then-word-back", lambda: desktop.move_caret("word_previous")
+        )
+        nav_position = parse_position(nav_spoken)
+        if nav_ok and nav_position:
+            run(
+                "say-all-then-word-back-check",
+                lambda: None,
+                lambda _: require(
+                    nav_position == (112, total),  # "Absatz." in the last line
+                    f"position={nav_position}",
+                ),
+            )
 
 
 def main() -> int:
@@ -322,6 +604,13 @@ def main() -> int:
             "password-field",
             traceback.format_exc(limit=3).replace("\n", " | "),
         )
+
+    # --- multi-line TextView: counted navigation, line jumps, say-all ------
+    # The probe app ships a Gtk.TextView with three paragraphs; the entry
+    # above is single-line and cannot provide these capabilities.  Focus is
+    # moved through the same AT-SPI component interface the adapter itself
+    # uses internally, so the steps below measure the adapter, not GTK.
+    multiline_steps(desktop)
 
     errors = sum(1 for line in lines if line.startswith("ERROR"))
     refusals = sum(1 for line in lines if line.startswith("REFUSED"))

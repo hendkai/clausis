@@ -98,6 +98,52 @@ def _dictation_mode(mode: str) -> Builder:
     return build
 
 
+def _number_word(match: Match[str]) -> int:
+    """Numeric value of a router number group: digits or a spoken word.
+
+    Reuses the dictation-mode number table (0–99 including the German
+    compounds „dreiundzwanzig" …), so „Zeile 12" and „Zeile zwölf" both
+    parse and every numbered command shares one number vocabulary.
+    """
+
+    from .dictation_modes import word_number
+
+    value = word_number(match.group("number"))
+    if value is None:
+        raise ValueError
+    return value
+
+
+def _counted_caret_builder(direction: str) -> Builder:
+    """Builder for „<n> <Einheit(en)> weiter/zurück" counted caret moves.
+
+    The unit word decides which unit action fires; the adapter loops
+    ``count`` times internally (one round trip, one spoken position), so
+    the router never fires an action N times.
+    """
+
+    unit_actions = {
+        "word": f"text.caret.word_{direction}",
+        "line": f"text.caret.line_{direction}",
+        "sentence": f"text.caret.sentence_{direction}",
+        "paragraph": f"text.caret.paragraph_{direction}",
+    }
+
+    def build(match: Match[str]) -> ActionRequest:
+        unit = _COUNTED_UNIT_WORDS[match.group("unit").casefold()]
+        return ActionRequest(unit_actions[unit], arguments={"count": _number_word(match)})
+
+    return build
+
+
+def _line_number_target(match: Match[str]) -> ActionRequest:
+    return ActionRequest("text.caret.line", target=str(_number_word(match)))
+
+
+def _unit_caret(action: str) -> Builder:
+    return lambda _: ActionRequest(action)
+
+
 def _volume(match: Match[str]) -> ActionRequest:
     return ActionRequest(
         "audio.volume.set",
@@ -161,6 +207,28 @@ _GRANULARITY_WORDS = {
     "paragraph": "paragraph",
 }
 
+#: Unit words of the counted navigation patterns (singular and plural,
+#: German and English) mapped to their unit name.
+_COUNTED_UNIT_WORDS = {
+    "wort": "word",
+    "worts": "word",
+    "wörter": "word",
+    "word": "word",
+    "words": "word",
+    "zeile": "line",
+    "zeilen": "line",
+    "line": "line",
+    "lines": "line",
+    "satz": "sentence",
+    "sätze": "sentence",
+    "sentence": "sentence",
+    "sentences": "sentence",
+    "absatz": "paragraph",
+    "absätze": "paragraph",
+    "paragraph": "paragraph",
+    "paragraphs": "paragraph",
+}
+
 
 def _read_granular(match: Match[str]) -> ActionRequest:
     granularity = _GRANULARITY_WORDS[match.group("unit").casefold()]
@@ -172,6 +240,21 @@ def _read_granular(match: Match[str]) -> ActionRequest:
 
 _file_select = _file_number_command("dialog.file.select")
 _folder_open = _file_number_command("dialog.folder.open")
+
+#: Number vocabulary shared by every counted navigation pattern: digits
+#: (up to three) or a German/English number word 0–99, including the German
+#: compounds ("zweiundzwanzig").  Built from the dictation-mode table so
+#: the router and the number dictation mode can never drift apart.
+from .dictation_modes import _SPOKEN_NUMBERS as _DICTATION_NUMBER_WORDS  # noqa: E402
+
+_NUMBER_ALTERNATION = "|".join(
+    sorted(
+        (re.escape(word) for word in _DICTATION_NUMBER_WORDS),
+        key=len,
+        reverse=True,
+    )
+)
+_NUMBER_GROUP = rf"(?:\d{{1,3}}|{_NUMBER_ALTERNATION})"
 
 
 def _rx(*values: str) -> Sequence[Pattern[str]]:
@@ -216,9 +299,100 @@ COMMANDS: Sequence[CommandPattern] = (
     CommandPattern("clear-field", _rx(r"feld leeren", r"clear (?:the )?field"), _simple("text.clear", Risk.MEDIUM)),
     CommandPattern("caret-start", _rx(r"cursor an den anfang", r"caret to (?:the )?start", r"(?:move )?cursor to (?:the )?beginning"), _simple("text.caret.start")),
     CommandPattern("caret-end", _rx(r"cursor ans ende", r"caret to (?:the )?end", r"(?:move )?cursor to (?:the )?end"), _simple("text.caret.end")),
+    # Counted unit navigation must sit BEFORE the plain single-step patterns:
+    # "drei wörter zurück" would otherwise fall through to "wort zurück"
+    # only after failing the dictation verbs, and "ein wort weiter" must
+    # keep working through the single-step pattern as well.
+    CommandPattern(
+        "caret-counted-next",
+        _rx(
+            rf"(?P<number>{_NUMBER_GROUP}) (?P<unit>wörter|worts?|zeilen|sätze|absätze) weiter",
+            rf"(?P<number>{_NUMBER_GROUP}) (?P<unit>words?|lines|sentences|paragraphs) (?:forward|ahead|next)",
+        ),
+        _counted_caret_builder("next"),
+    ),
+    CommandPattern(
+        "caret-counted-previous",
+        _rx(
+            rf"(?P<number>{_NUMBER_GROUP}) (?P<unit>wörter|worts?|zeilen|sätze|absätze) zurück",
+            rf"(?P<number>{_NUMBER_GROUP}) (?P<unit>words?|lines|sentences|paragraphs) back",
+        ),
+        _counted_caret_builder("previous"),
+    ),
+    CommandPattern(
+        "caret-unit-next",
+        _rx(
+            r"(?:nächstes wort|wort weiter|cursor wort weiter)",
+            r"next word",
+        ),
+        _unit_caret("text.caret.word_next"),
+    ),
+    CommandPattern(
+        "caret-unit-previous",
+        _rx(
+            r"(?:vorheriges wort|wort zurück|cursor wort zurück)",
+            r"previous word",
+        ),
+        _unit_caret("text.caret.word_previous"),
+    ),
+    CommandPattern(
+        "caret-line-next",
+        _rx(r"(?:nächste zeile|zeile weiter|cursor zeile weiter)", r"next line"),
+        _unit_caret("text.caret.line_next"),
+    ),
+    CommandPattern(
+        "caret-line-previous",
+        _rx(r"(?:vorherige zeile|zeile zurück|cursor zeile zurück)", r"previous line"),
+        _unit_caret("text.caret.line_previous"),
+    ),
+    CommandPattern(
+        "caret-sentence-next",
+        _rx(r"(?:nächster satz|satz weiter|cursor satz weiter)", r"next sentence"),
+        _unit_caret("text.caret.sentence_next"),
+    ),
+    CommandPattern(
+        "caret-sentence-previous",
+        _rx(r"(?:vorheriger satz|satz zurück|cursor satz zurück)", r"previous sentence"),
+        _unit_caret("text.caret.sentence_previous"),
+    ),
+    CommandPattern(
+        "caret-paragraph-next",
+        _rx(r"(?:nächster absatz|absatz weiter|cursor absatz weiter)", r"next paragraph"),
+        _unit_caret("text.caret.paragraph_next"),
+    ),
+    CommandPattern(
+        "caret-paragraph-previous",
+        _rx(r"(?:vorheriger absatz|absatz zurück|cursor absatz zurück)", r"previous paragraph"),
+        _unit_caret("text.caret.paragraph_previous"),
+    ),
+    CommandPattern(
+        "caret-line-number",
+        _rx(
+            rf"zeile (?P<number>{_NUMBER_GROUP})",
+            rf"(?:go to |jump to )?line (?P<number>{_NUMBER_GROUP})",
+        ),
+        _line_number_target,
+    ),
     CommandPattern("caret-next-word", _rx(r"cursor (?:ein )?wort weiter", r"next word"), _simple("text.caret.word_next")),
     CommandPattern("caret-previous-word", _rx(r"cursor (?:ein )?wort zurück", r"previous word"), _simple("text.caret.word_previous")),
     CommandPattern("read-from-caret", _rx(r"lies ab dem cursor(?: vor)?", r"read from (?:the )?caret"), _simple("text.read_from_caret")),
+    # Say-all: one command starts the chunked background read; "stopp"
+    # (bare, no Hermes/Clausis) cancels it; "lies weiter" resumes.
+    CommandPattern(
+        "read-all",
+        _rx(r"lies (?:alles|das ganze|das dokument)(?: vor)?", r"read (?:everything|it all|the whole (?:field|document))(?: aloud)?", r"say all"),
+        _simple("text.read_all"),
+    ),
+    CommandPattern(
+        "read-all-stop",
+        _rx(r"stopp", r"stop(?: reading)?", r"halt(?: reading)?"),
+        _simple("text.read_all.stop"),
+    ),
+    CommandPattern(
+        "read-all-resume",
+        _rx(r"lies weiter", r"(?:keep |continue )?reading", r"resume reading"),
+        _simple("text.read_all.resume"),
+    ),
     # A line break cannot ride inside a dictated target: the request schema
     # forbids control characters so nothing smuggles one across a trust
     # boundary.  The adapter therefore synthesizes the newline itself and the

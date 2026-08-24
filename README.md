@@ -66,7 +66,7 @@ disk in VirtualBox. Do not unpack the resulting ISO.
 - Matching GNOME identity with the Clausis listening-field wallpaper, dark
   color preference, purple speech accent, branded launchers and GDM logo,
   reduced animation and Atkinson Hyperlegible typography.
-- 86 deterministic German/English offline command families. Every allowlisted
+- 98 deterministic German/English offline command families. Every allowlisted
   action reaches exactly one adapter — semantic GNOME, read-only local query,
   the Polkit-gated privileged helper or a fixed argument vector — and a test
   fails the build if an action is left without one.

@@ -257,6 +257,11 @@ def _localized_result(status: str, message: str) -> str:
         return "Aktion ausgeführt."
     if status == "dry_run":
         return "Aktion erkannt. Die Ausführung ist im sicheren Testmodus ausgeschaltet."
+    if status.startswith("read_"):
+        # Say-all control messages ("Ich lese vor, sagen Sie Stopp") are the
+        # spoken result themselves; re-announcing them would collide with the
+        # background reading they describe.
+        return message
     if status == "confirmation_required":
         return (
             "Diese Aktion benötigt eine vertrauenswürdige Bestätigung und wurde "

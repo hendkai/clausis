@@ -624,3 +624,22 @@ cover `\x1f` (refused), `\x7f`/`\x80`/`\x85`/`\x9f` (refused) and `\xa0`
 wörtlich/literal escape, consistent with the sentence-end punctuation
 rule; not re-implemented in this pass. No new model category, biometric
 processing or cloud data flow was introduced.
+
+## 2026-08-24 — Counted navigation and say-all (GLM 5.3 via Hermes)
+
+Twelve new low-risk, read/move-only actions: counted caret navigation
+("drei Wörter zurück", "nächster Absatz", "Zeile 12"/"Zeile zwölf") loops
+adapter-side over the text units with honest clamping at the field edges,
+and say-all ("lies alles vor"/"stopp"/"lies weiter") reads the focused field
+sentence by sentence through speech-dispatcher in a background thread with a
+per-field character-offset bookmark (pause/resume), speech cancel via
+`spd-say -C`, and a one-time caret placement at the field end after a
+completed run. The number vocabulary (digits 1–3 places and spoken words
+0–99) is shared with the number dictation mode. Session-verified against a
+real multi-line Gtk.TextView on a real accessibility bus (counted word/line
+navigation, line jumps incl. clamping, say-all stop mid-sentence and resume
+at the bookmark). A chunking bug found during that verification (bare
+newlines produced silent speech chunks and dropped the first sentence after
+a blank line) was fixed before commit. 24 new unit tests; suite 638 tests
+green; no new injection path (read/move only), no new model category,
+biometric processing or cloud data flow was introduced.

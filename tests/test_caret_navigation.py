@@ -218,8 +218,8 @@ class CaretPolicyAndRoutingTests(unittest.TestCase):
             def __init__(self):
                 self.moves = []
 
-            def move_caret(self, direction):
-                self.moves.append(direction)
+            def move_caret(self, direction, count=1):
+                self.moves.append((direction, count))
                 return "Der Cursor steht auf Position 0 von 3."
 
         recorder = Recorder()
@@ -229,7 +229,7 @@ class CaretPolicyAndRoutingTests(unittest.TestCase):
         )
         result = broker.submit(ActionRequest("text.caret.start"))
         self.assertEqual(result.status, "completed")
-        self.assertEqual(recorder.moves, ["start"])
+        self.assertEqual(recorder.moves, [("start", 1)])
         self.assertIn("Position 0", result.message)
 
     def test_newline_reaches_the_adapter_through_the_broker(self):

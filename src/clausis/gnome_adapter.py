@@ -10,13 +10,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 import re
+import threading
 from typing import Any, Dict, Iterable, List, Optional, Protocol, Sequence, Tuple
 
 from .models import ActionRequest, ActionResult
 from .policy import ActionPolicy
+from .say_all import SayAllError, SayAllReader
 from .text_units import (
     GRANULARITIES,
     granular_chunk,
+    line_bounds,
+    paragraph_bounds,
     sentence_bounds,
     word_bounds,
 )
@@ -126,10 +130,22 @@ class SemanticDesktop(Protocol):
     def paste(self) -> str:
         ...
 
-    def move_caret(self, direction: str) -> str:
+    def move_caret(self, direction: str, count: int = 1) -> str:
+        ...
+
+    def move_caret_to_line(self, line: int) -> str:
         ...
 
     def read_from_caret(self) -> str:
+        ...
+
+    def read_all_start(self) -> str:
+        ...
+
+    def read_all_stop(self) -> str:
+        ...
+
+    def read_all_resume(self) -> str:
         ...
 
     def insert_newline(self) -> str:
@@ -324,6 +340,11 @@ class PyAtSpiDesktop:
         except ImportError as exc:
             raise GnomeAdapterError("GNOME-Zugriff ist nicht installiert.") from exc
         self._atspi = pyatspi
+        # Say-all state: one active reader at most, plus the per-field
+        # bookmark where a paused run continues (see read_all_start).
+        self._say_all_reader: Optional[SayAllReader] = None
+        self._say_all_bookmark: Optional[Dict[str, Any]] = None
+        self._say_all_speaker_ref: Any = None
 
     def context(self) -> DesktopContext:
         application, window = self._active_window()
@@ -540,32 +561,200 @@ class PyAtSpiDesktop:
     # Cursor navigation inside the focused field (voice-only editing).
     # ------------------------------------------------------------------
 
-    def move_caret(self, direction: str) -> str:
-        """Move the caret in the focused field and report the new position.
+    #: Steppable caret units: the same text_units helpers back granular
+    #: reading, so "zwei Zeilen zurück" and "lies die Zeile" can never
+    #: disagree about where a unit boundary is.
+    _UNIT_STEPS = {
+        "word_next": ("word", 1),
+        "word_previous": ("word", -1),
+        "line_next": ("line", 1),
+        "line_previous": ("line", -1),
+        "sentence_next": ("sentence", 1),
+        "sentence_previous": ("sentence", -1),
+        "paragraph_next": ("paragraph", 1),
+        "paragraph_previous": ("paragraph", -1),
+    }
+    _UNIT_NAMES = {"word": "Wort", "line": "Zeile", "sentence": "Satz", "paragraph": "Absatz"}
 
-        Uses only the AT-SPI component/text interfaces — no key events, no
-        pointer, no screen coordinates.  A caret move that the field rejected
-        or silently ignored is reported honestly instead of being assumed,
-        which is why the offset is read back after the move.
+    @staticmethod
+    def _unit_bounds(content: str, unit: str, offset: int) -> Tuple[int, int]:
+        if unit == "word":
+            return word_bounds(content, offset)
+        if unit == "line":
+            return line_bounds(content, offset)
+        if unit == "sentence":
+            return sentence_bounds(content, offset)
+        return paragraph_bounds(content, offset)
+
+    @classmethod
+    def _unit_spans(cls, content: str, unit: str) -> List[Tuple[int, int]]:
+        """Ordered non-degenerate ``(start, end)`` spans of every unit.
+
+        The bounds helpers answer "the unit at this offset", so probing at a
+        unit's end reports that same unit again, and probing inside a
+        separator run reports a degenerate ``(end, end)`` span.  Both are
+        skipped by advancing one character and probing again — separators are
+        not units, and a re-report is not a new unit.  Units enumerated this
+        way are ordered and disjoint, which is what the step logic relies on.
+        """
+
+        spans: List[Tuple[int, int]] = []
+        position = 0
+        total = len(content)
+        while position < total and len(spans) <= 1000:
+            start, end = cls._unit_bounds(content, unit, position)
+            if start >= end or (spans and start <= spans[-1][0]):
+                position += 1
+                continue
+            spans.append((start, end))
+            position = end
+        return spans
+
+    @classmethod
+    def _step_offset(cls, content: str, unit: str, offset: int, sign: int) -> int:
+        """Offset of the unit boundary one ``unit`` step from ``offset``.
+
+        Classic word-step semantics, generalised to every unit: a forward
+        step from a unit's start lands at the next unit's start (the
+        separator run between them is skipped in the same step); a forward
+        step from inside or at the end of a unit first lands at the NEXT
+        unit's start as well, so step targets always sit at unit starts
+        (or at the field end) — the anchor a blind user can reason about.
+        A backward step lands at the start of the current unit, or of the
+        previous one when the offset already sits at a start.  At the edges
+        the offset clamps to ``0``/``len`` and a step that cannot move
+        returns the offset unchanged, which is how the counted loop detects
+        "Anfang erreicht".
+        """
+
+        total = len(content)
+        if not content:
+            return 0
+        offset = max(0, min(offset, total))
+        spans = cls._unit_spans(content, unit)
+        if not spans:
+            return offset
+        starts = [start for start, _end in spans]
+        if sign > 0:
+            # First unit start strictly after the offset; past the last unit
+            # a step reaches the field end.
+            for start in starts:
+                if start > offset:
+                    return start
+            return total
+        # Backward: the start of the unit containing the offset — or of the
+        # previous unit when the offset already sits at that start.
+        candidate = 0
+        for start, end in spans:
+            if start < offset:
+                candidate = start
+            else:
+                break
+        return candidate
+
+    def move_caret(self, direction: str, count: int = 1) -> str:
+        """Move the caret ``count`` units in the focused field, honestly.
+
+        The loop runs adapter-side: one command, one round trip, one spoken
+        position report.  Movement clamps at the field edges and says so
+        („Anfang erreicht"); a field that rejects the final offset is a
+        failure, never a silent no-op.  No key events, no pointer — only
+        the AT-SPI text interface, with the offset read back afterwards.
+
+        A caret move also consumes the say-all bookmark: the user has left
+        the reading flow and navigated on purpose, so a later „lies weiter"
+        must not jump back to a stale pause position.
         """
 
         node = self._focused_editable()
+        self._consume_say_all_bookmark(node)
         try:
             text = node.queryText()
-            count = int(text.characterCount)
+            total = int(text.characterCount)
             current = int(text.caretOffset)
         except Exception as exc:
             raise GnomeAdapterError("Die Cursorposition ist nicht lesbar.") from exc
+        if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+            raise GnomeAdapterError("Die Schrittanzahl muss mindestens eins sein.")
+        if count > 99:
+            raise GnomeAdapterError("Die Schrittanzahl ist zu groß.")
+        clamped = False
         if direction == "start":
             target = 0
         elif direction == "end":
-            target = count
-        elif direction == "word_next":
-            target = self._next_word_offset(self._field_text(node), current)
-        elif direction == "word_previous":
-            target = self._previous_word_offset(self._field_text(node), current)
+            target = total
+        elif direction in self._UNIT_STEPS:
+            unit, sign = self._UNIT_STEPS[direction]
+            content = self._field_text(node)
+            target = current
+            for _ in range(count):
+                stepped = self._step_offset(content, unit, target, sign)
+                if stepped == target:
+                    clamped = True
+                    break
+                target = stepped
+            content_note = ""
+            if clamped:
+                edge = "Anfang" if sign < 0 else "Ende"
+                content_note = f" {edge} erreicht."
         else:
             raise GnomeAdapterError(f"Unbekannte Cursorrichtung {direction}.")
+        target = max(0, min(target, total))
+        self._focus_node(node, "Das Feld lässt sich nicht fokussieren.")
+        try:
+            moved = node.queryText().setCaretOffset(target)
+        except Exception as exc:
+            raise GnomeAdapterError("Das Feld hat die Cursorbewegung abgelehnt.") from exc
+        if moved is False:
+            raise GnomeAdapterError("Das Feld hat die Cursorbewegung abgelehnt.")
+        try:
+            after = int(node.queryText().caretOffset)
+        except Exception as exc:
+            raise GnomeAdapterError("Die neue Cursorposition ist nicht lesbar.") from exc
+        if after != target:
+            raise GnomeAdapterError(
+                "Der Cursor ist nicht an der gemeldeten Position gelandet."
+            )
+        message = self._spoken_caret_position(after, total)
+        if direction in self._UNIT_STEPS and clamped:
+            unit_name = self._UNIT_NAMES[self._UNIT_STEPS[direction][0]]
+            edge = "Anfang" if self._UNIT_STEPS[direction][1] < 0 else "Ende"
+            steps_done = abs(after - current)
+            message = (
+                f"{edge} erreicht, {unit_name}-Navigation stoppt hier. "
+                + message
+            )
+            del steps_done
+        return message
+
+    def move_caret_to_line(self, line: int) -> str:
+        """Jump the caret to the start of a one-based line number.
+
+        A number past the last line clamps to the last line start and says
+        how many lines the field actually has — an honest report, not an
+        error and never a jump to zero.
+        """
+
+        if isinstance(line, bool) or not isinstance(line, int) or line < 1:
+            raise GnomeAdapterError("Die Zeilennummer muss mindestens eins sein.")
+        if line > 999:
+            raise GnomeAdapterError("Die Zeilennummer ist zu groß.")
+        node = self._focused_editable()
+        self._consume_say_all_bookmark(node)
+        content = self._field_text(node)
+        if not content:
+            raise GnomeAdapterError("Das Feld ist leer.")
+        # One-based line starts: 0 plus every offset after a newline.
+        starts = [0]
+        index = content.find("\n")
+        while index != -1 and len(starts) <= 999:
+            starts.append(index + 1)
+            index = content.find("\n", index + 1)
+        total_lines = len(starts)
+        requested = line
+        line = min(line, total_lines)
+        target = starts[line - 1]
+        count = int(node.queryText().characterCount)
         target = max(0, min(target, count))
         self._focus_node(node, "Das Feld lässt sich nicht fokussieren.")
         try:
@@ -582,7 +771,13 @@ class PyAtSpiDesktop:
             raise GnomeAdapterError(
                 "Der Cursor ist nicht an der gemeldeten Position gelandet."
             )
-        return self._spoken_caret_position(after, count)
+        if requested > total_lines:
+            return (
+                f"Das Dokument hat nur {total_lines} "
+                f"{'Zeile' if total_lines == 1 else 'Zeilen'}, ich stehe jetzt in Zeile {line}. "
+                + self._spoken_caret_position(after, count)
+            )
+        return f"Zeile {line}. " + self._spoken_caret_position(after, count)
 
     def insert_newline(self) -> str:
         """Insert one line break at the caret and report the field content.
@@ -806,6 +1001,193 @@ class PyAtSpiDesktop:
         except Exception as exc:
             raise GnomeAdapterError("Der Feldinhalt ist nicht lesbar.") from exc
         return str(text or "")[: self.MAX_FIELD_CHARS]
+
+    # ------------------------------------------------------------------
+    # Say-all: continuous reading with pause and resume (read-only).
+    # ------------------------------------------------------------------
+
+    #: A say-all run speaks sentence-sized chunks; the bookmark is the offset
+    #: after the last chunk that finished speaking completely.  It is per
+    #: field (keyed by application/window/focus name) and dropped whenever
+    #: the focus moves somewhere else — no cross-document bookmark.
+    _SAY_ALL_MAX_CHARS = 2048
+
+    def _field_key(self, node: Any) -> str:
+        application, window = self._active_window()
+        return f"{self._name(application)}|{self._name(window)}|{self._name(node)}"
+
+    def _say_all_chunks(self, node: Any, resume_at: int) -> List[Tuple[int, int]]:
+        """Sentence spans of the field from ``resume_at`` to the end.
+
+        Whitespace-only spans (the bare newlines the sentence splitter
+        produces between paragraphs) are skipped, not spoken: a chunk that
+        carries no text would waste a speech round trip AND — worse — its
+        end offset would become the ``spans[-1][1]`` anchor, silently
+        rejecting the first real sentence after a blank line because it
+        starts exactly at that anchor („start > end-of-last" is false for
+        adjacent spans).  Skipping them keeps every sentence in the run.
+        """
+
+        content = self._field_text(node)[: self._SAY_ALL_MAX_CHARS]
+        spans: List[Tuple[int, int]] = []
+        position = max(0, min(resume_at, len(content)))
+        while position < len(content) and len(spans) <= 1000:
+            start, end = sentence_bounds(content, position)
+            if (
+                end > position
+                and content[start:end].strip()
+                and (not spans or start > spans[-1][1])
+            ):
+                spans.append((start, end))
+                position = end
+                continue
+            position += 1
+        return spans
+
+    def read_all_start(self, speaker: Any = None) -> str:
+        """Start reading the whole focused field aloud, chunk by chunk.
+
+        Returns immediately with a confirmation so the command loop stays
+        free; „stopp" cancels (speech-dispatcher cancel), „lies weiter"
+        resumes at the bookmark.  The real caret is NOT moved along — only
+        after the field was read completely it is placed at the field end
+        once, so navigation continues from there.
+        """
+
+        node = self._focused_editable()
+        key = self._field_key(node)
+        self._stop_active_say_all()
+        speaker = speaker if speaker is not None else self._say_all_speaker()
+        reader = SayAllReader(
+            chunks=lambda: self._say_all_chunks(node, 0),
+            speak_chunk=lambda span: speaker.speak_async(
+                self._field_text(node)[span[0]:span[1]], language=self._say_all_language
+            ),
+            cancel_speech=speaker.cancel,
+            on_progress=lambda end: self._remember_say_all(key, node, end),
+        )
+        self._say_all_reader = reader
+        self._say_all_speaker_ref = speaker
+        reader.start()
+        return "Ich lese vor. Sagen Sie Stopp, um das Vorlesen zu beenden."
+
+    def read_all_stop(self, speaker: Any = None) -> str:
+        """Stop the running say-all and report where it paused.
+
+        Cancels the speech output unconditionally: a „stopp" must end any
+        running audio, including one from a reader this instance no longer
+        tracks (previous field, crashed loop).  When no reader is active the
+        honest answer is that nothing is being read.
+        """
+
+        reader = self._say_all_reader
+        active = reader is not None and reader.thread is not None and reader.thread.is_alive()
+        if active and reader is not None:
+            reader.stop()
+            reader.wait(timeout=10)
+        else:
+            cancel = speaker.cancel if speaker is not None else self._say_all_speaker().cancel
+            try:
+                cancel()
+            except Exception:
+                pass
+        self._say_all_reader = None
+        if not active or reader is None:
+            return "Ich lese gerade nicht vor."
+        bookmark = reader.bookmark
+        if bookmark is None:
+            return "Vorlesen beendet."
+        node = self._focused_editable()
+        line = self._line_of_offset(self._field_text(node), bookmark)
+        return f"Vorlesen pausiert in Zeile {line}. Sagen Sie Lies weiter."
+
+    def read_all_resume(self, speaker: Any = None) -> str:
+        """Continue reading at the saved bookmark of the same field."""
+
+        bookmark = self._say_all_bookmark
+        if bookmark is None:
+            raise GnomeAdapterError(
+                "Es gibt keine Fortsetzungsstelle. Sagen Sie Lies alles vor."
+            )
+        node = self._focused_editable()
+        if self._field_key(node) != bookmark.get("key"):
+            # Focus moved to another field: the bookmark is void, honestly.
+            self._say_all_bookmark = None
+            raise GnomeAdapterError(
+                "Das Vorlesen wurde in einem anderen Feld pausiert. "
+                "Sagen Sie Lies alles vor."
+            )
+        offset = int(bookmark.get("offset", 0))
+        content = self._field_text(node)
+        if offset >= len(content.rstrip()):
+            self._say_all_bookmark = None
+            return "Das Feld ist bereits zu Ende vorgelesen."
+        self._stop_active_say_all()
+        speaker = speaker if speaker is not None else self._say_all_speaker()
+        line = self._line_of_offset(content, offset)
+        reader = SayAllReader(
+            chunks=lambda: self._say_all_chunks(node, offset),
+            speak_chunk=lambda span: speaker.speak_async(
+                content[span[0]:span[1]], language=self._say_all_language
+            ),
+            cancel_speech=speaker.cancel,
+            on_progress=lambda end: self._remember_say_all(key=bookmark["key"], node=node, end=end),
+        )
+        self._say_all_reader = reader
+        self._say_all_speaker_ref = speaker
+        reader.start()
+        return f"Weiter in Zeile {line}. Sagen Sie Stopp zum Pausieren."
+
+    def _say_all_speaker(self) -> Any:
+        from .speech import SpeechError, SystemSpeaker
+
+        try:
+            return SystemSpeaker()
+        except Exception as exc:  # pragma: no cover - constructor never raises
+            raise SayAllError("Keine lokale Sprachausgabe verfügbar.") from exc
+
+    def _stop_active_say_all(self) -> None:
+        reader = self._say_all_reader
+        if reader is not None and reader.thread is not None and reader.thread.is_alive():
+            reader.stop()
+            reader.wait(timeout=10)
+        self._say_all_reader = None
+
+    def _consume_say_all_bookmark(self, node: Any) -> None:
+        """Drop the bookmark when the user navigates or the field changes.
+
+        The bookmark is only meaningful for the exact field it was saved in;
+        any deliberate caret movement elsewhere makes it stale, and a
+        navigation command is exactly that.  Called from ``move_caret`` and
+        ``move_caret_to_line``.
+        """
+
+        self._say_all_bookmark = None
+        del node
+
+    def _remember_say_all(self, key: str, node: Any, end: Optional[int]) -> None:
+        if end is None:
+            # Field completely read: place the caret at the end once so
+            # navigation continues from there; clear the bookmark.
+            self._say_all_bookmark = None
+            try:
+                text = node.queryText()
+                node.queryComponent().grabFocus()
+                text.setCaretOffset(int(text.characterCount))
+            except Exception:
+                pass
+            return
+        self._say_all_bookmark = {"key": key, "offset": int(end)}
+
+    @staticmethod
+    def _line_of_offset(content: str, offset: int) -> int:
+        return content.count("\n", 0, max(0, min(offset, len(content)))) + 1
+
+    #: Language passed to the speech output during say-all; the desktop
+    #: assistant runs German, so this stays a class-level constant until a
+    #: spoken language switch needs it elsewhere.
+    _say_all_language = "de"
+
 
     @staticmethod
     def _spoken_caret_position(offset: int, total: int) -> str:
@@ -1193,6 +1575,16 @@ SEMANTIC_ACTIONS = frozenset(
         "text.caret.end",
         "text.caret.word_next",
         "text.caret.word_previous",
+        "text.caret.line_next",
+        "text.caret.line_previous",
+        "text.caret.sentence_next",
+        "text.caret.sentence_previous",
+        "text.caret.paragraph_next",
+        "text.caret.paragraph_previous",
+        "text.caret.line",
+        "text.read_all",
+        "text.read_all.stop",
+        "text.read_all.resume",
         "text.newline",
         "text.paragraph",
         "text.select_word",
@@ -1255,6 +1647,12 @@ class GnomeSemanticExecutor:
         "text.caret.end": "end",
         "text.caret.word_next": "word_next",
         "text.caret.word_previous": "word_previous",
+        "text.caret.line_next": "line_next",
+        "text.caret.line_previous": "line_previous",
+        "text.caret.sentence_next": "sentence_next",
+        "text.caret.sentence_previous": "sentence_previous",
+        "text.caret.paragraph_next": "paragraph_next",
+        "text.caret.paragraph_previous": "paragraph_previous",
     }
 
     def __init__(
@@ -1308,8 +1706,21 @@ class GnomeSemanticExecutor:
                 return ActionResult("completed", spoken, request.action)
             if request.action in self._CARET_ACTION_DIRECTIONS:
                 direction = self._CARET_ACTION_DIRECTIONS[request.action]
-                spoken = desktop.move_caret(direction)
+                count = request.arguments.get("count", 1)
+                spoken = desktop.move_caret(direction, count)
                 return ActionResult("completed", spoken, request.action)
+            if request.action == "text.caret.line":
+                spoken = desktop.move_caret_to_line(int(request.target))
+                return ActionResult("completed", spoken, request.action)
+            if request.action == "text.read_all":
+                spoken = desktop.read_all_start()
+                return ActionResult("read_started", spoken, request.action)
+            if request.action == "text.read_all.stop":
+                spoken = desktop.read_all_stop()
+                return ActionResult("read_stopped", spoken, request.action)
+            if request.action == "text.read_all.resume":
+                spoken = desktop.read_all_resume()
+                return ActionResult("read_resumed", spoken, request.action)
             if request.action == "text.newline":
                 content = desktop.insert_newline()
                 return ActionResult(

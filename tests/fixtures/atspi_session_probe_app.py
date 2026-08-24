@@ -1,16 +1,32 @@
 """Real GTK text-editing application used by the session-level AT-SPI smoke test.
 
-It shows one window with one editable entry pre-filled with ``hallo welt hier``
-plus a hidden-visibility entry that GTK exposes with the ``password text``
-role, and grabs the focus for the plain entry, so the Clausis text-editing
-adapter can exercise caret movement, selection, replacement, undo/redo,
-granular reading — and the password-field refusal — against live GTK widgets
-on a real accessibility bus.
+It shows one window with one editable entry pre-filled with ``hallo welt hier``,
+a multi-line ``Gtk.TextView`` with three paragraphs (the widget say-all and
+line/paragraph navigation need — an entry is single-line and cannot provide
+them), plus a hidden-visibility entry that GTK exposes with the ``password
+text`` role, and grabs the focus for the plain entry, so the Clausis
+text-editing adapter can exercise caret movement, selection, replacement,
+undo/redo, granular reading, counted navigation and say-all — and the
+password-field refusal — against live GTK widgets on a real accessibility bus.
 """
 
 import sys
 
 from gi.repository import GLib, Gtk
+
+
+#: Multi-line content of the TextView: three paragraphs, seven lines, five
+#: sentences — enough structure for line jumps, clamped line numbers, counted
+#: word navigation and a say-all run that can pause after the second chunk.
+MULTILINE_TEXT = (
+    "Erste Zeile des Dokuments.\n"
+    "Zweite Zeile folgt.\n"
+    "\n"
+    "Neuer Absatz beginnt hier.\n"
+    "Noch eine Zeile mit Inhalt.\n"
+    "\n"
+    "Letzter Absatz."
+)
 
 
 window = Gtk.Window(title="ClausisSessionProbe")
@@ -21,6 +37,16 @@ entry = Gtk.Entry()
 entry.set_text("hallo welt hier")
 entry.set_can_focus(True)
 box.pack_start(entry, expand=True, fill=True, padding=6)
+
+view = Gtk.TextView()
+view.get_buffer().set_text(MULTILINE_TEXT)
+view.set_can_focus(True)
+# Both Gtk.Entry and Gtk.TextView expose the AT-SPI role "text"; the
+# accessible name is the only reliable way for the session client to find
+# the multi-line widget on the bus.
+view.get_accessible().set_name("MehrzeiligesFeld")
+box.pack_start(view, expand=True, fill=True, padding=6)
+
 
 # An entry with visibility off is what GTK exposes with the "password text"
 # role — the widget class the dictation refusals must recognise on a real bus.
