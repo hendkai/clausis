@@ -8,6 +8,7 @@ from typing import Callable, List, Match, Optional, Pattern, Sequence
 
 from .models import ActionRequest, Origin, Risk
 from .punctuation import expand_punctuation
+from .spelling import normalise_spelling
 
 
 Builder = Callable[[Match[str]], ActionRequest]
@@ -43,6 +44,21 @@ def _dictation(match: Match[str]) -> ActionRequest:
 
     return ActionRequest(
         "text.insert", target=expand_punctuation(match.group("target").strip())
+    )
+
+
+def _spelling(match: Match[str]) -> ActionRequest:
+    """Turn a spelled utterance into the characters it names.
+
+    ``"Buchstabiere A wie Anton, N wie Nordpol"`` becomes the dictation
+    ``"AN"``: names, identifiers and digits dictated letter by letter reach
+    the field as characters, not as the spoken helper words (deterministic
+    table, see ``spelling.py``).  Unknown words stay prose, so nothing the
+    user really said is ever mangled.
+    """
+
+    return ActionRequest(
+        "text.insert", target=normalise_spelling(match.group("target").strip())
     )
 
 
@@ -237,6 +253,18 @@ COMMANDS: Sequence[CommandPattern] = (
             r"(?:dictate|type) (?P<target>.+)",
         ),
         _dictation,
+    ),
+    # Spelling mode is its own dictation verb: "buchstabiere …" is never
+    # ordinary prose dictation, and its characters reach the field named,
+    # not spoken.
+    CommandPattern(
+        "spell",
+        _rx(
+            r"buchstabier(?:e|en)? (?P<target>.+)",
+            r"spelling (?P<target>.+)",
+            r"spell (?P<target>.+)",
+        ),
+        _spelling,
     ),
     CommandPattern("launch", _rx(r"(?:öffne|starte) (?P<target>[\w.+@:-]+)", r"(?:open|launch) (?P<target>[\w.+@:-]+)"), _target("app.launch")),
     CommandPattern("close", _rx(r"schließe (?P<target>[\w.+@:-]+)", r"close (?P<target>[\w.+@:-]+)"), _target("app.close", Risk.MEDIUM)),
