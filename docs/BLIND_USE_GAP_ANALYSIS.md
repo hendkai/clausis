@@ -173,12 +173,31 @@ während des Vorlesens, kein Highlighting, „stopp" wird (Halbduplex-Mikrofon)
 zuverlässig frühestens an der Satzgrenze erkannt, und der Merker gilt nicht
 dokumentübergreifend.
 
+Umgesetzt (2026-08-25, Strukturnavigation): „nächste Überschrift“, „vorheriger
+Link“, „nächste Liste“, „nächste Landmarke“ (deutsch/englisch, je Richtung)
+springen zwischen Strukturelementen des aktiven Fensters — Orca-ähnlich, aber
+ehrlich auf das begrenzt, was AT-SPI wirklich liefert. Der Adapter wandert den
+Baum ab fokussiertem Fenster, matcht Überschriften/Links/Listen über die
+AT-SPI-Rollen (heading/link/list) und Landmarken über das Objekt-Attribut
+`xml-roles` (main/navigation/banner …), das nur der Browser füllt — GTK
+exponiert keine ARIA-Rollen, also verweigert Clausis Landmarken dort ehrlich.
+Ein Treffer wird fokussiert (nie aktiviert — ein Link-Landing klickt nie) und
+kurz angesagt (Rolle + Name). Nichts gefunden ist eine ehrliche Ansage („Keine
+weiteren Überschriften in diesem Fenster“), Position bleibt, kein simulierter
+Sprung, kein Wrap-Around. Keine Zähler in V1 („drei Überschriften weiter“
+bleibt offen; das count-Muster der mehrstufigen Navigation kann folgen).
+Grenzen, bewusst offen: GTK liefert keine Heading-/Link-Rollen — Überschriften
+und Links gibt es erst mit Browser/Editor, die Landmarken-Suche ist auf dem
+echten Bus noch nicht gegen einen Browser verifiziert (Fake-Baum-Tests decken
+das Matching ab), Tabellen und Web sind eigene Blöcke (unten).
+
 Es fehlt:
 
-- **Strukturnavigation**: von Überschrift zu Überschrift, Liste zu Liste,
-  Landmarke zu Landmarke, Link zu Link. Orca kann das; Clausis kennt es nicht.
-- **Tabellen**: Zeile/Spalte wechseln, Kopfzeilen mitsprechen, „Zelle B3",
-  „lies die Spalte vor".
+- **Strukturnavigation in der Praxis**: das Rollen-Matching steht, aber erst
+  Firefox/Chromium machen Überschriften, Links und Landmarken auf dem echten
+  Bus nutzbar — die Browser-Profile sind der nächste Block (siehe Webinhalte).
+- **Tabellen**: Zeile/Spalte wechseln, Kopfzeilen mitsprechen, „Zelle B3“,
+  „lies die Spalte vor“.
 - **Webinhalte**: Der Browser ist die wichtigste Anwendung überhaupt. Firefox
   und Chromium liefern AT-SPI, aber Webseiten brauchen ein eigenes Modell
   (Formulare, ARIA-Rollen, Live-Regionen, Cookie-Banner, Einwilligungsdialoge).

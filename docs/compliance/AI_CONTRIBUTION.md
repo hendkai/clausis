@@ -695,3 +695,29 @@ refusals apply unchanged; the injection corpus covers the new trigger and
 stays green. Verified against the fake tree (26 new tests incl. e2e
 router→broker→field) and in the GTK session smoke (dictate → correct →
 read-back).
+
+## 2026-08-25 — Structure navigation: heading/link/list/landmark jumps (GLM 5.3 via Hermes)
+
+Implements BLIND_USE_GAP_ANALYSIS §2 structure navigation: "nächste
+Überschrift", "vorheriger Link", "nächste Liste", "nächste Landmarke" (DE/EN,
+both directions) jump between structure elements of the active window. New
+read-only action structure.jump (low risk, unit+backward validator, semantic
+GNOME adapter; protocol, SEMANTIC_ACTIONS, executor branch, capabilities and
+gpt_live inherit via adapted_actions — no SEMANTIC_MUTATIONS entry because it
+is pure focus/read movement). The adapter walks the tree from the active
+window, matches headings/links/lists by AT-SPI role (heading/link/list) and
+landmarks by the xml-roles object attribute (main/navigation/banner …), which
+only browsers populate — GTK honestly refuses landmarks and the heading/link
+units until a browser supplies the roles. A hit is focused through the
+component interface (never activated; a link landing does not click) and
+announced with role and accessible name; nothing found is an honest sentence
+("Keine weiteren Überschriften in diesem Fenster") with the position kept —
+no error, no simulated jump, no wrap-around. No counters in V1. The GTK probe
+app gained a real Gtk.ListBox (role "list") so the session smoke exercises a
+genuine structure target on the real bus; heading/link/landmark matching is
+covered by fake-tree unit tests (tests/test_structure_navigation.py, 22 new
+tests). Browser ARIA on the live bus, tables and web content stay open and
+documented. No new injection path: no activation, no text insert; the
+injection corpus stays green. (Zusatz vom Operator: das IDEA.md-Leitbild hat
+bereits die Vorgängerkarte in README-Intro und Löschung übernommen — hier nur
+der Vermerk.)

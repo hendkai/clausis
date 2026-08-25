@@ -177,6 +177,37 @@ def _unit_caret(action: str) -> Builder:
     return lambda _: ActionRequest(action)
 
 
+_STRUCTURE_UNIT_WORDS = {
+    "überschrift": "heading",
+    "heading": "heading",
+    "link": "link",
+    "liste": "list",
+    "list": "list",
+    "landmarke": "landmark",
+    "landmark": "landmark",
+}
+
+
+def _structure_jump_builder(backward: bool) -> Builder:
+    """Builder for „nächste/vorherige Überschrift|Link|Liste|Landmarke“.
+
+    Pure focus/read movement inside the active window — no counter in V1
+    (the count-field pattern from the counted navigation can follow once a
+    real application needs it).  The adapter owns the honest refusals.
+    """
+
+    def build(match: Match[str]) -> ActionRequest:
+        return ActionRequest(
+            "structure.jump",
+            arguments={
+                "unit": _STRUCTURE_UNIT_WORDS[match.group("unit").casefold()],
+                "backward": backward,
+            },
+        )
+
+    return build
+
+
 def _volume(match: Match[str]) -> ActionRequest:
     return ActionRequest(
         "audio.volume.set",
@@ -492,6 +523,26 @@ COMMANDS: Sequence[CommandPattern] = (
             r"read (?:the )?(?:current )?(?P<unit>character|word|line|sentence|paragraph)(?: from (?:the )?caret)?(?: aloud)?",
         ),
         _read_granular,
+    ),
+    # Structure navigation: Orca-style jumps between structure elements of
+    # the active window (heading/link/list, landmarks where a browser
+    # exposes them).  Focus move only — a link landing never activates the
+    # link; activation stays the separately confirmed control action.
+    CommandPattern(
+        "structure-next",
+        _rx(
+            r"nächste[nrs]? (?P<unit>überschrift|liste|landmarke|link)s?",
+            r"next (?P<unit>heading|link|list|landmark)",
+        ),
+        _structure_jump_builder(backward=False),
+    ),
+    CommandPattern(
+        "structure-previous",
+        _rx(
+            r"vorherige[nrs]? (?P<unit>überschrift|liste|landmarke|link)s?",
+            r"previous (?P<unit>heading|link|list|landmark)",
+        ),
+        _structure_jump_builder(backward=True),
     ),
     CommandPattern(
         "file-list",

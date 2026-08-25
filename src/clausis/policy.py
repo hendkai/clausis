@@ -120,6 +120,24 @@ def _line_number(request: ActionRequest) -> None:
         raise ValueError("line number must be between 1 and 999")
 
 
+def _structure_jump(request: ActionRequest) -> None:
+    """A structure jump names direction and unit, and nothing else.
+
+    Focus/read movement only: no count in V1, no target text, no mutation —
+    so the request stays a closed pair of enum-ish values the adapter can
+    never mistake for a payload.
+    """
+
+    if request.target:
+        raise ValueError("action does not accept a target")
+    unit = request.arguments.get("unit")
+    if unit not in {"heading", "link", "list", "landmark"}:
+        raise ValueError("unit must be heading, link, list or landmark")
+    backward = request.arguments.get("backward")
+    if not isinstance(backward, bool):
+        raise ValueError("backward must be a boolean")
+
+
 ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     "app.launch": ActionPolicy(Risk.LOW, True, ("gtk-launch",), _safe_identifier),
     "app.close": ActionPolicy(Risk.MEDIUM, True, None, _safe_identifier),
@@ -195,6 +213,11 @@ ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     "text.undo": ActionPolicy(Risk.LOW, True, None, _no_target),
     "text.redo": ActionPolicy(Risk.LOW, True, None, _no_target),
     "text.read_granular": ActionPolicy(Risk.LOW, True, None, _granularity),
+    # Structure jumps (next/previous heading, link, list, landmark) move the
+    # focus inside the active window and announce what they found.  Pure
+    # read/focus movement: no activation (a link landing never clicks), no
+    # text insert, so no new injection path and no mutation entry.
+    "structure.jump": ActionPolicy(Risk.LOW, True, None, _structure_jump),
     # File chooser navigation: listing is read-only, focusing an entry
     # commits nothing, and opening a provable folder changes only the
     # directory shown in the dialog. Confirming the dialog stays medium risk.

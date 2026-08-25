@@ -658,6 +658,34 @@ def main() -> int:
     # uses internally, so the steps below measure the adapter, not GTK.
     multiline_steps(desktop)
 
+    # --- structure navigation: jump to the real GTK list box ----------------
+    # The probe app ships a Gtk.ListBox whose AT-SPI role is genuinely
+    # "list" — the one structure unit GTK fills natively.  Headings, links
+    # and landmarks are browser-provided roles GTK never exposes; those
+    # stay covered by the fake-tree unit tests (test_structure_navigation).
+    def check_list_jump(spoken: str) -> None:
+        require(
+            "StrukturListe" in str(spoken),
+            f"jump announced {spoken!r} without the list name",
+        )
+        focused_role = desktop.context().focused_role.casefold()
+        require(
+            focused_role == "list",
+            f"focused role after jump is {focused_role!r}, not 'list'",
+        )
+
+    run(
+        "structure-jump-list",
+        lambda: desktop.jump_to_structure("list", backward=False),
+        check_list_jump,
+    )
+    # No headings exist in a plain GTK window: the honest refusal (not an
+    # ERROR) is the expected, documented behaviour.
+    run(
+        "structure-jump-heading-refused",
+        lambda: desktop.jump_to_structure("heading", backward=False),
+    )
+
     errors = sum(1 for line in lines if line.startswith("ERROR"))
     refusals = sum(1 for line in lines if line.startswith("REFUSED"))
     oks = sum(1 for line in lines if line.startswith("OK"))

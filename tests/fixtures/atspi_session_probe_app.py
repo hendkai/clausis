@@ -55,6 +55,19 @@ password.set_visibility(False)
 password.set_can_focus(True)
 box.pack_start(password, expand=True, fill=True, padding=6)
 
+# A real widget GTK exposes with a native AT-SPI structure role: the list
+# box answers role "list" on the bus, so the structure-navigation adapter
+# has a genuine target in the session test (headings and links are browser
+# roles GTK never fills — those stay fake-tree-only, honestly).
+listbox = Gtk.ListBox()
+listbox.get_accessible().set_name("StrukturListe")
+listbox.set_can_focus(True)
+for index in range(3):
+    row = Gtk.ListBoxRow()
+    row.add(Gtk.Label(label=f"Eintrag {index + 1}"))
+    listbox.add(row)
+box.pack_start(listbox, expand=True, fill=True, padding=6)
+
 label = Gtk.Label(label="Textbearbeitung")
 box.pack_start(label, expand=False, fill=False, padding=6)
 

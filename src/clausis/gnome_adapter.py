@@ -181,6 +181,9 @@ class SemanticDesktop(Protocol):
     def read_granular(self, granularity: str) -> str:
         ...
 
+    def jump_to_structure(self, unit: str, backward: bool) -> str:
+        ...
+
     def list_files(self) -> str:
         ...
 
@@ -1076,6 +1079,150 @@ class PyAtSpiDesktop:
         text, _next = granular_chunk(content, granularity, caret)
         return text[: self.MAX_FIELD_CHARS]
 
+    # ------------------------------------------------------------------
+    # Structure navigation: jump between headings, links, lists and
+    # landmarks inside the active window (read-only focus move).
+    # ------------------------------------------------------------------
+
+    #: AT-SPI role names (``getRoleName()``, lowercased) that carry each
+    #: structure unit.  AT-SPI2 itself defines ROLE_HEADING, ROLE_LINK and
+    #: ROLE_LIST; GTK only fills the list role (Gtk.ListBox → "list") with
+    #: its own widgets, headings and links arrive from browsers and editors,
+    #: and landmarks are not a role at all — they ride in the object
+    #: attributes as ``xml-roles`` (the ARIA role), which only browsers
+    #: populate.  An empty set means the unit is honestly refused.
+    STRUCTURE_ROLES: Dict[str, frozenset] = {
+        "heading": frozenset({"heading"}),
+        "link": frozenset({"link"}),
+        "list": frozenset({"list"}),
+        "landmark": frozenset(),
+    }
+    #: ARIA landmark roles looked up in the ``xml-roles`` object attribute.
+    LANDMARK_XML_ROLES = frozenset(
+        {
+            "banner",
+            "complementary",
+            "contentinfo",
+            "form",
+            "main",
+            "navigation",
+            "region",
+            "search",
+        }
+    )
+    _STRUCTURE_UNIT_NAMES = {
+        "heading": "Überschrift",
+        "link": "Link",
+        "list": "Liste",
+        "landmark": "Landmarke",
+    }
+    #: German plurals for the honest "nothing found" sentence.
+    _STRUCTURE_UNIT_PLURALS = {
+        "heading": "Überschriften",
+        "link": "Links",
+        "list": "Listen",
+        "landmark": "Landmarken",
+    }
+
+    def jump_to_structure(self, unit: str, backward: bool) -> str:
+        """Move focus to the next/previous structure element in the window.
+
+        The walk starts at the active window — not at the focused widget —
+        because the element being looked for is usually not the focused one.
+        A hit is announced with role and accessible name and receives focus
+        through the component interface; a link landing never activates the
+        link (activation stays the separately confirmed control action).
+        When nothing matches, the honest sentence names the unit and the
+        window and the focus stays where it is.
+        """
+
+        if unit not in self._STRUCTURE_UNIT_NAMES:
+            raise GnomeAdapterError(f"Unbekannte Struktureinheit {unit}.")
+        _, window = self._active_window()
+        # One ordered walk of the window; the focused node — when it lives
+        # in this window — marks the current position, so "next" finds the
+        # first match beyond it and repeated jumps advance instead of
+        # landing on the same element forever.
+        nodes = list(self._walk(window))
+        matches = [index for index, node in enumerate(nodes) if self._is_structure(node, unit)]
+        if not matches:
+            raise GnomeAdapterError(
+                f"In diesem Fenster gibt es keine {self._STRUCTURE_UNIT_PLURALS[unit]}."
+            )
+        position = next(
+            (
+                index
+                for index, node in enumerate(nodes)
+                if self._has_state(node, self._atspi.STATE_FOCUSED)
+            ),
+            0,
+        )
+        if backward:
+            candidates = [index for index in matches if index < position]
+            out_of_range = f"Keine {self._STRUCTURE_UNIT_PLURALS[unit]} mehr vor dieser Stelle."
+        else:
+            candidates = [index for index in matches if index > position]
+            out_of_range = f"Keine weiteren {self._STRUCTURE_UNIT_PLURALS[unit]} in diesem Fenster."
+        if not candidates:
+            # Position stays; an honest sentence, not an error and never a
+            # simulated jump (and no wrap-around the user did not ask for).
+            raise GnomeAdapterError(out_of_range)
+        target = nodes[candidates[-1] if backward else candidates[0]]
+        name = self._name(target)
+        role = (
+            self._landmark_role(target)
+            if unit == "landmark"
+            else self._STRUCTURE_UNIT_NAMES[unit]
+        )
+        try:
+            focused = bool(target.queryComponent().grabFocus())
+        except Exception as exc:
+            raise GnomeAdapterError(
+                "Das Strukturelement konnte nicht fokussiert werden."
+            ) from exc
+        if not focused:
+            raise GnomeAdapterError("GNOME hat den Fokus nicht geändert.")
+        return f"{role} {name}." if name else f"{role}."
+
+    def _is_structure(self, node: Any, unit: str) -> bool:
+        if unit == "landmark":
+            return self._landmark_role(node) != ""
+        return self._role(node).casefold() in self.STRUCTURE_ROLES[unit]
+
+    def _landmark_role(self, node: Any) -> str:
+        """First ARIA landmark of the node, or "" (browsers only).
+
+        Landmarks are not an AT-SPI role: browsers publish the ARIA role in
+        the object attributes under ``xml-roles``.  Depending on the pyatspi
+        version ``getAttributes()`` answers a mapping or the legacy list of
+        ``key:value`` strings — both shapes are understood.  GTK answers
+        nothing usable, which is why landmarks honestly refuse outside a
+        browser.
+        """
+
+        try:
+            attributes = node.getAttributes()
+        except Exception:
+            return ""
+        for token in self._xml_roles_tokens(attributes):
+            if token.casefold() in self.LANDMARK_XML_ROLES:
+                return token
+        return ""
+
+    @staticmethod
+    def _xml_roles_tokens(attributes: Any) -> List[str]:
+        if isinstance(attributes, dict):
+            return str(attributes.get("xml-roles", "") or "").split()
+        try:
+            pairs = list(attributes)
+        except TypeError:
+            return []
+        tokens: List[str] = []
+        for pair in pairs:
+            if isinstance(pair, str) and pair.startswith("xml-roles:"):
+                tokens.extend(pair.partition(":")[2].split())
+        return tokens
+
     @staticmethod
     def _next_word_offset(content: str, caret: int) -> int:
         if not content:
@@ -1709,6 +1856,7 @@ SEMANTIC_ACTIONS = frozenset(
         "text.undo",
         "text.redo",
         "text.read_granular",
+        "structure.jump",
         "dialog.file.list",
         "dialog.file.select",
         "dialog.folder.open",
@@ -1881,6 +2029,12 @@ class GnomeSemanticExecutor:
                 unit = request.arguments["granularity"]
                 content = desktop.read_granular(unit)
                 spoken = f"{unit.capitalize()}: {content}" if content else "Hier ist nichts zu lesen."
+                return ActionResult("completed", spoken, request.action)
+            if request.action == "structure.jump":
+                spoken = desktop.jump_to_structure(
+                    request.arguments["unit"],
+                    request.arguments["backward"] is True,
+                )
                 return ActionResult("completed", spoken, request.action)
             if request.action == "dialog.file.list":
                 spoken = desktop.list_files()
