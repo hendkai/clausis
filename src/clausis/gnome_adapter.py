@@ -115,7 +115,10 @@ class SemanticDesktop(Protocol):
     def read_text_field(self) -> str:
         ...
 
-    def insert_text(self, text: str) -> str:
+    def insert_text(self, text: str, *, remember_dictation: bool = True) -> str:
+        ...
+
+    def replace_last_dictation(self, replacement: str) -> str:
         ...
 
     def delete_word(self) -> str:
@@ -345,6 +348,10 @@ class PyAtSpiDesktop:
         self._say_all_reader: Optional[SayAllReader] = None
         self._say_all_bookmark: Optional[Dict[str, Any]] = None
         self._say_all_speaker_ref: Any = None
+        # Correction-slot memory: the last dictation of the focused field,
+        # remembered as the exact character span it occupies (see
+        # replace_last_dictation).  One entry, dropped on focus change.
+        self._last_dictation: Optional[Dict[str, Any]] = None
 
     def context(self) -> DesktopContext:
         application, window = self._active_window()
@@ -474,12 +481,16 @@ class PyAtSpiDesktop:
             return ""
         return content[: self.MAX_FIELD_CHARS]
 
-    def insert_text(self, text: str) -> str:
+    def insert_text(self, text: str, *, remember_dictation: bool = True) -> str:
         """Insert dictated text at the caret and report the resulting content.
 
         The result is read back from the accessibility tree instead of being
         assumed, so a field that silently rejected or transformed the input
-        cannot be reported as a success.
+        cannot be reported as a success.  Dictation payloads remember their
+        span as the correction slot (``remember_dictation``); the synthesised
+        line/paragraph breaks are their own typed actions, not dictation, so
+        they leave the slot alone — "nein, ich meinte …" after „neue Zeile"
+        still corrects the last dictated text, not the line break.
         """
 
         node = self._focused_editable()
@@ -495,7 +506,109 @@ class PyAtSpiDesktop:
         content = self._field_text(node)
         if text not in content:
             raise GnomeAdapterError("Der Text steht nach dem Einfügen nicht im Feld.")
+        # Remember the inserted span as the correction slot.  The read-back
+        # above proved the text is in the field, but the span is computed
+        # from the post-insert content, not assumed from the caret: a field
+        # that moved or transformed the insertion still gets the honest
+        # offset range of what "text" actually occupies.
+        if remember_dictation:
+            self._remember_dictation(node, content, caret, text)
         return content[: self.MAX_FIELD_CHARS]
+
+    def _remember_dictation(self, node: Any, content: str, caret: int, text: str) -> None:
+        """Store the exact character span of the just-inserted dictation.
+
+        The span is anchored in the field content the adapter can re-verify
+        on every later correction: replacing is refused the moment the
+        remembered range is no longer byte-identical, so a field edited
+        under the cursor is never falsely overwritten.  A new dictation in
+        the same field replaces the memory — only the last one is correctable.
+        """
+
+        start = content.find(text, max(0, min(caret - len(text), len(content))))
+        if start < 0:
+            start = content.find(text)
+        if start < 0:
+            # Defensive: the read-back proved presence, so this cannot
+            # happen; refusing to remember is still safer than a wrong span.
+            self._last_dictation = None
+            return
+        self._last_dictation = {
+            "key": self._field_key(node),
+            "start": start,
+            "end": start + len(text),
+            "text": text,
+        }
+
+    def replace_last_dictation(self, replacement: str) -> str:
+        """Replace the last dictation in this field, honestly anchored.
+
+        „Nein, ich meinte …" is the voice-only correction slot: instead of
+        appending another utterance, the remembered span of the last
+        dictation is selected through the AT-SPI text interface and the
+        selection is replaced — the same verified path a manual selection
+        replacement takes.  The honesty rules are the refusals:
+
+        * no dictation remembered (or the focus moved to another field):
+          nothing is replaced, the user hears why;
+        * the field changed under the hand (the remembered span no longer
+          holds the dictated bytes): replacing would clobber unknown text,
+          so it is refused instead of guessed;
+        * the field offers no selection interface: refused, never simulated
+          via select-all or key events.
+
+        A successful replace becomes the new remembered dictation, so a
+        second correction corrects the correction.  It also drops the
+        say-all bookmark of the field — the content changed, a pause
+        position is stale (same care rule as navigation).
+        """
+
+        node = self._focused_editable()
+        memory = self._last_dictation
+        if memory is None:
+            raise GnomeAdapterError(
+                "Ich habe nichts diktiert, was ich ersetzen könnte."
+            )
+        if self._field_key(node) != memory.get("key"):
+            # Focus moved since the dictation: the correction slot is void.
+            self._last_dictation = None
+            raise GnomeAdapterError(
+                "Das letzte Diktat war in einem anderen Feld. "
+                "Ich kann es von hier aus nicht ersetzen."
+            )
+        start, end = int(memory["start"]), int(memory["end"])
+        content = self._field_text(node)
+        if content[start:end] != memory["text"]:
+            # The field was edited under the hand: the remembered span no
+            # longer holds the dictated bytes, so replacing would overwrite
+            # text the user changed intentionally.
+            self._last_dictation = None
+            raise GnomeAdapterError(
+                "Das Feld hat sich geändert, ich kann den Abschnitt nicht "
+                "sicher ersetzen."
+            )
+        # Select the remembered range through the text interface, then
+        # replace the selection — never a select-all fallback, which would
+        # destroy the field on an empty payload.
+        self._apply_selection(node, start, end)
+        try:
+            editable = node.queryEditableText()
+            removed = editable.deleteText(start, end)
+            inserted = editable.insertText(start, replacement, len(replacement))
+        except Exception as exc:
+            raise GnomeAdapterError("Das Feld erlaubt das Ersetzen nicht.") from exc
+        if not removed or not inserted:
+            self._last_dictation = None
+            raise GnomeAdapterError("Das Feld hat die Ersetzung abgelehnt.")
+        new_content = self._field_text(node)
+        if replacement not in new_content:
+            self._last_dictation = None
+            raise GnomeAdapterError("Die Ersetzung steht nicht im Feld.")
+        # The field changed: a say-all bookmark of this field is stale, the
+        # correction itself is the new dictation memory.
+        self._say_all_bookmark = None
+        self._remember_dictation(node, new_content, start, replacement)
+        return new_content[: self.MAX_FIELD_CHARS]
 
     def delete_word(self) -> str:
         node = self._focused_editable()
@@ -789,13 +902,13 @@ class PyAtSpiDesktop:
         as written.
         """
 
-        content = self.insert_text("\n")
+        content = self.insert_text("\n", remember_dictation=False)
         return content
 
     def insert_paragraph(self) -> str:
         """Insert a paragraph break (one blank line) at the caret."""
 
-        return self.insert_text("\n\n")
+        return self.insert_text("\n\n", remember_dictation=False)
 
     # ------------------------------------------------------------------
     # Selection, replacement, undo/redo and granular reading.
@@ -1568,6 +1681,7 @@ SEMANTIC_ACTIONS = frozenset(
         "app.close",
         "text.read",
         "text.insert",
+        "text.replace_last_dictation",
         "text.delete_word",
         "text.clear",
         "text.read_from_caret",
@@ -1615,6 +1729,7 @@ SEMANTIC_MUTATIONS = frozenset(
         "desktop.window.previous",
         "app.close",
         "text.insert",
+        "text.replace_last_dictation",
         "text.delete_word",
         "text.clear",
         "text.caret.start",
@@ -1690,6 +1805,11 @@ class GnomeSemanticExecutor:
                 content = desktop.insert_text(request.target)
                 return ActionResult(
                     "completed", f"Geschrieben. Im Feld steht jetzt: {content}", request.action
+                )
+            if request.action == "text.replace_last_dictation":
+                content = desktop.replace_last_dictation(request.target)
+                return ActionResult(
+                    "completed", f"Ersetzt. Im Feld steht jetzt: {content}", request.action
                 )
             if request.action == "text.delete_word":
                 content = desktop.delete_word()

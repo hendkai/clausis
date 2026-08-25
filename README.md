@@ -5,6 +5,9 @@ Hermes Agent without granting the agent unrestricted operating-system access.
 The repository now builds a bootable Debian Live/Calamares USB image. It remains
 a **technical preview, not a production-ready end-user operating system**.
 
+Leitbild: Jeder soll das komplette Betriebssystem ohne Bildschirm und Maus —
+nur mit Sprache — bedienen können.
+
 The current test image is published under
 [`Releases`](https://github.com/hendkai/clausis/releases). Every `v*` Git tag
 automatically starts a clean Debian ISO build and uploads split, checksummed
@@ -66,7 +69,7 @@ disk in VirtualBox. Do not unpack the resulting ISO.
 - Matching GNOME identity with the Clausis listening-field wallpaper, dark
   color preference, purple speech accent, branded launchers and GDM logo,
   reduced animation and Atkinson Hyperlegible typography.
-- 103 deterministic German/English offline command families. Every allowlisted
+- 104 deterministic German/English offline command families. Every allowlisted
   action reaches exactly one adapter — semantic GNOME, read-only local query,
   the Polkit-gated privileged helper or a fixed argument vector — and a test
   fails the build if an action is left without one.
@@ -142,7 +145,12 @@ disk in VirtualBox. Do not unpack the resulting ISO.
   Clausis reports success, so a field that swallowed the input is not announced
   as written. Clausis refuses to dictate into a password field or a terminal —
   there a line of text would be a command. An ambiguous “Schreibe mir ein
-  Gedicht” stays a request to the agent, not dictation.
+  Gedicht” stays a request to the agent, not dictation. The correction slot
+  “nein, ich meinte …” replaces the last dictation in the same field instead
+  of appending: the adapter remembers the exact character span of the last
+  dictation per field, verifies it against the live content before replacing,
+  and refuses honestly when nothing was dictated, the focus moved, the field
+  changed under the hand or the field offers no selection interface.
 - Window and shell control without screen coordinates: minimize, maximize,
   restore, switch workspace, move the window to the next or previous workspace,
   application grid, quick settings and notifications.

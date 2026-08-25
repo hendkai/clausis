@@ -549,6 +549,52 @@ def main() -> int:
     if insert_ok:
         current = text_of(inserted, current)
 
+    # --- correction slot: replace the dictation just inserted ----------------
+    # "nein ich meinte …" must replace the remembered span, not append.  The
+    # memory is verified against the live field content first (honesty check),
+    # then the span is selected and replaced through the same text interface
+    # the selection-replacement step above uses.
+    if insert_ok:
+        prefix = current[: len(current) - len(INSERTION)] if at_known_end else None
+
+        def check_corrected(value: str) -> None:
+            require(
+                value == prefix + " sofort"
+                if prefix is not None
+                else " sofort" in value,
+                f"content={value!r}",
+            )
+
+        correct_ok, corrected = run(
+            "dictation-correct",
+            lambda: desktop.replace_last_dictation(" sofort"),
+            check_corrected,
+        )
+        if correct_ok:
+            current = text_of(corrected, current)
+        else:
+            _, raw = run("read-after-refused-correction", desktop.read_text_field)
+            current = text_of(raw, current) or current
+    else:
+        # Nothing was dictated, so the correction slot must refuse honestly
+        # instead of touching the field — a refusal here is the correct
+        # behaviour, an ERROR is not.
+        try:
+            desktop.replace_last_dictation("sofort")
+            record(
+                "ERROR",
+                "dictation-correct-no-memory",
+                "correction without a dictation was NOT refused",
+            )
+        except GnomeAdapterError as exc:
+            record("OK", "dictation-correct-no-memory", str(exc))
+        except Exception:
+            record(
+                "ERROR",
+                "dictation-correct-no-memory",
+                traceback.format_exc(limit=3).replace("\n", " | "),
+            )
+
     expected_line, _next = granular_chunk(current, "line", 0)
     run(
         "read-granular-line",

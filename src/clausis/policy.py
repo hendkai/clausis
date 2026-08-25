@@ -148,6 +148,12 @@ ACTION_POLICIES: Mapping[str, ActionPolicy] = {
     # phrase and PIN per sentence would make voice-only operation unusable.
     "text.read": ActionPolicy(Risk.LOW, True, None, _no_target),
     "text.insert": ActionPolicy(Risk.LOW, True, None, _dictated_text),
+    # The correction slot replaces the remembered last dictation in the same
+    # field: an insert with a visible anchor, so it keeps the dictation rules
+    # (printable-only payload, adapter-side password/terminal refusals).  It
+    # is NOT an undo — "nein, ich meinte löschen" writes the word "löschen",
+    # it never replays or retracts an action.
+    "text.replace_last_dictation": ActionPolicy(Risk.LOW, True, None, _dictated_text),
     "text.delete_word": ActionPolicy(Risk.LOW, True, None, _no_target),
     # Discarding a whole field is not a correction; it needs confirmation.
     "text.clear": ActionPolicy(Risk.MEDIUM, True, None, _no_target),

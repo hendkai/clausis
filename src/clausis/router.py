@@ -57,6 +57,26 @@ def _dictation(match: Match[str]) -> Optional[ActionRequest]:
     )
 
 
+def _dictation_replacement(match: Match[str]) -> Optional[ActionRequest]:
+    """Route „nein, ich meinte …" into the field's correction slot.
+
+    The payload follows exactly the dictation contract: spoken punctuation
+    at the end is rewritten, control characters riding inside refuse the
+    whole utterance before any adapter runs, and the request schema bounds
+    stay the same — this is no new injection path, it is dictation with a
+    remembered anchor.  Whether a dictation to replace actually exists is
+    the adapter's honest decision (it owns the per-field dictation memory),
+    never the router's.
+    """
+
+    payload = match.group("target").strip()
+    if contains_control_characters(payload):
+        return None
+    return ActionRequest(
+        "text.replace_last_dictation", target=expand_punctuation(payload)
+    )
+
+
 def _spelling(match: Match[str]) -> Optional[ActionRequest]:
     """Turn a spelled utterance into the characters it names.
 
@@ -548,6 +568,21 @@ COMMANDS: Sequence[CommandPattern] = (
             r"dictate (?:path|file path) (?P<target>.+)",
         ),
         _dictation_mode("path"),
+    ),
+    # Correction slot: "nein, ich meinte <text>" replaces the last dictation
+    # in the focused field instead of appending a new one.  The pattern must
+    # sit BEFORE every dictation verb — "nein, ich meinte diktiere foo" would
+    # otherwise fall through to plain dictation and append the very text the
+    # user is trying to correct.  The adapter owns the memory and refuses
+    # honestly when nothing was dictated; the router only carries the payload
+    # with the same printable-only dictation contract.
+    CommandPattern(
+        "dictation-correct",
+        _rx(
+            r"nein,? ich meinte?:? (?P<target>.+)",
+            r"no,? i meant:? (?P<target>.+)",
+        ),
+        _dictation_replacement,
     ),
     # "Schreibe mir ein Gedicht" is a request to the agent, not dictation, so
     # the dictation verbs stay unambiguous and an ambiguous "schreibe …" keeps

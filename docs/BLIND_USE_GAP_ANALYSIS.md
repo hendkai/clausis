@@ -94,11 +94,37 @@ Großzahlen bleiben Ziffernketten („hundert eins" → `1001`), Zahlen über
 („zeile zweihundertfünfundzwanzig" → Zeile 225), ihr Cap bleibt aber ehrlich
 1–999 („zeile tausend" lehnt ab), ebenso das Schritt-Cap 1–99 („hundert
 wörter weiter" lehnt ab). **Pfad-Trenner**: „diktiere pfad" macht jedes
-gesprochene Wort zu einem Pfadsegment — „schrägstrich home hendrik" →
+gesprochenes Wort zu einem Pfadsegment — „schrägstrich home hendrik" →
 `/home/hendrik` (fixt `/homehendrik`); „punkt" klebt vorn am nächsten
 Segment („home hendrik punkt bashrc" → `home/hendrik/.bashrc`, „punkt bashrc"
 → `.bashrc`), Zahlwörter werden Ziffern. Modus-Ausgang bleibt schema-valide
 (printable, ≤ 512), Injection-Korpus-Regression weiter grün.
+
+Umgesetzt (2026-08-25, Korrektur-Slot): „nein, ich meinte <text>" ersetzt das
+letzte Diktat im fokussierten Feld, statt eine neue Äußerung anzuhängen — der
+Blind Use Case „falsch verstanden, sofort korrigieren" ohne Feld-Leeren oder
+Wort-Löschen. Der Adapter merkt sich pro Feld die exakte Zeichenspanne des
+letzten Diktats (Feld-Schlüssel wie der Say-All-Merker: Anwendung|Fenster|
+Fokus-Name); ein neues Diktat überschreibt den Merker, ein Fokuswechsel
+verwirft ihn. Vor dem Ersetzen wird die gemerkte Spanne gegen den Live-Inhalt
+geprüft — stimmt sie nicht mehr byte-identisch (unter der Hand hinein
+getippt), wird ehrlich verweigert („Das Feld hat sich geändert, ich kann den
+Abschnitt nicht sicher ersetzen"), nie falsch ersetzt. Die Mechanik ist
+Bereichsauswahl über das AT-SPI-Textinterface (`addSelection`) plus Ersetzen
+über `EditableText` — kein `select_all`-Fallback, der das Feld zerstören
+könnte; Felder ohne Auswahl-Interface werden ehrlich abgelehnt. Ebenso
+ehrlich: „Ich habe nichts diktiert, was ich ersetzen könnte" ohne Diktat-
+Merker, und „Das letzte Diktat war in einem anderen Feld" nach Fokuswechsel.
+Die Ersetzung selbst wird zum neuen Merker (Korrektur der Korrektur) und
+verwirft den Say-All-Merker des Feldes (Feld hat sich geändert). Der Payload
+folgt exakt dem Diktat-Vertrag (printable-only, ≤ 512, Kontrollbytes verwei-
+gert vor jedem Adapter); keine Aktionen-Rücknahme („nein ich meinte löschen"
+diktiert das Wort „löschen", kein Undo-Trick), und der Diktiermodus-Auslöser
+feuert nicht innerhalb des Korrektur-Trigger (gleiche Satz-Ende-Regel wie
+Satzzeichen) — eine E-Mail korrigiert man als neue Modus-Äußerung. Verifiziert
+gegen den Fake-Baum und im GTK-Sitzungstest (diktieren → korrigieren → Feld
+lesen). Offen bleibt die Rücknahme über den Dialog hinweg (Äußerungs-Stack,
+s. o. und § 11).
 
 Es fehlt weiterhin:
 
@@ -120,8 +146,10 @@ Es fehlt weiterhin:
   Ziffernkette `21000`-artig verkettet — korrekt zufällig, aber kein
   Kompositions-Parsing (`21.000` diktiert man als ein Wort
   „einundzwanzigtausend" oder als Ziffern). Ehrliche Grenze des Token-Modells.
-- **Korrektur-Slots über den Dialog hinweg**: „nein, ich meinte …" muss die
-  letzte Äußerung ersetzen, nicht eine neue anhängen.
+- **Korrektur-Slots über den Dialog hinweg**: „nein, ich meinte …" ersetzt
+  jetzt das letzte Diktat im selben Feld (s. unten, Korrektur-Slot) — über
+  den Dialog hinweg (letzten *Befehl* rücknehmen, Äußerungs-Stack) bleibt
+  offen, das braucht ein anderes Modell als der Feld-Merker.
 
 Ohne diesen Block ist jede Textarbeit jenseits eines Einzeilers unmöglich.
 
@@ -279,7 +307,10 @@ Es fehlt:
 ## 11. Interaktionsmodell und Fehlerkorrektur
 
 - **Rückfrage bei Mehrdeutigkeit** („Meinten Sie Firefox oder Files?").
-- **Rücknahme einer Sprachaktion** („das war falsch, mach es rückgängig").
+- **Rücknahme einer Sprachaktion** („das war falsch, mach es rückgängig") —
+  für *Diktat* ist der erste Schritt umgesetzt („nein, ich meinte …" ersetzt
+  das letzte Diktat im selben Feld, siehe § 1 Korrektur-Slot); die Rücknahme
+  einer beliebigen *Aktion* über den Dialog hinweg bleibt offen.
 - **Verlauf**: „was habe ich zuletzt gemacht?"
 - **Kontextgedächtnis** über mehrere Sätze („öffne sie", „schließe das wieder").
 - **Barge-in** ist architektonisch da, aber ungemessen; die Wake-Word-

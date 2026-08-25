@@ -667,3 +667,31 @@ Mode output stays schema-valid (printable, ≤512); the injection corpus
 covers all six modes and stays green; no new actions (all modes emit
 text.insert), no new model category, biometric processing or cloud data
 flow was introduced.
+
+## 2026-08-25 — Correction slot: "nein, ich meinte …" replaces the last dictation (GLM 5.3 via Hermes)
+
+Implements the last open §1 point of the blind-use analysis plus the §11
+status line: "nein, ich meinte <text>" (DE) / "no, i meant <text>" (EN)
+replaces the remembered span of the last dictation in the focused field
+instead of appending a new utterance. New action text.replace_last_dictation
+(low risk, dictation payload validator, semantic GNOME adapter; protocol,
+SEMANTIC_ACTIONS, SEMANTIC_MUTATIONS, executor branch, capabilities and
+gpt_live inherit via adapted_actions). The adapter remembers the exact
+character span of the last insert per field (same field-key philosophy as
+the say-all bookmark; dropped on focus change, replaced by each new
+dictation), verifies it byte-identically against the live field content
+before replacing and refuses honestly when nothing was dictated, the focus
+moved to another field, the field changed under the hand or the field
+offers no selection interface (addSelection path only — never a select-all
+fallback). A successful replacement becomes the new correction slot
+(correction of the correction) and drops the field's say-all bookmark.
+Deliberate V1 limits, documented: no action undo ("nein ich meinte löschen"
+dictates the word "löschen"), no dictation-mode rendering inside the
+correction trigger (same sentence-end rule as punctuation), and the
+cross-dialog utterance-stack model stays open in the gap analysis. Payload
+follows the dictation contract (printable-only, ≤512); control bytes are
+refused in the router builder before any adapter call; password/terminal
+refusals apply unchanged; the injection corpus covers the new trigger and
+stays green. Verified against the fake tree (26 new tests incl. e2e
+router→broker→field) and in the GTK session smoke (dictate → correct →
+read-back).

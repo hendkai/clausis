@@ -147,6 +147,7 @@ class InjectionCorpusTests(unittest.TestCase):
                     for mode in ("email", "url", "number", "date", "time", "path"):
                         self.assertIsNone(apply_mode(mode, f"hendrik{control}x at y punkt de"))
                 utterances = (
+                    f"nein ich meinte hendrik{control}mustermann",
                     f"diktiere hendrik{control}mustermann",
                     f"buchstabier a{control}b",
                     f"diktiere e-mail hendrik{control}x at y punkt de",
@@ -169,6 +170,25 @@ class InjectionCorpusTests(unittest.TestCase):
                     if request is not None:
                         for ch in request.target:
                             self.assertFalse(ch < "\x20" or "\x7f" <= ch <= "\x9f", utterance)
+
+    def test_correction_payloads_stay_schema_valid(self):
+        # The correction trigger carries the same printable-only payload
+        # contract as dictation itself: whatever the corpus smuggles after
+        # "nein, ich meinte", the routed request is schema-valid or refused
+        # outright — never a crash, never a control byte in the target.
+        router = OfflineRouter()
+        printable_payloads = [
+            "".join(ch if ch >= " " and ch != "\x7f" else " " for ch in payload)
+            for payload in INJECTION_STRINGS
+        ]
+        for payload in printable_payloads:
+            with self.subTest(payload=payload):
+                request = router.route(f"nein ich meinte {payload}")
+                if request is not None:
+                    self.assertEqual(request.action, "text.replace_last_dictation")
+                    self.assertLessEqual(len(request.target), 512)
+                    for ch in request.target:
+                        self.assertFalse(ch < "\x20" or "\x7f" <= ch <= "\x9f")
 
     def test_hermes_cannot_smuggle_token_in_corpus(self):
         for payload in INJECTION_STRINGS:
