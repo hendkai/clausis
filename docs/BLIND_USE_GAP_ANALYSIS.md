@@ -57,8 +57,10 @@ an den Grenzen („Anfang erreicht, Wort-Navigation stoppt hier. Der Cursor steh
 auf Position 0 von 47") und meldet die erreichte Position; Zeilennummern über
 das Dokumentende hinaus werden abgefangen und auf die letzte Zeile gesetzt („Das
 Dokument hat nur 7 Zeilen, ich stehe jetzt in Zeile 7"). Leerzeilen sind keine
-Navigationseinheiten. Ziffern (1–3-stellig) und gesprochene Zahlwörter (0–99,
-inkl. „dreiundzwanzig") teilen sich das Zahlvokabular des Zahl-Diktiermodus.
+Navigationseinheiten. Ziffern (1–3-stellig) und gesprochene Zahlwörter teilen
+sich das Zahlvokabular des Zahl-Diktiermodus — seit 2026-08-25 bis 999.999
+(s. Diktiermodi-Reste unten); die Sprung-/Schritt-Obergrenzen bleiben ehrlich
+Zeile 1–999 und 1–99 Schritte.
 Verifiziert gegen den Fake-Baum und im GTK-Sitzungstest gegen eine echte
 mehrzeilige `Gtk.TextView` (3 Absätze, 7 Zeilen).
 
@@ -73,20 +75,51 @@ Satz-Ende-Regel für Satzzeichen); nicht parsembare Zahlen werden ehrlich
 abgelehnt statt geraten, und der Modus-Ausgang bleibt schema-valide
 (printable-only, ≤ 512 Zeichen, Injection-Korpus-Regression grün).
 
+Umgesetzt (2026-08-25, Diktiermodi-Reste): Die vier offenen Punkte aus dem
+Status vom 2026-08-24 sind geschlossen. **Datum**: „diktiere datum zwölfter
+august 2026" → `12.08.2026` — Tag als Ziffer, Kardinal- oder Ordinalwort
+(„zwölf"/„zwölfter"/„zwölften"), Monat als Ziffer oder deutscher/englischer
+Monatsname („12 punkt 8 2026" geht ebenfalls), Jahr 1900–2099 als Ziffern
+oder zusammengesetztes Zahlwort („zweitausendsechsundzwanzig"); der Kalender
+entscheidet (30./31., Schaltjahr), alles Unparsembare wird ehrlich abgelehnt.
+**Uhrzeit**: „diktiere uhrzeit vierzehn uhr dreißig" → `14:30` — bewusst nur
+„H uhr" und „H uhr M" (24 h, Minuten als Ziffern oder Zahlwort);
+umgangssprachliche Formen („halb drei", „viertel nach fünf") bleiben ehrlich
+abgelehnt, weil das 14:30/15:30-Rätsel nicht geraten wird. **Zahlwörter bis
+999.999**: das gemeinsame Vokabular (Zahl-Modus + Navigation) versteht jetzt
+Hundert-/Tausend-Komposition („dreihundertfünfundzwanzig",
+„zweitausendvierhundert", „einundzwanzigtausend"); getrennt gesprochene
+Großzahlen bleiben Ziffernketten („hundert eins" → `1001`), Zahlen über
+999.999 werden abgelehnt; die Zeilen-Navigation profitiert automatisch mit
+(„zeile zweihundertfünfundzwanzig" → Zeile 225), ihr Cap bleibt aber ehrlich
+1–999 („zeile tausend" lehnt ab), ebenso das Schritt-Cap 1–99 („hundert
+wörter weiter" lehnt ab). **Pfad-Trenner**: „diktiere pfad" macht jedes
+gesprochene Wort zu einem Pfadsegment — „schrägstrich home hendrik" →
+`/home/hendrik` (fixt `/homehendrik`); „punkt" klebt vorn am nächsten
+Segment („home hendrik punkt bashrc" → `home/hendrik/.bashrc`, „punkt bashrc"
+→ `.bashrc`), Zahlwörter werden Ziffern. Modus-Ausgang bleibt schema-valide
+(printable, ≤ 512), Injection-Korpus-Regression weiter grün.
+
 Es fehlt weiterhin:
 
-- **Diktiermodi (Reste)**: Datum und Uhrzeit haben noch keinen Modus
-  (Trigger sind dokumentiert, Umsetzung folgt demnächst); Zahlwörter gehen
-  nur 0–99 („hundert", „tausend", „dreihundertfünfundzwanzig" werden
-  abgelehnt, nicht falsch geraten); in URLs wird ein gesprochenes
-  „Doppelpunkt" nur nach einem Schema (https etc.) umgesetzt, nicht mitten
-  in Host/Port; Dateipfade verlieren Wortabstände („schrägstrich home
-  hendrik" → `/homehendrik`) — für echte Pfade fehlt noch eine
-  Trenner-Konvention. „punkt de" wird zu `.de`. Grenze: Ein Wort, das
-  zufällig ein Kommando-Token ist („dot", „slash", „punkt" als Name), wird
-  umgeformt — Ausweg ist das Escape „wörtlich"/„literal" vor dem Wort,
-  ohne Vorwissen aber nicht auffindbar (gleiche Grundspannung wie beim
-  Satzzeichen-Befehl am Satzende).
+- **Grenze Kommando-Token als Name**: Ein Wort, das zufällig ein
+  Kommando-Token ist („dot", „slash", „punkt" als Name), wird umgeformt —
+  Ausweg ist das Escape „wörtlich"/„literal" vor dem Wort, ohne Vorwissen
+  aber nicht auffindbar (gleiche Grundspannung wie beim Satzzeichen-Befehl
+  am Satzende).
+- **Umgangssprachliche Uhrzeiten**: „halb drei", „viertel nach/vor" haben
+  bewusst keinen Uhrzeit-Modus (V1-Grenze: das 14:30/15:30-Rätsel wird
+  nicht geraten); diktiere sie als „vierzehn uhr dreißig".
+- **Leerzeichen in Dateinamen**: Der Pfad-Modus verkettet pro Segment —
+  „meine datei v2" wird zu `meine/datei/v2`. Ausweg: Buchstabier-Modus oder
+  „wörtlich"-Escape pro Wort (dokumentierte V1-Grenze).
+- **URL-Doppelpunkt mitten im Host**: Ein gesprochenes „doppelpunkt" wird in
+  URLs nur direkt nach einem Schema (https etc.) umgesetzt, nie mitten in
+  Host/Port (bewusste V1-Grenze; unverändert durch die Zahlwort-Erweiterung).
+- **Getrennt gesprochene Großzahlen**: „zwei tausend" (zwei Wörter) wird zur
+  Ziffernkette `21000`-artig verkettet — korrekt zufällig, aber kein
+  Kompositions-Parsing (`21.000` diktiert man als ein Wort
+  „einundzwanzigtausend" oder als Ziffern). Ehrliche Grenze des Token-Modells.
 - **Korrektur-Slots über den Dialog hinweg**: „nein, ich meinte …" muss die
   letzte Äußerung ersetzen, nicht eine neue anhängen.
 

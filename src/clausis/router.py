@@ -98,20 +98,20 @@ def _dictation_mode(mode: str) -> Builder:
     return build
 
 
-def _number_word(match: Match[str]) -> int:
+def _number_word(match: Match[str]) -> Optional[int]:
     """Numeric value of a router number group: digits or a spoken word.
 
-    Reuses the dictation-mode number table (0–99 including the German
-    compounds „dreiundzwanzig" …), so „Zeile 12" and „Zeile zwölf" both
-    parse and every numbered command shares one number vocabulary.
+    Reuses the dictation-mode number table (now including the German
+    hundred/thousand compounds up to 999,999), so „Zeile 12" and „Zeile
+    zwölf" both parse and every numbered command shares one number
+    vocabulary.  A grammar-over-accepted nonsense token resolves to
+    ``None`` — the caller must decline, never raise: a voice loop cannot
+    crash on a malformed transcript.
     """
 
     from .dictation_modes import word_number
 
-    value = word_number(match.group("number"))
-    if value is None:
-        raise ValueError
-    return value
+    return word_number(match.group("number"))
 
 
 def _counted_caret_builder(direction: str) -> Builder:
@@ -129,15 +129,28 @@ def _counted_caret_builder(direction: str) -> Builder:
         "paragraph": f"text.caret.paragraph_{direction}",
     }
 
-    def build(match: Match[str]) -> ActionRequest:
+    def build(match: Match[str]) -> Optional[ActionRequest]:
+        count = _number_word(match)
+        # The shared vocabulary reaches 999,999, but a counted move stays
+        # capped at 1–99 steps (the policy validator enforces the same
+        # bound); a larger spoken number declines the utterance so the
+        # agent can explain instead of a cryptic policy denial.
+        if count is None or not 1 <= count <= 99:
+            return None
         unit = _COUNTED_UNIT_WORDS[match.group("unit").casefold()]
-        return ActionRequest(unit_actions[unit], arguments={"count": _number_word(match)})
+        return ActionRequest(unit_actions[unit], arguments={"count": count})
 
     return build
 
 
-def _line_number_target(match: Match[str]) -> ActionRequest:
-    return ActionRequest("text.caret.line", target=str(_number_word(match)))
+def _line_number_target(match: Match[str]) -> Optional[ActionRequest]:
+    number = _number_word(match)
+    # The shared vocabulary reaches 999,999, but a line jump stays capped
+    # at 1–999 (the policy validator enforces the same bound); a larger
+    # spoken number declines the utterance instead of guessing a line.
+    if number is None or not 1 <= number <= 999:
+        return None
+    return ActionRequest("text.caret.line", target=str(number))
 
 
 def _unit_caret(action: str) -> Builder:
@@ -242,9 +255,10 @@ _file_select = _file_number_command("dialog.file.select")
 _folder_open = _file_number_command("dialog.folder.open")
 
 #: Number vocabulary shared by every counted navigation pattern: digits
-#: (up to three) or a German/English number word 0–99, including the German
-#: compounds ("zweiundzwanzig").  Built from the dictation-mode table so
-#: the router and the number dictation mode can never drift apart.
+#: (up to three) or a German/English number word from the dictation-mode
+#: table — atoms plus the generated compounds, now including the hundreds
+#: and "tausend" anchors.  Built from the dictation-mode table so the
+#: router and the number dictation mode can never drift apart.
 from .dictation_modes import _SPOKEN_NUMBERS as _DICTATION_NUMBER_WORDS  # noqa: E402
 
 _NUMBER_ALTERNATION = "|".join(
@@ -254,7 +268,36 @@ _NUMBER_ALTERNATION = "|".join(
         reverse=True,
     )
 )
-_NUMBER_GROUP = rf"(?:\d{{1,3}}|{_NUMBER_ALTERNATION})"
+
+#: German compound numbers up to 999,999 ("zweihundertfünfundzwanzig",
+#: "dreihundertfünfundzwanzigtausend") are compositional — a table
+#: alternation cannot enumerate them — so the router accepts the closed
+#: grammar of spoken German ([…]tausend + hundert + 1–99) and the builders
+#: resolve the value with ``word_number``, which shares the dictation-mode
+#: parser and its honest 999,999 ceiling.  The grammar may over-accept
+#: nonsense ("hunderttausendtausend"); the builder then declines the
+#: utterance — never a crash, never a guess.
+_COMPOUND_HUNDREDS = (
+    r"(?:(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun)hundert"
+    r"|hundert|einhundert)"
+)
+_COMPOUND_ONES = r"(?:ein|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun)"
+_COMPOUND_TEENS = (
+    r"(?:zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn"
+    r"|siebzehn|achtzehn|neunzehn)"
+)
+_COMPOUND_TENS = (
+    r"(?:und(?:zwanzig|dreißig|dreissig|vierzig|fünfzig"
+    r"|sechzig|siebzig|achtzig|neunzig))?"
+)
+_COMPOUND_ONES_99 = rf"(?:{_COMPOUND_TEENS}|{_COMPOUND_ONES}{_COMPOUND_TENS})"
+_COMPOUND_GRAMMAR = (
+    rf"(?:{_COMPOUND_HUNDREDS}?{_COMPOUND_ONES_99}?tausend)?"
+    rf"(?:{_COMPOUND_HUNDREDS}{_COMPOUND_ONES_99}?"
+    rf"|{_COMPOUND_HUNDREDS}?{_COMPOUND_ONES_99}?tausend)"
+)
+_NUMBER_GRAMMAR = rf"(?:{_NUMBER_ALTERNATION}|{_COMPOUND_GRAMMAR})"
+_NUMBER_GROUP = rf"(?:\d{{1,3}}|{_NUMBER_GRAMMAR})"
 
 
 def _rx(*values: str) -> Sequence[Pattern[str]]:
@@ -481,6 +524,30 @@ COMMANDS: Sequence[CommandPattern] = (
             r"dictate (?:number|num) (?P<target>.+)",
         ),
         _dictation_mode("number"),
+    ),
+    CommandPattern(
+        "dictate-date",
+        _rx(
+            r"diktiere datum (?P<target>.+)",
+            r"dictate (?:date|the date) (?P<target>.+)",
+        ),
+        _dictation_mode("date"),
+    ),
+    CommandPattern(
+        "dictate-time",
+        _rx(
+            r"diktiere uhrzeit (?P<target>.+)",
+            r"dictate (?:time|the time) (?P<target>.+)",
+        ),
+        _dictation_mode("time"),
+    ),
+    CommandPattern(
+        "dictate-path",
+        _rx(
+            r"diktiere pfad (?P<target>.+)",
+            r"dictate (?:path|file path) (?P<target>.+)",
+        ),
+        _dictation_mode("path"),
     ),
     # "Schreibe mir ein Gedicht" is a request to the agent, not dictation, so
     # the dictation verbs stay unambiguous and an ambiguous "schreibe …" keeps

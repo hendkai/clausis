@@ -375,6 +375,37 @@ class DictationRoutingTests(DesktopHarness):
         self.assertEqual(result.status, "completed")
         self.assertEqual(field.content, "https://example.de")
 
+    def test_date_time_and_path_modes_e2e_router_to_field(self):
+        from clausis.router import OfflineRouter
+
+        for utterance, expected in (
+            ("diktiere datum zwölfter august 2026", "12.08.2026"),
+            ("diktiere uhrzeit neun uhr sechsundvierzig", "09:46"),
+            ("diktiere pfad schrägstrich home hendrik punkt bashrc", "/home/hendrik/.bashrc"),
+        ):
+            with self.subTest(utterance=utterance):
+                field = FakeNode(
+                    "Feld", "text", {STATE_SHOWING, STATE_FOCUSED, STATE_EDITABLE}
+                )
+                desktop = self.desktop_for(build_desktop(field))
+                broker = self._broker(desktop)
+
+                request = OfflineRouter().route(utterance)
+                self.assertIsNotNone(request)
+                self.assertEqual(request.action, "text.insert")
+                result = broker.submit(request)
+                self.assertEqual(result.status, "completed")
+                self.assertEqual(field.content, expected)
+
+    def test_refused_date_time_modes_insert_nothing(self):
+        from clausis.router import OfflineRouter
+
+        # Unparseable payloads fall through to the agent — nothing reaches
+        # a field, and the mode words never become prose.
+        self.assertIsNone(OfflineRouter().route("diktiere datum hallo welt"))
+        self.assertIsNone(OfflineRouter().route("diktiere uhrzeit halb drei"))
+        self.assertIsNone(OfflineRouter().route("diktiere pfad home hendrik punkt"))
+
     def test_refused_number_mode_inserts_nothing(self):
         from clausis.router import OfflineRouter
 

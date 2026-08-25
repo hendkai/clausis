@@ -102,7 +102,7 @@ class InjectionCorpusTests(unittest.TestCase):
             "wörtlich $(rm -rf /)",
         ]
         router = OfflineRouter()
-        for mode in ("email", "url", "number"):
+        for mode in ("email", "url", "number", "date", "time", "path"):
             for payload in mode_payloads:
                 with self.subTest(mode=mode, payload=payload):
                     rendered = apply_mode(mode, payload)
@@ -117,10 +117,15 @@ class InjectionCorpusTests(unittest.TestCase):
                                             "\x1e\x1f\x7f")
                     # The same holds end to end: a routed mode request is
                     # schema-valid or refused outright.
-                    request = router.route(f"diktiere e-mail {payload}") if mode == "email" else (
-                        router.route(f"diktiere url {payload}") if mode == "url"
-                        else router.route(f"diktiere zahl {payload}")
-                    )
+                    utterance = {
+                        "email": f"diktiere e-mail {payload}",
+                        "url": f"diktiere url {payload}",
+                        "number": f"diktiere zahl {payload}",
+                        "date": f"diktiere datum {payload}",
+                        "time": f"diktiere uhrzeit {payload}",
+                        "path": f"diktiere pfad {payload}",
+                    }[mode]
+                    request = router.route(utterance)
                     if request is not None:
                         self.assertEqual(request.action, "text.insert")
                         self.assertLessEqual(len(request.target), 512)
@@ -139,7 +144,7 @@ class InjectionCorpusTests(unittest.TestCase):
                 if not control.isspace():
                     # Non-whitespace controls survive splitting mid-word and
                     # must be refused outright by every mode.
-                    for mode in ("email", "url", "number"):
+                    for mode in ("email", "url", "number", "date", "time", "path"):
                         self.assertIsNone(apply_mode(mode, f"hendrik{control}x at y punkt de"))
                 utterances = (
                     f"diktiere hendrik{control}mustermann",
@@ -147,6 +152,9 @@ class InjectionCorpusTests(unittest.TestCase):
                     f"diktiere e-mail hendrik{control}x at y punkt de",
                     f"diktiere url x{control}y punkt de",
                     f"diktiere zahl 1{control}2",
+                    f"diktiere datum 12{control}8 2026",
+                    f"diktiere uhrzeit 14 uhr 3{control}0",
+                    f"diktiere pfad home{control}hendrik",
                 )
                 for utterance in utterances:
                     try:

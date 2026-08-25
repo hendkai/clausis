@@ -66,7 +66,7 @@ disk in VirtualBox. Do not unpack the resulting ISO.
 - Matching GNOME identity with the Clausis listening-field wallpaper, dark
   color preference, purple speech accent, branded launchers and GDM logo,
   reduced animation and Atkinson Hyperlegible typography.
-- 98 deterministic German/English offline command families. Every allowlisted
+- 103 deterministic German/English offline command families. Every allowlisted
   action reaches exactly one adapter — semantic GNOME, read-only local query,
   the Polkit-gated privileged helper or a fixed argument vector — and a test
   fails the build if an action is left without one.
@@ -134,7 +134,11 @@ disk in VirtualBox. Do not unpack the resulting ISO.
   ends the voice session; it becomes a spoken failure, and “Stopp” still works.
 - Dictation into the focused text field over AT-SPI: “Diktiere …”, “Tippe …”,
   “Schreib ins Feld …”, plus “Wort löschen”, “Feld leeren” and “Lies das Feld
-  vor”. The inserted text is read back out of the accessibility tree before
+  vor”. Structured dictation modes turn spoken punctuation into characters
+  only on their explicit trigger: “Diktiere E-Mail/URL/Pfad/Zahl/Datum/
+  Uhrzeit …” (e.g. “diktiere datum zwölfter august 2026” → `12.08.2026`,
+  “diktiere pfad schrägstrich home hendrik” → `/home/hendrik`). The inserted
+  text is read back out of the accessibility tree before
   Clausis reports success, so a field that swallowed the input is not announced
   as written. Clausis refuses to dictate into a password field or a terminal —
   there a line of text would be a command. An ambiguous “Schreibe mir ein

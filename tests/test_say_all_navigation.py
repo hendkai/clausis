@@ -335,6 +335,15 @@ class CountedRoutingTests(unittest.TestCase):
                 self.assertIsNotNone(request, spoken)
                 self.assertEqual(request.arguments.get("count"), count, spoken)
 
+    def test_counted_steps_over_99_decline(self):
+        # The shared vocabulary now reaches 999,999, but a counted move
+        # stays capped at 1–99 steps: a larger spoken number declines the
+        # utterance (honest refusal before the policy layer) instead of
+        # building a request the broker would deny cryptically.
+        router = OfflineRouter()
+        self.assertIsNone(router.route("hundert wörter weiter"))
+        self.assertIsNone(router.route("tausend zeilen zurück"))
+
     def test_line_number_patterns_digits_and_words(self):
         router = OfflineRouter()
         for spoken, target in [
@@ -343,12 +352,21 @@ class CountedRoutingTests(unittest.TestCase):
             ("zeile drei", "3"),
             ("line 12", "12"),
             ("go to line 7", "7"),
+            # The shared vocabulary now reaches 999,999, and the spoken
+            # compounds work for line numbers too…
+            ("zeile hundert", "100"),
+            ("zeile zweihundertfünfundzwanzig", "225"),
+            ("zeile neunhundertneunundneunzig", "999"),
         ]:
             with self.subTest(spoken=spoken):
                 request = router.route(spoken)
                 self.assertIsNotNone(request, spoken)
                 self.assertEqual(request.action, "text.caret.line", spoken)
                 self.assertEqual(request.target, target, spoken)
+        # …but the 1–999 validator still refuses anything beyond, so the
+        # builder declines the utterance instead of guessing a line.
+        self.assertIsNone(router.route("zeile tausend"))
+        self.assertIsNone(router.route("zeile 1000"))
 
     def test_say_all_commands_route(self):
         router = OfflineRouter()

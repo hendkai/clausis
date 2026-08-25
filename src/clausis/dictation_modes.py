@@ -22,10 +22,16 @@ Everything is a plain table plus rules; the functions are pure and the output
 keeps the guarantees the dictation schema already enforces (no control
 characters, length ≤ 512 — the request constructor rejects anything else).
 
-Number-word parsing is deliberately V1: digit chains and German compound
-words zero to ninety-nine ("zweiundzwanzig" → 22, "drei Komma eins vier" →
-"3,14").  Larger numbers, dates and times are documented as missing, not
-approximated.
+Number-word parsing covers 0–999,999: digit chains, the German compound
+words ("zweiundzwanzig" → 22, "dreihundertfünfundzwanzig" → 325) and one
+compositional "tausend" step ("zweitausendvierhundert" → 2400) — larger
+numbers are honestly refused, never guessed.  Dates ("diktiere datum
+zwölfter august 2026" → ``12.08.2026``) and 24-hour times ("diktiere
+uhrzeit neunzehn uhr sechsundvierzig" → ``19:46``) have their own modes,
+and the path mode joins every spoken word as one path segment
+("schrägstrich home hendrik" → ``/home/hendrik``).  Colloquial time forms
+("halb drei"), split big numbers ("zwei tausend" spoken as two words) and
+spaces inside file names stay documented V1 limits: refused, not guessed.
 """
 
 from __future__ import annotations
@@ -79,9 +85,106 @@ for _tens in range(2, 10):
 #: Union lookup actually used by the parsers.
 _SPOKEN_NUMBERS: Dict[str, int] = {**_NUMBER_WORDS, **_COMPOUND_WORDS}
 
-#: Escape words: they drop themselves and keep the next word verbatim,
-#: the same contract as in ``punctuation.py``.
-_ESCAPES = frozenset({"wörtlich", "literal"})
+#: Hundreds anchors plus the regular 200–900 compounds; multi-part values
+#: ("dreihundertfünfundzwanzig", "zweitausendvierhundert") are resolved by
+#: the compositional parser below, not by a giant table.
+_HUNDREDS: Dict[str, int] = {"hundert": 100, "einhundert": 100, "hundred": 100}
+for _h in range(2, 10):
+    _HUNDREDS[f"{_ONES_WORDS[_h]}hundert"] = _h * 100
+_SPOKEN_NUMBERS.update(_HUNDREDS)
+_SPOKEN_NUMBERS.update({"tausend": 1000, "eintausend": 1000, "thousand": 1000})
+
+#: German "ß" has two spoken spellings ("dreißig"/"dreissig") and
+#: ``str.casefold`` maps ß → ss, so every key carrying ß needs its ss twin
+#: or the case-folded lookup silently drops the word (found while testing
+#: "vierzehn uhr dreißig").
+for _word in [w for w in _SPOKEN_NUMBERS if "ß" in w]:
+    _SPOKEN_NUMBERS[_word.replace("ß", "ss")] = _SPOKEN_NUMBERS[_word]
+
+#: Hard ceiling of the shared spoken-number vocabulary: the card fixes the
+#: honest refusal bound at 999,999, and the number mode aggregates tokens
+#: only additively (digit chains), so anything past this value is refused
+#: rather than guessed.
+MAX_SPOKEN_NUMBER = 999_999
+
+#: Scale words the compositional parser splits on.  "tausend" appears at
+#: most once in a German number and always dominates "hundert", so the
+#: split order below is fixed: thousands first, then hundreds, and the
+#: 0–99 table plus its "und" compounds close the remainder.
+_THOUSAND = "tausend"
+_HUNDRED = "hundert"
+
+
+def _german_compound_value(word: str) -> Optional[int]:
+    """Value of a German compound number word 100–999,999, else ``None``.
+
+    Structure mirrors spoken German exactly: ``[1–999]tausend[1–999]`` and
+    ``[1–9]hundert[0–99]`` in one token.  Each side recurses through this
+    parser, so "hundertfünfundzwanzigtausenddreihundertvier" resolves; the
+    0–99 compounds ("fünfundzwanzig") come from the generated table, and a
+    bare "eins"/"eine" is rejected in composition (spoken German uses
+    "ein").  Anything outside 0–999,999 — or malformed — refuses.
+    """
+
+    value = _SPOKEN_NUMBERS.get(word)
+    if value is not None:
+        return value
+    if _THOUSAND in word:
+        head, _, tail = word.partition(_THOUSAND)
+        if _THOUSAND in tail:
+            # Valid German uses "tausend" at most once; a second one is
+            # grammar-over-accepted nonsense ("tausendtausend") that must
+            # refuse, never resolve to a number.
+            return None
+        head_value = _german_hundreds_prefix(head)
+        tail_value = _german_compound_value(tail) if tail else 0
+        if head_value is None or tail_value is None:
+            return None
+        total = head_value * 1000 + tail_value
+        return total if total <= MAX_SPOKEN_NUMBER else None
+    if _HUNDRED in word:
+        head, _, tail = word.partition(_HUNDRED)
+        head_value = _german_hundreds_prefix(head)
+        tail_value = _SPOKEN_NUMBERS.get(tail) if tail else 0
+        if head_value is None or tail_value is None:
+            return None
+        return head_value * 100 + tail_value
+    return None
+
+
+def _german_hundreds_prefix(head: str) -> Optional[int]:
+    """1–999 value of the words in front of a scale word, else ``None``."""
+
+    if head == "" or head == "ein":
+        return 1
+    value = _german_compound_value(head)
+    if value is not None and 1 <= value <= 999:
+        return value
+    return None
+
+
+def word_number(word: str) -> Optional[int]:
+    """Value of a single spoken number word (0–999,999), else ``None``.
+
+    Table lookup on the case-folded word, with the German hundred/thousand
+    compounds resolved compositionally; digits pass through as integers so
+    digit chains and spoken words mix freely.  A digit token wider than the
+    ceiling refuses rather than half-parsing (the number mode keeps
+    concatenating digit *words* one digit at a time — "drei eins vier" →
+    314 — which is unaffected by this guard).
+    """
+
+    folded = word.casefold()
+    if folded.isdigit():
+        value = int(folded)
+        return value if value <= MAX_SPOKEN_NUMBER else None
+    value = _SPOKEN_NUMBERS.get(folded)
+    if value is not None:
+        return value
+    value = _german_compound_value(folded)
+    if value is not None and value <= MAX_SPOKEN_NUMBER:
+        return value
+    return None
 
 #: Output cap: TARGET_RE allows 512 characters, and mode output never
 #: widens that (the ``ActionRequest`` constructor rejects longer targets).
@@ -106,17 +209,9 @@ def contains_control_characters(text: str) -> bool:
     return any(ch < "\x20" or "\x7f" <= ch <= "\x9f" for ch in text)
 
 
-def word_number(word: str) -> Optional[int]:
-    """Value of a single spoken number word (0–99), else ``None``.
-
-    Pure table lookup on the case-folded word; digits pass through as
-    integers so digit chains and spoken words mix freely.
-    """
-
-    folded = word.casefold()
-    if folded.isdigit():
-        return int(folded)
-    return _SPOKEN_NUMBERS.get(folded)
+#: Escape words: they drop themselves and keep the next word verbatim,
+#: the same contract as in ``punctuation.py``.
+_ESCAPES = frozenset({"wörtlich", "literal"})
 
 
 def _tokens(text: str) -> List[str]:
@@ -247,12 +342,216 @@ def _render_number(words: List[str]) -> Optional[str]:
     return "".join(out)
 
 
+#: German month names with English fallbacks (the shared spellings need
+#: no separate entry — "august" is both).
+_MONTHS: Dict[str, int] = {
+    "januar": 1, "februar": 2, "märz": 3, "april": 4, "mai": 5,
+    "juni": 6, "juli": 7, "august": 8, "september": 9, "oktober": 10,
+    "november": 11, "dezember": 12,
+    "january": 1, "february": 2, "march": 3, "june": 6, "july": 7,
+    "october": 10, "december": 12,
+}
+
+#: Cardinal day words 1–31 (ordinals are derived from these).
+_DAY_CARDINALS: Dict[int, str] = {1: "eins", 2: "zwei", 3: "drei", 4: "vier", 5: "fünf",
+                                  6: "sechs", 7: "sieben", 8: "acht", 9: "neun", 10: "zehn",
+                                  11: "elf", 12: "zwölf", 13: "dreizehn", 14: "vierzehn",
+                                  15: "fünfzehn", 16: "sechzehn", 17: "siebzehn",
+                                  18: "achtzehn", 19: "neunzehn", 20: "zwanzig"}
+for _d in range(21, 32):
+    # Spoken German uses "einund…" (not "einsund…") in compounds — the
+    # same special case the 0–99 compound table applies.
+    _ones = "ein" if _d % 10 == 1 else _ONES_WORDS[_d % 10]
+    _DAY_CARDINALS[_d] = f"{_ones}und{_TENS_WORDS[_d // 10]}"
+
+#: Ordinal day words 1–31 in the case forms a speaker produces
+#: ("zwölfter"/"zwölften"/"zwölfte" …).  Irregular stems (erst-, dritt-,
+#: sechst-, siebt-) plus the regular "+te"/"+ste" (after -g) build the
+#: base; the other case endings replace the final e.  Both ß and ss
+#: spellings land in the table because lookups run on casefolded tokens.
+_ORDINAL_DAYS: Dict[str, int] = {}
+for _d, _cardinal in _DAY_CARDINALS.items():
+    if _d == 1:
+        _base = "erste"
+    elif _d == 3:
+        _base = "dritte"
+    elif _d == 6:
+        _base = "sechste"
+    elif _d == 7:
+        _base = "siebte"
+    elif _cardinal.endswith("g"):
+        _base = _cardinal + "ste"
+    else:
+        _base = _cardinal + "te"
+    for _form in (_base, _base[:-1] + "er", _base[:-1] + "en",
+                  _base[:-1] + "es", _base[:-1] + "em",
+                  _base.replace("ß", "ss"), _base[:-1].replace("ß", "ss") + "er",
+                  _base[:-1].replace("ß", "ss") + "en"):
+        _ORDINAL_DAYS[_form] = _d
+
+_DAYS_IN_MONTH = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+
+
+def _parse_day(word: str) -> Optional[int]:
+    """Day of month 1–31 from digits, a cardinal or an ordinal word."""
+
+    if word.isdigit():
+        return int(word) if 1 <= int(word) <= 31 else None
+    if word in _ORDINAL_DAYS:
+        return _ORDINAL_DAYS[word]
+    value = _SPOKEN_NUMBERS.get(word)
+    if value is not None and 1 <= value <= 31:
+        return value
+    return None
+
+
+def _parse_year(word: str) -> Optional[int]:
+    """Year 1900–2099 from digits or one spoken number word."""
+
+    value = word_number(word)
+    if value is not None and 1900 <= value <= 2099:
+        return value
+    return None
+
+
+def _render_date(words: List[str]) -> Optional[str]:
+    """German date, spoken as day, month, year — output ``TT.MM.JJJJ``.
+
+    Fixed component order (day, month, year) with optional "punkt"/"dot"
+    separators and a tolerated leading article ("den zwölften august
+    neunzehnhundertsechsundachtzig").  Days accept digits, cardinals and
+    ordinals ("zwölf" and "zwölfter" alike); months accept digits or a
+    German/English month name; years accept digits or one compound number
+    word ("zweitausendsechsundzwanzig").  The calendar decides the rest:
+    31st of April refuses, leap years do not.  Nothing else parses — a
+    half-guessed date is worse than none.
+    """
+
+    tokens = [w for w in words if w.casefold() not in _ESCAPES]
+    if tokens and tokens[0].casefold() in {"den", "der", "the"}:
+        tokens = tokens[1:]
+    # A dictated or typed „12. august 2026" may carry the German date dots
+    # on the digit tokens; strip one trailing dot so the digits parse.
+    tokens = [w[:-1] if w[:-1].isdigit() and w.endswith(".") else w for w in tokens]
+    if len(tokens) < 3:
+        return None
+    day = _parse_day(tokens[0].casefold())
+    if day is None:
+        return None
+    month_token = tokens[1].casefold()
+    if month_token in {"punkt", "dot"}:
+        if len(tokens) < 4:
+            return None
+        month_token = tokens[2].casefold()
+        year_index = 3
+    else:
+        year_index = 2
+    month = int(month_token) if month_token.isdigit() and 1 <= int(month_token) <= 12 else _MONTHS.get(month_token)
+    if month is None:
+        return None
+    year = _parse_year(tokens[year_index].casefold())
+    if year is None:
+        return None
+    if len(tokens) > year_index + 1:
+        extra = tokens[year_index + 1].casefold()
+        if extra not in {"punkt", "dot"} or len(tokens) > year_index + 2:
+            return None
+    if day > _DAYS_IN_MONTH[month - 1]:
+        return None
+    if month == 2 and day == 29 and not (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
+        return None
+    return f"{day:02d}.{month:02d}.{year}"
+
+
+def _render_time(words: List[str]) -> Optional[str]:
+    """24-hour time, spoken as ``<hour> uhr [<minute>]`` — ``HH:MM``.
+
+    V1 is deliberately literal: "vierzehn uhr dreißig" → ``14:30``, and
+    minutes are digits or number words from the shared vocabulary.
+    Colloquial forms ("halb drei", "viertel nach fünf") refuse — the
+    14:30/15:30 ambiguity is exactly what a voice loop must not guess.
+    """
+
+    tokens = [w for w in words if w.casefold() not in _ESCAPES]
+    if len(tokens) not in (2, 3):
+        return None
+    hour = word_number(tokens[0].casefold())
+    if hour is None or not 0 <= hour <= 23:
+        return None
+    if tokens[1].casefold() not in {"uhr", "o'clock", "oclock"}:
+        return None
+    minute = 0
+    if len(tokens) == 3:
+        minute = word_number(tokens[2].casefold())
+        if minute is None or not 0 <= minute <= 59:
+            return None
+    return f"{hour:02d}:{minute:02d}"
+
+
+def _render_path(words: List[str]) -> Optional[str]:
+    """File path where every spoken word is one segment — ``/``-separated.
+
+    "schrägstrich"/"slash" opens a segment boundary (also leading, so
+    "schrägstrich home hendrik" → ``/home/hendrik``, fixing the run-together
+    path bug of the URL mode); "punkt"/"dot" is always ``.`` and glues
+    itself to the NEXT segment ("home hendrik punkt bashrc" →
+    ``home/hendrik/.bashrc``), so a dotted file is dictated as "punkt
+    bashrc" where the dot belongs.  Number words render as digits.  A
+    space inside a file name cannot be dictated in V1 — each word is its
+    own segment; the honest workaround is spelling mode or a literal
+    escape, documented as a limit.
+    """
+
+    result = ""
+    escape_next = False
+    pending_dot = False
+    for word in words:
+        folded = word.casefold()
+        if not escape_next and folded in _ESCAPES:
+            escape_next = True
+            continue
+        if escape_next or (pending_dot and folded in {"schrägstrich", "slash", "punkt", "dot"}):
+            # A literal escape (or "punkt" right after "punkt", which names
+            # no file) keeps the word verbatim as its own segment.
+            if pending_dot:
+                result += "/."
+                pending_dot = False
+            escape_next = False
+        elif folded in {"schrägstrich", "slash"}:
+            if result and not result.endswith("/"):
+                result += "/"
+            elif not result:
+                result = "/"
+            continue
+        elif folded in {"punkt", "dot"}:
+            pending_dot = True
+            continue
+        else:
+            value = word_number(folded)
+            if value is not None:
+                word = str(value)
+        if result and not result.endswith("/"):
+            result += "/"
+        result += "." if pending_dot else ""
+        result += word
+        pending_dot = False
+    if pending_dot:
+        # A trailing "punkt" names no segment; refusing is honest.
+        return None
+    return result if result else None
+
+
 #: Registry used by the router: mode name → renderer.
 MODE_RENDERERS: Dict[str, Callable[[List[str]], Optional[str]]] = {
     "email": _render_email,
     "url": _render_url,
     "number": _render_number,
+    "date": _render_date,
+    "time": _render_time,
+    "path": _render_path,
 }
+
+
 
 
 def apply_mode(mode: str, text: str) -> Optional[str]:

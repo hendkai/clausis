@@ -643,3 +643,27 @@ newlines produced silent speech chunks and dropped the first sentence after
 a blank line) was fixed before commit. 24 new unit tests; suite 638 tests
 green; no new injection path (read/move only), no new model category,
 biometric processing or cloud data flow was introduced.
+
+## 2026-08-25 — Dictation-mode remainders: date, time, big numbers, path separators (GLM 5.3 via Hermes)
+
+Closes the four documented §1 gaps of the blind-use analysis: a date mode
+("diktiere datum zwölfter august 2026" → 12.08.2026; day as digits,
+cardinal or ordinal word, month as digits or DE/EN name, year 1900–2099 as
+digits or one compound number word, calendar-checked), a 24-hour time mode
+("diktiere uhrzeit neunzehn uhr sechsundvierzig" → 19:46; deliberately only
+"H uhr" and "H uhr M" — colloquial "halb drei" refuses rather than guessing
+14:30/15:30), a path mode with a separator convention ("schrägstrich home
+hendrik" → /home/hendrik, fixing the run-together bug; "punkt" glues to the
+front of the next segment: "home hendrik punkt bashrc" →
+home/hendrik/.bashrc; number words render as digits), and the shared spoken
+number vocabulary extended to 999,999 (hundred/thousand compounds,
+"einundzwanzigtausend"; separate words keep the digit-chain contract;
+"tausendtausend"-style nonsense refuses). Navigation inherits the wider
+vocabulary with its honest caps intact: line jumps stay 1–999 ("zeile
+tausend" declines), counted steps stay 1–99. Two router bugs found while
+finishing: the compound grammar spelled the hundred digits as a digit class
+(so "zweihundert…" never matched) and the line builder lacked the 999 cap.
+Mode output stays schema-valid (printable, ≤512); the injection corpus
+covers all six modes and stays green; no new actions (all modes emit
+text.insert), no new model category, biometric processing or cloud data
+flow was introduced.
