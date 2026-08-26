@@ -24,6 +24,9 @@ OPTIONAL = ("nmcli", "gtk-launch", "gnome-control-center", "orca")
 #: Any one of these is enough to speak.
 SPEECH_BINARIES = ("spd-say", "espeak-ng", "espeak")
 STT_MODEL = Path("/usr/share/clausis/models/faster-whisper-base")
+#: Piper neural voice (image-build-time artifacts); missing files degrade
+#: the voice quality to the espeak-ng fallback, they never break speech.
+TTS_MODEL = Path("/usr/share/clausis/models/piper")
 
 
 def _microphone(probe: Optional[Callable[[], object]] = None) -> bool:
@@ -47,6 +50,7 @@ def _layout(mounts_path: Path) -> Dict[str, object]:
 def collect(
     *,
     model_path: Path = STT_MODEL,
+    tts_model_path: Path = TTS_MODEL,
     probe: Optional[Callable[[], object]] = None,
     which: Callable[[str], Optional[str]] = shutil.which,
     mounts_path: Path = Path("/proc/self/mounts"),
@@ -55,9 +59,12 @@ def collect(
     optional = {name: bool(which(name)) for name in OPTIONAL}
     speech = any(which(name) for name in SPEECH_BINARIES)
     model = model_path.is_dir()
+    tts_model = (tts_model_path / "de_DE-thorsten-medium.onnx").is_file()
     microphone = _microphone(probe)
 
     # Only components an update can break drive the rollback recommendation.
+    # A missing Piper voice model is NOT one: speech-dispatcher falls back
+    # to espeak-ng, so speech keeps working (documented in BLIND §6).
     repairable = all(required.values()) and speech and model
     failures: List[str] = []
     if not speech:
@@ -66,6 +73,8 @@ def collect(
         failures.append(Failure.STT_UNAVAILABLE.value)
     if not microphone:
         failures.append(Failure.NO_MICROPHONE.value)
+    if not tts_model:
+        failures.append(Failure.NEURAL_VOICE_UNAVAILABLE.value)
 
     # Layout drift is reported, never used to recommend a rollback: a machine
     # installed by an older image is not a broken update.

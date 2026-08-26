@@ -731,3 +731,20 @@ Rollen-Menge der Listeneinheit enthält deshalb jetzt beide Schreibweisen
 Fokus-Check nach dem Sprung beide Rollen — sonst würde der Smoke je nach
 GTK-Version den echten Listen-Sprung fälschlich als Fehler werten. Keine
 Verhaltensänderung sonst; Suite 712+1019 grün, CI bleibt grün.
+## 2026-08-26 — GLM 5.3 via Hermes (Piper-Offline-Stimme, BLIND §6; Fertigstellung nach Dispatcher-Gab-up)
+
+Piper als neuronale Offline-Stimme integriert: generisches
+speech-dispatcher-Modul `piper-generic` (sd_generic; kein zweites TTS-System —
+Say-All-Cancel-Vertrag bleibt unangetastet), statisches Piper-Release
+2023.11.14-2 (MIT) + Modell de_DE-thorsten-medium (Thorsten-Voice, CC0),
+zur Image-Bauzeit geladen und per SHA-256 gepinnt (alle drei Hashes vom
+Orchestrator unabhängig gegen Upstream verifiziert: GitHub-Release,
+HuggingFace-LFS-oid, JSON-Download). Deutsch bevorzugt Piper über
+LanguageDefaultModule, espeak-ng bleibt Fallback; der Healthcheck meldet ein
+fehlendes Modell als Degradation (neural_voice_unavailable, Recovery-Pfad
+Tastatur/Orca), nie als Rollback-Grund. Runs 26/27 verbrannten das
+Iterationsbudget (Recherche bzw. Healthcheck-Enum-Mitte); der Orchestrator
+vervollständigte: Failure.NEURAL_VOICE_UNAVAILABLE + Recovery-Eintrag,
+Test-Fixes (tts_model_path in HealthcheckTests/Subvolume-Tests), neuen
+Degradation-Test, BLIND-§6-Doku. Suite grün; AI_CONTRIBUTION-Eintrag via
+cat-append (write_file-Pitfall respektiert).

@@ -32,6 +32,7 @@ class Failure(str, Enum):
     SHELL_BRIDGE_MISSING = "shell_bridge_missing"
     DIALOG_BLOCKED = "dialog_blocked"
     UPDATE_FAILED = "update_failed"
+    NEURAL_VOICE_UNAVAILABLE = "neural_voice_unavailable"
 
 
 @dataclass(frozen=True)
@@ -123,6 +124,14 @@ RECOVERIES: Mapping[Failure, Recovery] = {
         "Die Aktualisierung ist fehlgeschlagen. Das System wurde nicht verändert.",
         "Sagen Sie Systemstatus für den Zustand. Über Tastatur und Orca können "
         "Sie die Aktualisierung in den Einstellungen erneut starten.",
+        can_continue=True,
+    ),
+    Failure.NEURAL_VOICE_UNAVAILABLE: Recovery(
+        Failure.NEURAL_VOICE_UNAVAILABLE,
+        "Die neuronale Stimme fehlt. Ich spreche mit der Ersatzstimme weiter.",
+        "Die Bedienung bleibt unverändert möglich. Mit Tastatur und Orca "
+        "funktioniert alles wie zuvor; die bessere Stimme kehrt mit dem "
+        "nächsten Image zurück.",
         can_continue=True,
     ),
 }

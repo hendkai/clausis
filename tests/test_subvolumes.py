@@ -135,8 +135,12 @@ class HealthcheckLayoutTests(unittest.TestCase):
     def _collect(self, mounts, tmp_path):
         path = tmp_path / "mounts"
         path.write_text(mounts, encoding="utf-8")
+        voice = tmp_path / "voice"
+        voice.mkdir()
+        (voice / "de_DE-thorsten-medium.onnx").write_bytes(b"")
         return collect(
             model_path=Path("/"),
+            tts_model_path=voice,
             probe=lambda: type("C", (), {"microphone": True})(),
             which=lambda name: f"/usr/bin/{name}",
             mounts_path=path,
@@ -161,12 +165,19 @@ class HealthcheckLayoutTests(unittest.TestCase):
         self.assertFalse(report["rollback_recommended"])
 
     def test_unreadable_mounts_do_not_crash_the_check(self):
-        report = collect(
-            model_path=Path("/"),
-            probe=lambda: type("C", (), {"microphone": True})(),
-            which=lambda name: f"/usr/bin/{name}",
-            mounts_path=Path("/nonexistent-clausis-mounts"),
-        )
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            voice = Path(directory) / "voice"
+            voice.mkdir()
+            (voice / "de_DE-thorsten-medium.onnx").write_bytes(b"")
+            report = collect(
+                model_path=Path("/"),
+                tts_model_path=voice,
+                probe=lambda: type("C", (), {"microphone": True})(),
+                which=lambda name: f"/usr/bin/{name}",
+                mounts_path=Path("/nonexistent-clausis-mounts"),
+            )
         self.assertFalse(report["subvolumes"]["rollback_safe"])
 
 

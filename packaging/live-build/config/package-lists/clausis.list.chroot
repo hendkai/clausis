@@ -16,6 +16,8 @@ orca
 brltty
 espeak-ng
 speech-dispatcher
+speech-dispatcher-espeak-ng
+pulseaudio-utils
 pipewire
 wireplumber
 network-manager

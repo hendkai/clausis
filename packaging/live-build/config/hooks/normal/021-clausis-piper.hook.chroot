@@ -1,0 +1,87 @@
+#!/bin/sh
+# Install the Piper neural voice as a speech-dispatcher module.
+#
+# Everything here is downloaded and checksum-verified at IMAGE BUILD time —
+# never at runtime (first boot must speak without network).  Debian 13 ships
+# no Piper TTS package, so the pinned static release tarball provides the
+# binary.  See src/clausis/piper_tts.py for the pinned coordinates and
+# docs/licenses/piper.md for the license situation (Piper MIT, model CC0).
+set -eu
+
+piper_release='2023.11.14-2'
+piper_tarball_sha256='a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992'
+model_name='de_DE-thorsten-medium'
+model_sha256='7e64762d8e5118bb578f2eea6207e1a35a8e0c30595010b666f983fc87bb7819'
+model_config_sha256='974adee790533adb273a1ac88f49027d2a1b8f0f2cf4905954a4791e79264e85'
+piper_home='/opt/piper'
+model_dir='/usr/share/clausis/models/piper'
+modules_dir='/etc/speech-dispatcher/modules'
+speechd_conf='/etc/speech-dispatcher/speechd.conf'
+
+fail() {
+    printf 'clausis-piper: %s\n' "$1" >&2
+    exit 1
+}
+
+verify_sha256() {
+    expected="$1"
+    file="$2"
+    actual="$(sha256sum "$file" | cut -d' ' -f1)"
+    test "$actual" = "$expected" || fail "checksum mismatch for $file"
+}
+
+workdir="$(mktemp -d)"
+trap 'rm -rf "$workdir"' EXIT
+
+curl -fsSL -o "$workdir/piper.tar.gz" \
+    "https://github.com/rhasspy/piper/releases/download/${piper_release}/piper_linux_x86_64.tar.gz"
+verify_sha256 "$piper_tarball_sha256" "$workdir/piper.tar.gz"
+tar -xzf "$workdir/piper.tar.gz" -C "$workdir"
+test -x "$workdir/piper/piper" || fail 'piper binary missing from tarball'
+
+mkdir -p "$model_dir"
+curl -fsSL -o "$model_dir/${model_name}.onnx" \
+    "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/medium/${model_name}.onnx"
+verify_sha256 "$model_sha256" "$model_dir/${model_name}.onnx"
+curl -fsSL -o "$model_dir/${model_name}.onnx.json" \
+    "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/medium/${model_name}.onnx.json"
+verify_sha256 "$model_config_sha256" "$model_dir/${model_name}.onnx.json"
+
+# The tarball ships piper with its bundled espeak-ng-data, libraries and
+# phonemize helper; keep the whole tree together so relative RPATHs resolve.
+rm -rf "$piper_home"
+mv "$workdir/piper" "$piper_home"
+chmod 0755 "$piper_home"
+
+# Ship provenance next to the artifacts (licenses live in
+# /usr/share/doc/clausis; see docs/licenses/piper.md).
+install -d -m 0755 /usr/share/doc/clausis
+printf '%s\n' \
+    "piper ${piper_release} (https://github.com/rhasspy/piper), MIT" \
+    "voice ${model_name} (https://github.com/thorstenMueller/Thorsten-Voice), CC0" \
+    > /usr/share/doc/clausis/piper-voice.txt
+
+# speech-dispatcher module configuration: generated, deterministic content.
+# sd_generic ships in the speech-dispatcher package; the config below makes
+# the server autoload it as module "piper-generic" (detect_generic_modules
+# scans modules/*-generic.conf and honours GenericCmdDependency).
+if command -v python3 >/dev/null 2>&1 && python3 -c 'import clausis.piper_tts' 2>/dev/null; then
+    python3 -m clausis.piper_tts --write-module-config > "$modules_dir/piper-generic.conf"
+else
+    printf 'clausis-piper: clausis python package unavailable, cannot generate module config\n' >&2
+    exit 1
+fi
+
+# System speechd defaults: prefer piper for German, keep espeak-ng fallback.
+# No DefaultModule line on purpose — see piper_tts.speechd_conf_lines().
+if grep -q '^LanguageDefaultModule "de"' "$speechd_conf" 2>/dev/null; then
+    sed -i 's/^LanguageDefaultModule "de".*$/LanguageDefaultModule "de" "piper-generic"/' "$speechd_conf"
+else
+    printf '%s\n%s\n%s\n' \
+        '# Clausis: prefer the Piper neural voice for German; espeak-ng stays' \
+        '# the fallback module (server-side module fallback).' \
+        'LanguageDefaultModule "de" "piper-generic"' >> "$speechd_conf"
+fi
+
+# piper-generic depends on paplay for $PLAY_COMMAND under PipeWire/Pulse.
+command -v paplay >/dev/null 2>&1 || fail 'paplay missing (install pulseaudio-utils)'

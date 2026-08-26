@@ -258,10 +258,29 @@ Teilweise umgesetzt (2026-08-24): Geschwindigkeit (schneller/langsamer/normal)
 und Synthesesprache (deutsch/englisch) als feste Sprachbefehle über
 speech-dispatcher — bewusst als feste Argumentevektoren ohne freie Werte.
 
+Umgesetzt (2026-08-26, Piper-Offline-Stimme): Die neuronale Stimme Piper
+(Release 2023.11.14-2, MIT) mit dem deutschen Modell de_DE-thorsten-medium
+(Thorsten-Voice, CC0) ist als generisches speech-dispatcher-Output-Modul
+(`piper-generic`) integriert — bewusst KEIN zweites paralleles TTS-System,
+damit Say-All („stopp" via `spd-say -C`) und alle Ansage-Verträge erhalten
+bleiben. Binary und Modell werden zur Image-Bauzeit heruntergeladen und per
+SHA-256 gepinnt (kein Runtime-Download — der erste Start spricht ohne Netz),
+der Build bricht bei Hash-Abweichung ab. Deutsch bevorzugt Piper über
+`LanguageDefaultModule`; espeak-ng bleibt installierter Fallback: Fehlt das
+Modell, greift der serverseitige Modul-Fallback, Sprache bleibt funktional
+(Healthcheck meldet `neural_voice_unavailable` als Degradation, KEIN
+Rollback-Grund). Herkunft und Lizenzen: `docs/licenses/piper.md`,
+THIRD_PARTY_NOTICES.md. Ehrliche Grenzen: Die Sprachqualität selbst ist nur
+auf echter Hardware bewertbar (CI prüft Struktur: Konfigurations-Generierung,
+Pins, Hook); Sprechgeschwindigkeit wirkt über die Length-Scale-Abbildung des
+Moduls (SSIP-Rate → clamp 0,5–1,5), eine Stimmenauswahl per Befehl gibt es
+noch nicht.
+
 Es fehlt weiterhin:
 
-- eine **bessere Offline-Stimme** (etwa Piper) mit geklärter Lizenz,
-- **Geschwindigkeit, Stimme, Tonhöhe und Sprache per Sprachbefehl** änderbar,
+- **Geschwindigkeit, Stimme, Tonhöhe und Sprache per Sprachbefehl** änderbar
+  (Tempo-Skalierung greift jetzt über das Piper-Modul; echte
+  Stimmauswahl/Wechsel bleibt offen),
 - **Ausführlichkeitsstufen** (Anfänger/Fortgeschritten) und einstellbare
   Satzzeichen-Ausführlichkeit,
 - **Sprachwechsel mitten im Text** (deutsches Dokument mit englischen Zitaten),

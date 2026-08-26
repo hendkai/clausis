@@ -61,6 +61,24 @@ their machine-readable copyright files under `/usr/share/doc/*/copyright`.
 Future release automation must generate an artifact-level SBOM and complete
 license manifest from the final image; the repository SBOM is not a substitute.
 
+## Piper neural voice in the 0.5.0 ISO
+
+The ISO bundles the Piper neural text-to-speech system (release 2023.11.14-2,
+static Linux x86_64 tarball from the pinned upstream GitHub release) as the
+German speech-dispatcher output module `piper-generic`. Piper is MIT-licensed
+(Copyright (c) 2021-2023 Michael Hansen and contributors), source and license:
+<https://github.com/rhasspy/piper>. The bundled German voice model
+`de_DE-thorsten-medium` and its training dataset (Thorsten-Voice by Thorsten
+Müller) are CC0. Both artifacts are downloaded at image build time with pinned
+SHA-256 checksums and are never fetched at runtime; the complete provenance,
+hashes and license findings are documented in `docs/licenses/piper.md`.
+
+- Piper upstream: <https://github.com/rhasspy/piper>
+- Voice model: <https://huggingface.co/rhasspy/piper-voices>
+- Dataset: <https://github.com/thorstenMueller/Thorsten-Voice>
+- Provenance and hashes: `docs/licenses/piper.md`
+
+
 ## Optional GPT Live transport in the 0.5.0 ISO
 
 The ISO installs `websocket-client` 1.9.0 for the voluntary OpenAI Realtime

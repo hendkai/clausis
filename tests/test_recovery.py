@@ -8,6 +8,8 @@ end in silence or in an exception that drops the user.
 from __future__ import annotations
 
 import io
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -171,13 +173,22 @@ class BrokerFailureTests(unittest.TestCase):
 
 
 class HealthcheckTests(unittest.TestCase):
-    def _collect(self, *, present=(), model=True, microphone=True):
+    def _collect(self, *, present=(), model=True, microphone=True, tts=True):
         class Capabilities:
             def __init__(self, value):
                 self.microphone = value
 
+        # The healthcheck probes <dir>/de_DE-thorsten-medium.onnx, so a
+        # present voice needs a real (empty) file in a real directory.
+        tts_dir = Path("/nonexistent-clausis-tts")
+        if tts:
+            tts_dir = Path(tempfile.mkdtemp())
+            self.addCleanup(shutil.rmtree, tts_dir, ignore_errors=True)
+            (tts_dir / "de_DE-thorsten-medium.onnx").write_bytes(b"")
+
         return collect(
             model_path=Path("/") if model else Path("/nonexistent-clausis-model"),
+            tts_model_path=tts_dir,
             probe=lambda: Capabilities(microphone),
             which=lambda name: f"/usr/bin/{name}" if name in present else None,
         )
@@ -205,6 +216,15 @@ class HealthcheckTests(unittest.TestCase):
         report = self._collect(present=self.ALL, model=False)
         self.assertTrue(report["rollback_recommended"])
         self.assertIn(Failure.STT_UNAVAILABLE.value, report["failures"])
+
+    def test_missing_neural_voice_degrades_to_espeak_fallback(self):
+        # Design decision (BLIND §6): a missing Piper model never breaks
+        # speech — speech-dispatcher falls back to espeak-ng, so this is a
+        # listed failure with a spoken recovery, not a rollback reason.
+        report = self._collect(present=self.ALL, tts=False)
+        self.assertTrue(report["healthy"])
+        self.assertFalse(report["rollback_recommended"])
+        self.assertIn(Failure.NEURAL_VOICE_UNAVAILABLE.value, report["failures"])
 
     def test_report_always_carries_a_spoken_recovery_for_each_failure(self):
         report = self._collect(present=(), model=False, microphone=False)
