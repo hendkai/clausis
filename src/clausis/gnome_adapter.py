@@ -1085,16 +1085,19 @@ class PyAtSpiDesktop:
     # ------------------------------------------------------------------
 
     #: AT-SPI role names (``getRoleName()``, lowercased) that carry each
-    #: structure unit.  AT-SPI2 itself defines ROLE_HEADING, ROLE_LINK and
-    #: ROLE_LIST; GTK only fills the list role (Gtk.ListBox → "list") with
-    #: its own widgets, headings and links arrive from browsers and editors,
-    #: and landmarks are not a role at all — they ride in the object
-    #: attributes as ``xml-roles`` (the ARIA role), which only browsers
-    #: populate.  An empty set means the unit is honestly refused.
+    #: structure unit.  AT-SPI2 itself defines ROLE_HEADING, ROLE_LINK,
+    #: ROLE_LIST and ROLE_LIST_BOX; GTK's own Gtk.ListBox answers the
+    #: distinct role "list box" (verified against gtk-3-24 a11y sources and
+    #: the live CI bus), so matching only "list" would honestly refuse the
+    #: one structure widget GTK natively ships.  Headings and links arrive
+    #: from browsers and editors, and landmarks are not a role at all — they
+    #: ride in the object attributes as ``xml-roles`` (the ARIA role), which
+    #: only browsers populate.  An empty set means the unit is honestly
+    #: refused.
     STRUCTURE_ROLES: Dict[str, frozenset] = {
         "heading": frozenset({"heading"}),
         "link": frozenset({"link"}),
-        "list": frozenset({"list"}),
+        "list": frozenset({"list", "list box"}),
         "landmark": frozenset(),
     }
     #: ARIA landmark roles looked up in the ``xml-roles`` object attribute.

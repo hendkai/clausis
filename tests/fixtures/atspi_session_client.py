@@ -659,10 +659,12 @@ def main() -> int:
     multiline_steps(desktop)
 
     # --- structure navigation: jump to the real GTK list box ----------------
-    # The probe app ships a Gtk.ListBox whose AT-SPI role is genuinely
-    # "list" — the one structure unit GTK fills natively.  Headings, links
-    # and landmarks are browser-provided roles GTK never exposes; those
-    # stay covered by the fake-tree unit tests (test_structure_navigation).
+    # The probe app ships a Gtk.ListBox — the one structure widget GTK fills
+    # natively.  Its real AT-SPI role is "list box" (ATK_ROLE_LIST_BOX, per
+    # the gtk-3-24 a11y sources), not "list": the check asserts the role the
+    # live bus actually reports.  Headings, links and landmarks are
+    # browser-provided roles GTK never exposes; those stay covered by the
+    # fake-tree unit tests (test_structure_navigation).
     def check_list_jump(spoken: str) -> None:
         require(
             "StrukturListe" in str(spoken),
@@ -670,8 +672,8 @@ def main() -> int:
         )
         focused_role = desktop.context().focused_role.casefold()
         require(
-            focused_role == "list",
-            f"focused role after jump is {focused_role!r}, not 'list'",
+            focused_role in ("list", "list box"),
+            f"focused role after jump is {focused_role!r}, not a list role",
         )
 
     run(
