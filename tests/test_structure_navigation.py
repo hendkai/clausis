@@ -376,12 +376,19 @@ class BrowserCursorTests(DesktopHarness):
         second = FakeNode("Mitte", "heading", {STATE_SHOWING})
         desktop = self.desktop_for(self._browser_like_window(field, first, second))
         desktop.jump_to_structure("heading", backward=False)
-        # A real focus move (the user tabbed into the page) beats the
-        # virtual cursor: with STATE_FOCUSED on the field again, the next
-        # forward jump restarts from the field's position.
-        field.states.add(STATE_FOCUSED)
-        spoken = desktop.jump_to_structure("heading", backward=False)
-        self.assertIn("Anfang", spoken)
+        # A real focus move beats the virtual cursor: the focus has MOVED
+        # since the landing (snapshot was the field), so the next jump
+        # starts from the newly focused node.  Merely keeping the focus
+        # where it was must NOT retire the cursor — a landed link keeps
+        # STATE_FOCUSED in Firefox without that being a user move.
+        field.states.discard(STATE_FOCUSED)
+        second.states.add(STATE_FOCUSED)
+        with self.assertRaises(GnomeAdapterError) as caught:
+            desktop.jump_to_structure("heading", backward=False)
+        # From the focused "Mitte" there is no further heading: the honest
+        # end refusal proves the position followed the real focus (the
+        # stale cursor would have announced "Mitte").
+        self.assertIn("Keine weiteren Überschriften", caught.exception.args[0])
 
 
 if __name__ == "__main__":

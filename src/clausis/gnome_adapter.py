@@ -359,11 +359,15 @@ class PyAtSpiDesktop:
         # focusable elements (headings, landmarks) by returning True while
         # the bus NEVER carries STATE_FOCUSED on them — so the walk position
         # must be tracked by the adapter itself, orca-style.  It points at
-        # the node the last structure jump landed on and is dropped as soon
-        # as the window (or the real focus) moves, mirroring the say-all
-        # bookmark philosophy: honest, per-window, never a global cursor.
+        # the node the last structure jump landed on, together with the
+        # focused node AT LANDING TIME: a later jump only trusts the real
+        # focus again once it has MOVED since that landing (the user tabbed
+        # or clicked for real).  Firefox keeps STATE_FOCUSED on a landed
+        # LINK forever — links are focusable — which must not freeze every
+        # later heading/landmark jump back at that stale link.
         self._structure_cursor: Optional[Any] = None
         self._structure_cursor_window: Optional[Any] = None
+        self._structure_cursor_focus: Optional[Any] = None
 
     def context(self) -> DesktopContext:
         application, window = self._active_window()
@@ -1181,13 +1185,12 @@ class PyAtSpiDesktop:
             # Cursor belongs to another window: drop it, fall back to the
             # real focus (or the document start).
             self._structure_cursor = None
+            self._structure_cursor_focus = None
             cursor_position = None
-        # A real focus on anything but the walk root beats the virtual
-        # cursor: the user tabbed or clicked for real.  The root itself
-        # (a browser's "document web" container) keeps STATE_FOCUSED the
-        # whole time in Firefox — that is not a user focus move but the
-        # browser's resting state, and honoring it would freeze every
-        # jump at the document start.
+        # The real, user-driven focus: any focused node beyond the walk
+        # root.  The root itself (a browser's "document web" container)
+        # carries STATE_FOCUSED the whole time in Firefox — that is the
+        # browser's resting state, not a user focus move.
         focus_position = next(
             (
                 index
@@ -1196,16 +1199,19 @@ class PyAtSpiDesktop:
             ),
             None,
         )
-        if focus_position is not None:
-            self._structure_cursor = None
-            position = focus_position
-        elif cursor_position is not None:
-            # Our own last landing: browsers never carry STATE_FOCUSED on
-            # headings/landmarks, so the virtual cursor is the only honest
-            # position a repeated jump can continue from.
+        focus_node = nodes[focus_position] if focus_position is not None else None
+        if cursor_position is not None and focus_node is self._structure_cursor_focus:
+            # Focus has not moved since our own landing — the virtual
+            # cursor IS the honest position (browsers never focus
+            # headings/landmarks, and a landed link keeps its focus
+            # without that being a user move).
             position = cursor_position
         else:
-            position = 0
+            if focus_node is not self._structure_cursor_focus:
+                # A real focus move (user tabbed/clicked) retires the
+                # virtual cursor for good.
+                self._structure_cursor = None
+            position = focus_position if focus_position is not None else 0
         if backward:
             candidates = [index for index in matches if index < position]
             out_of_range = f"Keine {self._STRUCTURE_UNIT_PLURALS[unit]} mehr vor dieser Stelle."
@@ -1236,6 +1242,10 @@ class PyAtSpiDesktop:
         # here instead of restarting at the document node.
         self._structure_cursor = target
         self._structure_cursor_window = window
+        # Snapshot the focused node at landing time: a later jump only
+        # yields to the real focus once it has MOVED since (a landed link
+        # keeps STATE_FOCUSED in Firefox without that being a user move).
+        self._structure_cursor_focus = focus_node
         return f"{role} {name}." if name else f"{role}."
 
     def _active_document(self, window: Any) -> Optional[Any]:
