@@ -4,6 +4,20 @@ set -eu
 settings=/etc/calamares/settings.conf
 test -f "${settings}"
 
+# The patched clausis Calamares build and calamares-settings-debian install
+# AFTER clausis-core and both ship stock configs to etc/calamares/modules/,
+# overwriting ours.  clausis-core therefore carries the three Clausis
+# configs under /usr/share/clausis/calamares/ and this hook — running after
+# every package install — puts them in place as the final authority.
+modules=/etc/calamares/modules
+install -d -m 0755 "$modules"
+install -m 0644 /usr/share/clausis/calamares/partition.conf \
+    "$modules/partition.conf"
+install -m 0644 "/usr/share/clausis/calamares/shellprocess@clausis.conf" \
+    "$modules/shellprocess@clausis.conf"
+install -m 0644 "/usr/share/clausis/calamares/shellprocess@clausis-guard.conf" \
+    "$modules/shellprocess@clausis-guard.conf"
+
 # Calamares does not derive a custom instance's configuration filename from
 # the `module@id` sequence entry. Without these explicit mappings both jobs
 # silently fall back to shellprocess.conf and execute no Clausis command.

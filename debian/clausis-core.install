@@ -7,9 +7,9 @@ packaging/dbus/org.clausis.TrustedConfirm1.service usr/share/dbus-1/system-servi
 packaging/dbus/org.clausis.conf etc/dbus-1/system.d/
 packaging/polkit/org.clausis.policy usr/share/polkit-1/actions/
 packaging/polkit/50-clausis.rules usr/share/polkit-1/rules.d/
-packaging/calamares/shellprocess@clausis.conf etc/calamares/modules/
-packaging/calamares/shellprocess@clausis-guard.conf etc/calamares/modules/
-packaging/calamares/partition.conf etc/calamares/modules/
+packaging/calamares/shellprocess@clausis.conf usr/share/clausis/calamares/
+packaging/calamares/shellprocess@clausis-guard.conf usr/share/clausis/calamares/
+packaging/calamares/partition.conf usr/share/clausis/calamares/
 packaging/hermes/config.yaml usr/share/clausis/hermes/
 packaging/trust/hermes-maintainers.asc usr/share/clausis/trust/
 packaging/models/wake/README usr/share/clausis/models/wake/
