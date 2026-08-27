@@ -1,3 +1,18 @@
+clausis-core (0.6.0-1) UNRELEASED; urgency=medium
+
+  * Add counted caret navigation and say-all with pause/resume.
+  * Complete dictation modes: date, time, numbers to 999,999, path separators.
+  * Add the correction slot "nein, ich meinte" replacing the last dictation.
+  * Add structure navigation (heading/link/list/landmark) with browser
+    document scoping and a virtual structure cursor.
+  * Integrate the Piper neural voice as a speech-dispatcher module with
+    build-time pinned artifacts (Piper MIT, Thorsten-Voice model CC0) and
+    the espeak-ng fallback.
+  * Run the AT-SPI session smoke inside a Debian container with firefox-esr
+    against browser-published accessibility roles.
+
+ -- Hendrik Kaiser <hendrik@kaiser-mail.de>  Thu, 27 Aug 2026 20:50:00 +0200
+
 clausis-core (0.5.0-1) UNRELEASED; urgency=medium
 
   * Remove the automatable D-Bus phrase/PIN approval transport.

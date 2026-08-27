@@ -10,23 +10,23 @@ ROOT = Path(__file__).resolve().parents[1]
 class LiveImageConfigurationTests(unittest.TestCase):
     def test_release_artifacts_share_one_authoritative_project_version(self) -> None:
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        self.assertIn('version = "0.5.0"', pyproject)
+        self.assertIn('version = "0.6.0"', pyproject)
         self.assertIn(
-            '__version__ = "0.5.0"',
+            '__version__ = "0.6.0"',
             (ROOT / "src/clausis/__init__.py").read_text(encoding="utf-8"),
         )
         self.assertIn(
-            'version="0.5.0"',
+            'version="0.6.0"',
             (ROOT / "setup.py").read_text(encoding="utf-8"),
         )
         self.assertIn(
-            '"version": "0.5.0"',
+            '"version": "0.6.0"',
             (ROOT / "sbom.cdx.json").read_text(encoding="utf-8"),
         )
         self.assertTrue(
             (ROOT / "debian/changelog")
             .read_text(encoding="utf-8")
-            .startswith("clausis-core (0.5.0-1)")
+            .startswith("clausis-core (0.6.0-1)")
         )
         for relative in (
             "scripts/build_iso.sh",

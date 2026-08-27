@@ -9,7 +9,7 @@
       "type": "application",
       "bom-ref": "pkg:pypi/clausis-core@0.5.0",
       "name": "clausis-core",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "licenses": [{"license": {"id": "GPL-3.0-or-later"}}],
       "properties": [
         {"name": "clausis:release-status", "value": "prototype"},
