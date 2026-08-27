@@ -14,53 +14,47 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Install GTK and accessibility stack
+      - name: Run the session-level AT-SPI smoke test (Debian container)
         run: |
-          sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-            dbus-x11 xvfb at-spi2-core libatk-adaptor python3-gi \
-            gir1.2-gtk-3.0 python3-pyatspi matchbox-window-manager >/dev/null
-      - name: Run the session-level AT-SPI smoke test
-        run: |
-          mkdir -p /tmp/clausis-session
-          # The system python sees the apt-instored gi/pyatspi bindings;
-          # PYTHONPATH adds the repository sources on top.
-          dbus-run-session -- sh -eu -c '
-            Xvfb :99 -screen 0 1280x720x24 >/tmp/xvfb.log 2>&1 &
-            export DISPLAY=:99 NO_AT_BRIDGE=0 GTK_MODULES=gail:atk-bridge
-            # A bare Xvfb has no window manager, so a GTK window never
-            # receives real keyboard focus and STATE_FOCUSED stays unset.
-            # matchbox supplies the WM focus handshake the session needs;
-            # give Xvfb a second to create the display before starting it
-            # and fail loudly if the WM died.
-            sleep 1
-            matchbox-window-manager >/tmp/wm.log 2>&1 &
-            wm_pid=$!
-            sleep 1
-            kill -0 "${wm_pid}"
-            export PYTHONPATH="$PWD/src:/usr/lib/python3/dist-packages"
-            /usr/libexec/at-spi-bus-launcher --launch-immediately >/tmp/atspi.log 2>&1 &
-            sleep 2
-            python3 tests/fixtures/atspi_session_probe_app.py /tmp/clausis-session/app-marker.txt >/tmp/app.log 2>&1 &
-            sleep 3
-            python3 tests/fixtures/atspi_session_client.py /tmp/clausis-session/session-result.txt
-          '
-      - name: Show session results
+          # firefox-esr is a native Debian package and the reason neither
+          # session runs directly on the Ubuntu runner: both ride inside a
+          # debian:13-slim container (Xvfb + dbus session + at-spi bus +
+          # matchbox WM) that installs the exact Debian packages of the
+          # target OS.
+          #   gtk      real GTK probe app: text editing, say-all, list jump
+          #   browser  firefox-esr loads the local probe page via file://
+          #            and the client drives structure jumps against the
+          #            browser-published AT-SPI roles (BLIND §2/§4).
+          # The container exit code propagates client failures; result
+          # files are flushed after every step and printed by the script
+          # even when the container itself failed.
+          scripts/atspi_session_smoke.sh all
+      - name: Show session results and logs
         if: always()
         run: |
-          echo "--- wm.log ---"; cat /tmp/wm.log || true
-          echo "--- atspi.log ---"; cat /tmp/atspi.log || true
-          echo "--- app.log ---"; cat /tmp/app.log || true
-          echo "--- session result ---"
-          cat /tmp/clausis-session/session-result.txt || true
+          for f in session-result.txt browser-result.txt app-marker.txt \
+                   firefox.log atspi.log app.log; do
+            p="/tmp/clausis-session/${f}"
+            if [ -f "$p" ]; then
+              echo "--- ${f} ---"
+              tail -80 "$p"
+            fi
+          done
       - name: Fail on errors
         if: always()
         run: |
-          if [ ! -s /tmp/clausis-session/session-result.txt ]; then
-            echo "No session result was produced"
-            exit 1
-          fi
-          if grep -q $'\tERROR\t' /tmp/clausis-session/session-result.txt; then
-            echo "Session test reported ERROR lines"
-            exit 1
-          fi
+          # Belt and braces: the client exit codes already propagate
+          # through the container, but a missing or ERROR-carrying result
+          # file must never pass either.
+          fail=0
+          for f in session-result.txt browser-result.txt; do
+            p="/tmp/clausis-session/${f}"
+            if [ ! -s "$p" ]; then
+              echo "No result was produced in ${f}"
+              fail=1
+            elif grep -q '^ERROR ' "$p"; then
+              echo "Session test reported ERROR lines in ${f}"
+              fail=1
+            fi
+          done
+          exit "$fail"

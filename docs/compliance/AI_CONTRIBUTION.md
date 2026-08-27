@@ -748,3 +748,21 @@ vervollständigte: Failure.NEURAL_VOICE_UNAVAILABLE + Recovery-Eintrag,
 Test-Fixes (tts_model_path in HealthcheckTests/Subvolume-Tests), neuen
 Degradation-Test, BLIND-§6-Doku. Suite grün; AI_CONTRIBUTION-Eintrag via
 cat-append (write_file-Pitfall respektiert).
+
+## 2026-08-26 — GLM 5.3 via Hermes (Browser-AT-SPI-Anfang, BLIND §2/§4; Fertigstellung nach Dispatcher-Gab-up)
+
+firefox-esr als echte Drittanwendung in den AT-SPI-Sitzungstest gebracht
+(Debian-Container, lokale file://-Testseite; Runs 29-32 lieferten Setup,
+Container-Refactor und zwei Root-Cause-Funde: pkill -f tötete die eigene
+Session-Shell — Kill jetzt per PID; Firefox registriert AT-SPI nur mit
+GNOME_ACCESSIBILITY=1). Der Orchestrator vervollständigte nach dem
+Gab-up: Struktur-Sprünge scopen auf das angezeigte Dokument (document
+web) statt des ganzen Fensters — Browser-Chrome und vorinstallierte
+Hintergrund-Tabs sind draußen (Orca-Prinzip); virtueller Struktur-Cursor
+im Adapter, weil Firefox grabFocus auf Überschriften/Landmarken ohne
+STATE_FOCUSED beantwortet (wiederholte Sprünge laufen sonst in Endlos-
+Wiederholung); 3 neue Unit-Tests (BrowserCursorTests) mit dem Fake-Baum,
+der genau dieses Nicht-Fokussieren nachbildet; Browser-Session-Client mit
+ehrlichen Enden-Assertions. Suite 732+1022 grün. Lokale Docker-Verifikation
+durch Docker-Desktop-Defekt (Privileged-Helper braucht Admin-Passwort)
+blockiert; echte Bus-Prüfung läuft über den AT-SPI-Smoke-Workflow in CI.

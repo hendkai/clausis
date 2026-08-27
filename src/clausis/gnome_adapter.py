@@ -355,6 +355,15 @@ class PyAtSpiDesktop:
         # remembered as the exact character span it occupies (see
         # replace_last_dictation).  One entry, dropped on focus change.
         self._last_dictation: Optional[Dict[str, Any]] = None
+        # Virtual structure-cursor: browsers honor grabFocus() on non
+        # focusable elements (headings, landmarks) by returning True while
+        # the bus NEVER carries STATE_FOCUSED on them — so the walk position
+        # must be tracked by the adapter itself, orca-style.  It points at
+        # the node the last structure jump landed on and is dropped as soon
+        # as the window (or the real focus) moves, mirroring the say-all
+        # bookmark philosophy: honest, per-window, never a global cursor.
+        self._structure_cursor: Optional[Any] = None
+        self._structure_cursor_window: Optional[Any] = None
 
     def context(self) -> DesktopContext:
         application, window = self._active_window()
@@ -1142,24 +1151,61 @@ class PyAtSpiDesktop:
         if unit not in self._STRUCTURE_UNIT_NAMES:
             raise GnomeAdapterError(f"Unbekannte Struktureinheit {unit}.")
         _, window = self._active_window()
-        # One ordered walk of the window; the focused node — when it lives
-        # in this window — marks the current position, so "next" finds the
-        # first match beyond it and repeated jumps advance instead of
+        # Browsers show the page inside a "document web" node; structure
+        # navigation is about the viewed document, never the browser
+        # chrome (menus, toolbars, warning infobars like "How to fix this
+        # issue") and never preloaded background tabs.  Scope the walk to
+        # the focused document when one exists — GTK windows have no
+        # document node and keep walking the whole window.
+        root = self._active_document(window)
+        # One ordered walk of the scope; the current position — focused
+        # node when the bus carries focus (GTK), otherwise the virtual
+        # structure cursor (browsers never focus headings/landmarks) —
+        # marks where "next" starts, so repeated jumps advance instead of
         # landing on the same element forever.
-        nodes = list(self._walk(window))
+        nodes = list(self._walk(root or window))
         matches = [index for index, node in enumerate(nodes) if self._is_structure(node, unit)]
         if not matches:
             raise GnomeAdapterError(
                 f"In diesem Fenster gibt es keine {self._STRUCTURE_UNIT_PLURALS[unit]}."
             )
-        position = next(
+        cursor_position = next(
             (
                 index
                 for index, node in enumerate(nodes)
-                if self._has_state(node, self._atspi.STATE_FOCUSED)
+                if node is self._structure_cursor
             ),
-            0,
+            None,
         )
+        if self._structure_cursor_window is not window:
+            # Cursor belongs to another window: drop it, fall back to the
+            # real focus (or the document start).
+            self._structure_cursor = None
+            cursor_position = None
+        # A real focus on anything but the walk root beats the virtual
+        # cursor: the user tabbed or clicked for real.  The root itself
+        # (a browser's "document web" container) keeps STATE_FOCUSED the
+        # whole time in Firefox — that is not a user focus move but the
+        # browser's resting state, and honoring it would freeze every
+        # jump at the document start.
+        focus_position = next(
+            (
+                index
+                for index, node in enumerate(nodes)
+                if index > 0 and self._has_state(node, self._atspi.STATE_FOCUSED)
+            ),
+            None,
+        )
+        if focus_position is not None:
+            self._structure_cursor = None
+            position = focus_position
+        elif cursor_position is not None:
+            # Our own last landing: browsers never carry STATE_FOCUSED on
+            # headings/landmarks, so the virtual cursor is the only honest
+            # position a repeated jump can continue from.
+            position = cursor_position
+        else:
+            position = 0
         if backward:
             candidates = [index for index in matches if index < position]
             out_of_range = f"Keine {self._STRUCTURE_UNIT_PLURALS[unit]} mehr vor dieser Stelle."
@@ -1185,12 +1231,64 @@ class PyAtSpiDesktop:
             ) from exc
         if not focused:
             raise GnomeAdapterError("GNOME hat den Fokus nicht geändert.")
+        # Record the landing even when the bus will never reflect focus on
+        # it (browser headings/landmarks): the next jump continues from
+        # here instead of restarting at the document node.
+        self._structure_cursor = target
+        self._structure_cursor_window = window
         return f"{role} {name}." if name else f"{role}."
+
+    def _active_document(self, window: Any) -> Optional[Any]:
+        """The viewed document node of a browser window, if any.
+
+        Firefox exposes the page as a role ``document web`` node that
+        carries STATE_FOCUSED; preloaded background tabs expose document
+        nodes without it.  The focused document wins, then the showing
+        one — anything else (plain GTK windows) answers None so the
+        window itself stays the walk root.
+        """
+
+        documents = [
+            node
+            for node in self._walk(window)
+            if "document" in self._role(node).casefold()
+        ]
+        for node in documents:
+            if self._has_state(node, self._atspi.STATE_FOCUSED):
+                return node
+        for node in documents:
+            if self._has_state(node, self._atspi.STATE_SHOWING):
+                return node
+        return None
 
     def _is_structure(self, node: Any, unit: str) -> bool:
         if unit == "landmark":
             return self._landmark_role(node) != ""
         return self._role(node).casefold() in self.STRUCTURE_ROLES[unit]
+
+    def _focused_document(self, window: Any) -> Optional[Any]:
+        """The document container of a browser page, if the window has one.
+
+        Firefox exposes the page as a ``document web`` node that carries
+        STATE_SHOWING and STATE_FOCUSED (focus stays on it even after
+        grabFocus on a non-focusable heading, which is exactly why the
+        virtual cursor exists).  Preloaded background tabs expose their
+        own documents without STATE_SHOWING; preferring the focused and
+        shown one keeps the walk on the page the user actually sees.
+        GTK windows answer no document role at all, so the caller falls
+        back to the whole window.
+        """
+
+        fallback: Optional[Any] = None
+        for node in self._walk(window):
+            if not self._role(node).casefold().startswith("document"):
+                continue
+            if not self._has_state(node, self._atspi.STATE_SHOWING):
+                continue
+            if self._has_state(node, self._atspi.STATE_FOCUSED):
+                return node
+            fallback = fallback or node
+        return fallback
 
     def _landmark_role(self, node: Any) -> str:
         """First ARIA landmark of the node, or "" (browsers only).

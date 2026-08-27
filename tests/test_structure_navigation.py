@@ -321,5 +321,68 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(result.status, "completed")
 
 
+class BrowserCursorTests(DesktopHarness):
+    """Browsers honor grabFocus() without ever setting STATE_FOCUSED.
+
+    The fake harness mirrors exactly that: FakeComponent.grabFocus sets a
+    plain flag and never touches the node states, so a tree of headings
+    reproduces the Firefox behaviour — and the adapter must still advance
+    through the virtual structure cursor instead of repeating the first
+    jump forever.
+    """
+
+    def _browser_like_window(self, *children):
+        # A "document web" node carrying STATE_FOCUSED, like Firefox
+        # exposes the viewed page; structure walks must scope to it.  No
+        # child carries STATE_FOCUSED — in a browser the focus RESTS on
+        # the document container; grabFocus on a heading never moves it.
+        document = FakeNode(
+            "Seite", "document web", {STATE_SHOWING, STATE_FOCUSED}, list(children)
+        )
+        chrome_link = FakeNode("How to fix this issue", "link", {STATE_SHOWING})
+        return build_structure_desktop(chrome_link, document)
+
+    @staticmethod
+    def _unfocused_field():
+        return FakeNode("Eingabefeld", "text", {STATE_SHOWING})
+
+    def test_repeated_jumps_advance_without_bus_focus(self):
+        field = self._unfocused_field()
+        first = FakeNode("Anfang", "heading", {STATE_SHOWING})
+        second = FakeNode("Mitte", "heading", {STATE_SHOWING})
+        third = FakeNode("Ende", "heading", {STATE_SHOWING})
+        desktop = self.desktop_for(self._browser_like_window(field, first, second, third))
+        spoken_one = desktop.jump_to_structure("heading", backward=False)
+        spoken_two = desktop.jump_to_structure("heading", backward=False)
+        spoken_three = desktop.jump_to_structure("heading", backward=False)
+        self.assertIn("Anfang", spoken_one)
+        self.assertIn("Mitte", spoken_two)
+        self.assertIn("Ende", spoken_three)
+
+    def test_walk_is_scoped_to_the_focused_document_not_chrome(self):
+        field = self._unfocused_field()
+        heading = FakeNode("Inhaltsüberschrift", "heading", {STATE_SHOWING})
+        desktop = self.desktop_for(self._browser_like_window(field, heading))
+        # The chrome link must not be reachable by structure jumps: the
+        # forward link jump finds no in-page link and honestly refuses
+        # instead of landing on the infobar link.
+        with self.assertRaises(GnomeAdapterError) as caught:
+            desktop.jump_to_structure("link", backward=False)
+        self.assertIn("keine Links", caught.exception.args[0])
+
+    def test_cursor_is_dropped_when_the_focus_moves_for_real(self):
+        field = focused_field()
+        first = FakeNode("Anfang", "heading", {STATE_SHOWING})
+        second = FakeNode("Mitte", "heading", {STATE_SHOWING})
+        desktop = self.desktop_for(self._browser_like_window(field, first, second))
+        desktop.jump_to_structure("heading", backward=False)
+        # A real focus move (the user tabbed into the page) beats the
+        # virtual cursor: with STATE_FOCUSED on the field again, the next
+        # forward jump restarts from the field's position.
+        field.states.add(STATE_FOCUSED)
+        spoken = desktop.jump_to_structure("heading", backward=False)
+        self.assertIn("Anfang", spoken)
+
+
 if __name__ == "__main__":
     unittest.main()

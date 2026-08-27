@@ -201,6 +201,23 @@ Es fehlt:
 - **Webinhalte**: Der Browser ist die wichtigste Anwendung überhaupt. Firefox
   und Chromium liefern AT-SPI, aber Webseiten brauchen ein eigenes Modell
   (Formulare, ARIA-Rollen, Live-Regionen, Cookie-Banner, Einwilligungsdialoge).
+
+  Umgesetzt (2026-08-26, Browser-AT-SPI-Anfang): firefox-esr läuft als echte
+  Drittanwendung im AT-SPI-Sitzungstest (Debian-Container, lokale
+  `file://`-Testseite `tests/fixtures/browser_probe_page.html`). Der Adapter
+  scopen Struktur-Sprünge auf das angezeigte Dokument (`document web`, der
+  Fokus tragend) — Browser-Chrome (Menüs, Warnleisten wie „How to fix this
+  issue") und vorinstallierte Hintergrund-Tabs sind außerhalb der Navigation,
+  wie bei Orca. Weil Firefox `grabFocus()` auf nicht fokussierbare Elemente
+  (Überschriften, Landmarken) ohne `STATE_FOCUSED` beantwortet, führt der
+  Adapter einen virtuellen Struktur-Cursor (letzter Landepunkt, pro Fenster,
+  verworfen bei echtem Fokuswechsel) — wiederholte Sprünge laufen dadurch
+  durch das Dokument statt ewig aufs erste Element. Diagnose-Erkenntnisse aus
+  dem echten Baum: Firefox braucht `GNOME_ACCESSIBILITY=1`, `/dev/shm` ≥ 1 GB
+  und in Containern `MOZ_DISABLE_CONTENT_SANDBOX=1`. Bewusst offen:
+  Link-/Button-Aktivierung im Browser (bleibt eine separat bestätigte Aktion,
+  die es dort noch nicht gibt), Tabellen, Formulare, Live-Regionen,
+  Cookie-Banner, Chromium-Pendant.
 - **Dokumente**: PDF, Office-Dateien, E-Mail-HTML.
 - **Terminalausgabe vorlesen** — siehe nächster Punkt.
 
